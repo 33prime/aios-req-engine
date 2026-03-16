@@ -299,7 +299,42 @@ export const HYPOTHESIS_STATUS_COLORS: Record<string, string> = {
 }
 
 // =============================================================================
-// Action Chat Context Builder
+// Strategic Action Icons & Labels (intelligence synthesis v2)
+// =============================================================================
+
+import {
+  CheckSquare,
+  Compass,
+  FileSignature,
+  type LucideIcon as LIcon2,
+} from 'lucide-react'
+
+import type { SynthesizedAction } from '@/lib/api/workspace'
+
+/** Icons for strategic action types */
+export const STRATEGIC_ACTION_ICONS: Record<string, LIcon2> = {
+  explore: MessageCircle,
+  interview: Users,
+  validate: CheckSquare,
+  signal: FileText,
+  synthesize: Compass,
+  confirm: Target,
+}
+
+/** CTA labels for strategic actions */
+export const STRATEGIC_CTA_LABELS: Record<string, string> = {
+  open_chat: 'Start conversation',
+  book_meeting: 'Book a call',
+  meeting_prep: 'Prep meeting',
+}
+
+/** Build chat context for a strategic action — Haiku already generated it */
+export function buildStrategicActionChatContext(action: SynthesizedAction): string {
+  return action.chat_context
+}
+
+// =============================================================================
+// Legacy Action Chat Context Builder (TerseAction / gap-type actions)
 // =============================================================================
 
 import type { TerseAction } from '@/lib/api/workspace'
@@ -321,7 +356,7 @@ const GAP_CHAT_INSTRUCTIONS: Record<string, (a: TerseAction) => string> = {
   critical_questions: (a) => `Critical questions are blocking progress. Help address: "${a.sentence}"`,
 }
 
-/** Build rich conversation context for a Next Action click — primes the LLM with gap-specific instructions and card usage directives. */
+/** Build rich conversation context for a legacy TerseAction click — primes the LLM with gap-specific instructions and card usage directives. */
 export function buildActionChatContext(action: TerseAction): string {
   const parts: string[] = []
 

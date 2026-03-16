@@ -20,5 +20,5 @@ export default function ProjectWorkspacePage() {
   const params = useParams()
   const projectId = params.projectId as string
 
-  return <WorkspaceLayout projectId={projectId} />
+  return <WorkspaceLayout key={projectId} projectId={projectId} />
 }

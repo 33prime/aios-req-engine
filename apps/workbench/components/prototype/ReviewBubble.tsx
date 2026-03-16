@@ -50,6 +50,8 @@ interface ReviewBubbleProps {
   onSetConversationContext?: (context: string) => void
   onNavigateToCollaborate?: () => void
   hideClientPulse?: boolean
+  /** When incremented, switches to chat tab and opens panel */
+  chatTabTrigger?: number
 
   // Entity detection
   entityDetection?: ChatEntityDetectionResult | null
@@ -86,6 +88,7 @@ export function ReviewBubble({
   onSetConversationContext,
   onNavigateToCollaborate,
   hideClientPulse,
+  chatTabTrigger,
   // Entity detection
   entityDetection,
   isSavingAsSignal,
@@ -140,6 +143,14 @@ export function ReviewBubble({
       setActiveTab('primary')
     }
   }, [highlightedFeatureSlug, isReviewMode, isOpen, updateOpen])
+
+  // External trigger to switch to chat tab (e.g., action card click)
+  useEffect(() => {
+    if (chatTabTrigger && chatTabTrigger > 0) {
+      setActiveTab('chat')
+      if (!isOpen) updateOpen(true)
+    }
+  }, [chatTabTrigger, isOpen, updateOpen])
 
   // Persist tab preference
   useEffect(() => {

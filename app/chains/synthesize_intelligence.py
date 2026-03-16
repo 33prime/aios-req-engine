@@ -17,49 +17,68 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 _MODEL = "claude-haiku-4-5-20251001"
-_MAX_TOKENS = 600
+_MAX_TOKENS = 900
 
-# Stage-aware rules for action generation
-_STAGE_RULES = {
+# Phase-aware strategy — consultant-oriented, not database-oriented
+_PHASE_STRATEGIES = {
     "discovery": (
-        "Focus on research and interview actions. "
-        "Help the team gather evidence and validate assumptions."
+        "Map the territory. Who should we talk to? What processes need understanding? "
+        "What documents exist that we haven't ingested? Prioritize conversations and "
+        "document gathering over structural completeness."
     ),
     "validation": (
-        "Focus on review and confirm actions. Help the team solidify what they've learned."
+        "Solution is taking shape. Validate assumptions with specific people. "
+        "Which stakeholders haven't weighed in? What needs a meeting to resolve? "
+        "Focus on confirmation and alignment."
+    ),
+    "solution_flow": (
+        "Solution is taking shape. Validate assumptions with specific people. "
+        "Which stakeholders haven't weighed in? What needs a meeting to resolve? "
+        "Focus on confirmation and alignment."
     ),
     "prototype": (
-        "Focus on signal and review actions. "
-        "NEVER suggest gathering new requirements — the prototype IS the validation."
+        "Focus on review and validation. Reference the prototype where relevant "
+        "but don't suggest prototype-specific review flows. Prioritize stakeholder "
+        "calls and assumption validation before client demo."
     ),
     "build": (
-        "Focus on signal and review actions. "
-        "NEVER suggest gathering new requirements — we are past discovery."
+        "Focus on review and validation. Reference the prototype where relevant "
+        "but don't suggest prototype-specific review flows. Prioritize stakeholder "
+        "calls and assumption validation before client demo."
     ),
 }
 
 _SYSTEM = """\
-You are a requirements engineering intelligence system producing two outputs:
+You are a senior discovery consultant deciding what to do next. You have 3 action \
+slots. Each must generate MAXIMUM INSIGHT. Think like someone billing $300/hour.
+
+You produce two outputs:
 
 1. deal_pulse_text: A 2-3 sentence sales-ready narrative a consultant says \
 verbatim when asked "where are we?" Sound natural, reference specific \
 themes/capabilities/decisions — NOT counts. Under 80 words.
 
-2. actions: Exactly 3 next actions. Each action has:
-   - sentence: One specific, actionable sentence (what to do and why)
-   - action_type: One of research, interview, signal, review, confirm
-   - entity_type: The entity type this relates to (feature, persona, \
-workflow, business_driver, stakeholder, solution_flow_step, or general)
-   - chat_context: A 1-2 sentence context string that would prime a chat \
-assistant to help with this action
+2. actions: Exactly 3 next actions. Actions are things a consultant DOES:
+   - "Walk through {{flow}} with {{person}} to understand the current process"
+   - "Book a call with {{stakeholder}} to validate {{assumption}}"
+   - "Create a meeting agenda for {{topic}} with {{attendees}}"
+   - "Review the {{entity}} — needs validation before client demo"
 
-{stage_rules}
+   NOT things a database is missing:
+   - ❌ "Workflow step missing actor assignment"
+   - ❌ "Add time estimate to step"
+   - ❌ "Feature lacks description"
+
+Phase strategy: {phase_strategy}
 
 Rules:
-- Actions must be stage-appropriate — read the stage rules above carefully
-- Each action targets a different area (don't repeat entity types)
-- Prioritize actions that unblock the most progress
-- chat_context should include enough detail for a chat assistant"""
+- At least one action must involve a conversation (explore or interview type)
+- If stakeholders exist in the data, at least one action must name a specific person
+- NEVER suggest generic "gather requirements" — be specific about WHO and WHAT
+- chat_context must reference specific entities, stakeholders, and evidence by name
+- chat_context should be 2-3 sentences — rich enough to prime a 10-min conversation
+- Each action should target a different area
+- insight_rationale explains why THIS action over alternatives (1 sentence)"""
 
 _TOOL = {
     "name": "synthesized_intelligence",
@@ -76,15 +95,65 @@ _TOOL = {
                 "items": {
                     "type": "object",
                     "properties": {
-                        "sentence": {"type": "string"},
+                        "sentence": {
+                            "type": "string",
+                            "description": "One specific, actionable sentence — what to do and why",
+                        },
                         "action_type": {
                             "type": "string",
-                            "enum": ["research", "interview", "signal", "review", "confirm"],
+                            "enum": [
+                                "explore",
+                                "interview",
+                                "validate",
+                                "signal",
+                                "synthesize",
+                                "confirm",
+                            ],
                         },
-                        "entity_type": {"type": "string"},
-                        "chat_context": {"type": "string"},
+                        "entity_type": {
+                            "type": "string",
+                            "description": (
+                                "feature, persona, workflow, business_driver,"
+                                " stakeholder, solution_flow_step, or general"
+                            ),
+                        },
+                        "entity_name": {
+                            "type": ["string", "null"],
+                            "description": "Specific entity name if applicable",
+                        },
+                        "stakeholder_name": {
+                            "type": ["string", "null"],
+                            "description": "Specific person name if this involves someone",
+                        },
+                        "cta_type": {
+                            "type": "string",
+                            "enum": [
+                                "open_chat",
+                                "book_meeting",
+                                "meeting_prep",
+                            ],
+                            "description": "What clicking this action should do",
+                        },
+                        "chat_context": {
+                            "type": "string",
+                            "description": (
+                                "2-3 sentences to prime a chat"
+                                " assistant for this action"
+                            ),
+                        },
+                        "insight_rationale": {
+                            "type": "string",
+                            "description": "1 sentence — why this action over alternatives",
+                        },
                     },
-                    "required": ["sentence", "action_type", "entity_type", "chat_context"],
+                    "required": [
+                        "sentence",
+                        "action_type",
+                        "entity_type",
+                        "cta_type",
+                        "chat_context",
+                        "insight_rationale",
+                    ],
                 },
                 "minItems": 3,
                 "maxItems": 3,
@@ -92,6 +161,13 @@ _TOOL = {
         },
         "required": ["deal_pulse_text", "actions"],
     },
+}
+
+# CTA labels derived from cta_type
+_CTA_LABELS = {
+    "open_chat": "Start conversation",
+    "book_meeting": "Book a call",
+    "meeting_prep": "Prep meeting",
 }
 
 
@@ -118,9 +194,9 @@ def synthesize_intelligence(
             f"prototype_readiness={pulse_forecast.get('prototype_readiness', 0):.0%}"
         )
 
-    # Map awareness phase to stage rules
-    stage_key = pulse_stage if pulse_stage in _STAGE_RULES else "discovery"
-    system = _SYSTEM.format(stage_rules=f"Stage: {stage_key}. {_STAGE_RULES[stage_key]}")
+    # Map awareness phase to strategy
+    phase_key = pulse_stage if pulse_stage in _PHASE_STRATEGIES else "discovery"
+    system = _SYSTEM.format(phase_strategy=_PHASE_STRATEGIES[phase_key])
 
     try:
         client = Anthropic()
@@ -143,6 +219,10 @@ def synthesize_intelligence(
         for block in response.content:
             if block.type == "tool_use" and block.name == "synthesized_intelligence":
                 result = block.input
+                # Enrich actions with cta_label
+                for action in result.get("actions", []):
+                    cta = action.get("cta_type", "open_chat")
+                    action["cta_label"] = _CTA_LABELS.get(cta, "Start conversation")
                 logger.info(
                     "Intelligence synthesized (tokens=%d/%d)",
                     response.usage.input_tokens,

@@ -5,7 +5,8 @@ import type { SolutionFlowStepSummary, SolutionFlowStepDetail, PersonaSummary } 
 import { getSolutionFlowStep } from '@/lib/api/admin'
 import { SOLUTION_FLOW_PHASES, CONFIDENCE_DOT_COLOR } from '@/lib/solution-flow-constants'
 import { FlowStepChat } from '@/components/workspace/brd/components/FlowStepChat'
-import { X } from 'lucide-react'
+import { Markdown } from '@/components/ui/Markdown'
+import { X, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface FlowStepModalProps {
   projectId: string
@@ -117,9 +118,10 @@ export function FlowStepModal({ projectId, step, isOpen, onClose, personas }: Fl
               <h2 className="text-[22px] font-bold mb-1.5" style={{ color: '#1D1D1F', letterSpacing: '-0.01em' }}>
                 {step.title}
               </h2>
-              <p className="text-[13px] leading-relaxed mb-5" style={{ color: '#7B7B7B' }}>
-                {step.goal}
-              </p>
+              <Markdown
+                content={step.goal}
+                className="text-[13px] leading-relaxed mb-5 text-[#7B7B7B] [&_p]:mb-1.5 [&_p:last-child]:mb-0"
+              />
 
               {/* Actors */}
               <div className="flex gap-2 mb-5 flex-wrap">
@@ -147,10 +149,13 @@ export function FlowStepModal({ projectId, step, isOpen, onClose, personas }: Fl
               {detail?.mock_data_narrative && (
                 <Section label="The Story" icon="📖">
                   <div
-                    className="text-[13px] leading-[1.65] rounded-[9px] p-3.5"
-                    style={{ color: '#333', background: '#F5F5F5', borderLeft: '3px solid #3FAF7A' }}
+                    className="rounded-[9px] p-3.5"
+                    style={{ background: '#F5F5F5', borderLeft: '3px solid #3FAF7A' }}
                   >
-                    {detail.mock_data_narrative}
+                    <Markdown
+                      content={detail.mock_data_narrative}
+                      className="text-[12px] leading-[1.65] [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:text-[#1D1D1F] [&_li]:text-[12px]"
+                    />
                   </div>
                 </Section>
               )}
@@ -187,9 +192,13 @@ export function FlowStepModal({ projectId, step, isOpen, onClose, personas }: Fl
                 </Section>
               )}
 
-              {/* Information Fields */}
+              {/* Information Fields — collapsible */}
               {detail?.information_fields && detail.information_fields.length > 0 && (
-                <Section label="Information Fields" icon="📋">
+                <CollapsibleSection
+                  label={`Information Fields (${detail.information_fields.length})`}
+                  icon="📋"
+                  defaultOpen={false}
+                >
                   <div className="grid grid-cols-2 gap-2">
                     {detail.information_fields.map((f, i) => (
                       <div
@@ -210,7 +219,7 @@ export function FlowStepModal({ projectId, step, isOpen, onClose, personas }: Fl
                       </div>
                     ))}
                   </div>
-                </Section>
+                </CollapsibleSection>
               )}
 
               {/* Open Questions */}
@@ -243,14 +252,16 @@ export function FlowStepModal({ projectId, step, isOpen, onClose, personas }: Fl
               {detail?.background_narrative && (
                 <Section label="Consultant&apos;s Insight" icon="💡">
                   <div
-                    className="text-[12px] leading-relaxed p-3.5 rounded-[9px] italic"
+                    className="p-3.5 rounded-[9px]"
                     style={{
                       background: 'linear-gradient(135deg, rgba(4,65,89,0.03), rgba(63,175,122,0.03))',
                       border: '1px solid rgba(4,65,89,0.08)',
-                      color: '#333',
                     }}
                   >
-                    {detail.background_narrative}
+                    <Markdown
+                      content={detail.background_narrative}
+                      className="text-[12px] leading-relaxed italic [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:not-italic [&_strong]:text-[#1D1D1F]"
+                    />
                   </div>
                 </Section>
               )}
@@ -298,6 +309,27 @@ function Section({ label, icon, children }: { label: string; icon: string; child
         <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#7B7B7B' }}>{label}</span>
       </div>
       {children}
+    </div>
+  )
+}
+
+// Collapsible section with toggle
+function CollapsibleSection({ label, icon, defaultOpen = true, children }: { label: string; icon: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="mb-5">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 mb-2 mt-5 cursor-pointer group w-full text-left"
+      >
+        <span className="text-xs">{icon}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#7B7B7B' }}>{label}</span>
+        {open
+          ? <ChevronDown size={12} className="ml-1" style={{ color: '#999' }} />
+          : <ChevronRight size={12} className="ml-1" style={{ color: '#999' }} />
+        }
+      </button>
+      {open && children}
     </div>
   )
 }

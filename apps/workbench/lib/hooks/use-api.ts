@@ -47,6 +47,7 @@ import {
   listPendingItems,
   listCallRecordings,
   listAllStakeholders,
+  getIntelligence,
 } from '@/lib/api'
 import type {
   NextAction,
@@ -62,6 +63,7 @@ import type {
   HomeDashboardData,
   MemoryVisualizationResponse,
   UnifiedMemoryResponse,
+  IntelligenceData,
 } from '@/lib/api'
 import type { Profile, ProjectDetailWithDashboard, Meeting, ProjectPulse, ClientPulse, ClientActivityItem, PhaseProgressResponse } from '@/types/api'
 import type { CollaborationCurrentResponse } from '@/lib/api/collaboration'
@@ -96,6 +98,7 @@ export const SWR_KEYS = {
   salesIntel: (pid: string) => `sales-intel:${pid}`,
   unifiedMemory: (pid: string) => `unified-memory:${pid}`,
   callRecordings: (pid: string) => `call-recordings:${pid}`,
+  intelligence: (pid: string) => `intelligence:${pid}`,
 } as const
 
 // --- Cache TTL presets (in milliseconds) ---
@@ -362,6 +365,22 @@ export function useContextFrame(
     () => getContextFrame(projectId!, 5),
     {
       dedupingInterval: LONG_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Intelligence (unified pulse + deal narrative + strategic actions) ---
+export function useIntelligence(
+  projectId: string | undefined,
+  config?: SWRConfiguration<IntelligenceData>,
+) {
+  return useSWR<IntelligenceData>(
+    projectId ? SWR_KEYS.intelligence(projectId) : null,
+    () => getIntelligence(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,
       ...config,
     },

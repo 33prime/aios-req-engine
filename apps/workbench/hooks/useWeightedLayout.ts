@@ -39,7 +39,7 @@ export function getSizeClass(weight: number, isHero: boolean): FlowCardSize {
 export function useWeightedLayout(items: LayoutItem[], config?: LayoutConfig) {
   return useMemo(() => {
     if (!items.length) {
-      return { positions: new Map<string, FlowLayoutPosition>(), totalWidth: 0, heroId: null }
+      return { positions: new Map<string, FlowLayoutPosition>(), totalWidth: 0, totalHeight: 0, heroId: null }
     }
 
     const { colGap, rowGap, paddingLeft, riverY } = { ...DEFAULTS, ...config }
@@ -84,6 +84,8 @@ export function useWeightedLayout(items: LayoutItem[], config?: LayoutConfig) {
     // Position cards within each column
     const positions = new Map<string, FlowLayoutPosition>()
 
+    const TOP_PAD = 16
+
     colKeys.forEach(c => {
       const cardIndices = cols[c].sort((a, b) => items[a].row - items[b].row)
 
@@ -91,13 +93,13 @@ export function useWeightedLayout(items: LayoutItem[], config?: LayoutConfig) {
         const i = cardIndices[0]
         positions.set(items[i].id, {
           x: colX[c] + (colWidths[c] - sizes[i].w) / 2,
-          y: riverY - sizes[i].h / 2,
+          y: Math.max(TOP_PAD, riverY - sizes[i].h / 2),
           w: sizes[i].w,
           h: sizes[i].h,
         })
       } else {
         const totalH = cardIndices.reduce((s, i) => s + sizes[i].h, 0) + rowGap * (cardIndices.length - 1)
-        let y = riverY - totalH / 2
+        let y = Math.max(TOP_PAD, riverY - totalH / 2)
         cardIndices.forEach(i => {
           positions.set(items[i].id, {
             x: colX[c] + (colWidths[c] - sizes[i].w) / 2,
@@ -110,6 +112,13 @@ export function useWeightedLayout(items: LayoutItem[], config?: LayoutConfig) {
       }
     })
 
-    return { positions, totalWidth: x + 40, heroId }
+    // Compute total height needed (max bottom edge of any card + padding)
+    let maxBottom = 0
+    positions.forEach(pos => {
+      maxBottom = Math.max(maxBottom, pos.y + pos.h)
+    })
+    const totalHeight = maxBottom + TOP_PAD
+
+    return { positions, totalWidth: x + 40, totalHeight, heroId }
   }, [items, config])
 }

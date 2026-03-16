@@ -48,6 +48,19 @@ export interface PortalClientSummary {
   last_activity?: string | null
 }
 
+/** Consultant-serving strategic action from intelligence synthesis */
+export interface StrategicAction {
+  sentence: string
+  action_type: 'explore' | 'interview' | 'validate' | 'signal' | 'synthesize' | 'confirm'
+  entity_type?: string | null
+  entity_name?: string | null
+  stakeholder_name?: string | null
+  cta_type: 'open_chat' | 'book_meeting' | 'meeting_prep'
+  cta_label: string
+  chat_context: string
+  insight_rationale: string
+}
+
 export interface CanvasData {
   project_id: string
   project_name: string

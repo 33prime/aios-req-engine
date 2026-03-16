@@ -598,38 +598,27 @@ function SidebarMessageBubble({
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
 
+  // Signal result — consolidated "process" tool with action "signal", or legacy "add_signal"
   const signalResult = message.toolCalls?.find(
-    (t) => t.tool_name === 'add_signal' && t.status === 'complete' && t.result?.processed
+    (t) => t.status === 'complete' && t.result?.processed && t.result?.proposal_id
+      && (t.tool_name === 'process' || t.tool_name === 'add_signal')
   )?.result
 
   // Quick Action Cards (from suggest_actions tool)
+  // Backend tool schema uses "type" but QuickActionCards expects "card_type" — normalize here
   const actionCards = message.toolCalls?.filter(
     (t) => t.tool_name === 'suggest_actions' && t.status === 'complete' && t.result?.cards
-  )
-
-  // Auto-convert generate_client_email results into email_draft cards
-  const emailResult = message.toolCalls?.find(
-    (t) => t.tool_name === 'generate_client_email' && t.status === 'complete' && t.result?.success && t.result?.subject
-  )?.result
-  const emailCards = emailResult ? [{
-    card_type: 'email_draft',
-    id: 'email-auto',
-    data: { to: emailResult.client_name || 'Client', subject: emailResult.subject, body: emailResult.body }
-  }] : null
-
-  // Auto-convert generate_meeting_agenda results into meeting cards
-  const meetingResult = message.toolCalls?.find(
-    (t) => t.tool_name === 'generate_meeting_agenda' && t.status === 'complete' && t.result?.success && t.result?.agenda
-  )?.result
-  const meetingCards = meetingResult ? [{
-    card_type: 'meeting',
-    id: 'meeting-auto',
-    data: {
-      topic: meetingResult.title || 'Client Meeting',
-      attendees: [],
-      agenda: (meetingResult.agenda || []).map((a: any) => `${a.topic} (${a.time_minutes}min)`)
-    }
-  }] : null
+  ).map((tc) => ({
+    ...tc,
+    result: {
+      ...tc.result,
+      cards: (tc.result.cards as any[]).map((card: any, i: number) => ({
+        card_type: card.card_type || card.type,
+        id: card.id || `card-${i}`,
+        data: card.data,
+      })),
+    },
+  }))
 
   // Render processing results card for system messages
   if (isSystem && message.metadata?.card_type === 'processing_results') {
@@ -707,12 +696,6 @@ function SidebarMessageBubble({
             onAction={(command) => onSendMessage?.(command)}
           />
         ))}
-        {emailCards && (
-          <QuickActionCards cards={emailCards} onAction={(command) => onSendMessage?.(command)} />
-        )}
-        {meetingCards && (
-          <QuickActionCards cards={meetingCards} onAction={(command) => onSendMessage?.(command)} />
-        )}
 
         {/* Tool chips for completed non-card tools (grouped to collapse duplicates) */}
         {message.toolCalls && (() => {

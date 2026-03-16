@@ -76,7 +76,7 @@ export function FlowBlueprintView({
     return items
   }, [steps])
 
-  const { positions, totalWidth, heroId } = useWeightedLayout(layoutItems)
+  const { positions, totalWidth, totalHeight, heroId } = useWeightedLayout(layoutItems)
 
   const activeStep = steps.find(s => s.id === activeStepId) || null
   const isPersonaFiltered = activePersona !== null
@@ -147,35 +147,59 @@ export function FlowBlueprintView({
         className="flex-shrink-0 px-8 pt-4 pb-3"
         style={{ background: '#0A1E2F' }}
       >
-        {/* Top row: thesis + pills */}
-        <div className="flex items-start gap-6 mb-3">
-          <p className="text-[15px] font-normal leading-relaxed flex-1 max-w-[720px]" style={{ color: 'rgba(255,255,255,0.82)' }}>
-            {flow.summary ? (
-              <>
-                {flow.summary.split(/(\b\d+\b)/g).map((part, i) =>
-                  /\d+/.test(part) ? (
-                    <em key={i} className="not-italic font-medium" style={{ color: '#3FAF7A' }}>{part}</em>
-                  ) : part
-                )}
-              </>
-            ) : (
-              <span>Your <em className="not-italic font-medium" style={{ color: '#3FAF7A' }}>Solution Flow</em>: {steps.length} steps across {new Set(steps.map(s => s.phase)).size} phases</span>
-            )}
-          </p>
+        {/* Top row: thesis (clamped) + action buttons */}
+        <div className="flex items-center gap-6 mb-3">
+          <div
+            className="text-[13px] font-normal leading-snug flex-1 min-w-0"
+            style={{
+              color: 'rgba(255,255,255,0.78)',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {flow.summary || `Your Solution Flow: ${steps.length} steps across ${new Set(steps.map(s => s.phase)).size} phases`}
+          </div>
 
-          <div className="flex gap-3 flex-shrink-0">
-            <div className="flex flex-col items-center px-3.5 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <span className="text-[17px] font-bold leading-tight" style={{ color: '#3FAF7A' }}>{steps.length}</span>
-              <span className="text-[9px] uppercase tracking-wide font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>Steps</span>
-            </div>
-            <div className="flex flex-col items-center px-3.5 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <span className="text-[17px] font-bold leading-tight" style={{ color: '#3FAF7A' }}>{personaList.length}</span>
-              <span className="text-[9px] uppercase tracking-wide font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>Personas</span>
-            </div>
+          <div className="flex gap-2 flex-shrink-0">
+            {/* Horizons button */}
+            <button
+              onClick={() => setHorizonsOpen(!horizonsOpen)}
+              className="px-3.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+              style={{
+                border: `1px solid ${horizonsOpen ? 'rgba(63,175,122,0.35)' : 'rgba(255,255,255,0.12)'}`,
+                background: horizonsOpen ? 'rgba(63,175,122,0.08)' : 'transparent',
+                color: horizonsOpen ? '#3FAF7A' : 'rgba(255,255,255,0.45)',
+              }}
+            >
+              Horizons
+            </button>
+
+            {/* Present button */}
+            <button
+              onClick={() => setPresentMode(true)}
+              className="px-4 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+              style={{
+                border: '1px solid rgba(63,175,122,0.35)',
+                background: 'rgba(63,175,122,0.08)',
+                color: '#3FAF7A',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(63,175,122,0.18)'
+                e.currentTarget.style.borderColor = '#3FAF7A'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(63,175,122,0.08)'
+                e.currentTarget.style.borderColor = 'rgba(63,175,122,0.35)'
+              }}
+            >
+              Present
+            </button>
           </div>
         </div>
 
-        {/* Bottom row: persona pills + buttons */}
+        {/* Bottom row: persona pills + stats */}
         <div className="flex items-center gap-2.5">
           <div className="flex gap-1.5 flex-1">
             {personaList.map((p, i) => (
@@ -200,39 +224,17 @@ export function FlowBlueprintView({
             ))}
           </div>
 
-          {/* Horizons button */}
-          <button
-            onClick={() => setHorizonsOpen(!horizonsOpen)}
-            className="px-3.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
-            style={{
-              border: `1px solid ${horizonsOpen ? 'rgba(63,175,122,0.35)' : 'rgba(255,255,255,0.12)'}`,
-              background: horizonsOpen ? 'rgba(63,175,122,0.08)' : 'transparent',
-              color: horizonsOpen ? '#3FAF7A' : 'rgba(255,255,255,0.45)',
-            }}
-          >
-            Horizons
-          </button>
-
-          {/* Present button */}
-          <button
-            onClick={() => setPresentMode(true)}
-            className="px-4 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
-            style={{
-              border: '1px solid rgba(63,175,122,0.35)',
-              background: 'rgba(63,175,122,0.08)',
-              color: '#3FAF7A',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(63,175,122,0.18)'
-              e.currentTarget.style.borderColor = '#3FAF7A'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(63,175,122,0.08)'
-              e.currentTarget.style.borderColor = 'rgba(63,175,122,0.35)'
-            }}
-          >
-            Present
-          </button>
+          {/* Stats pills — bottom right */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <span className="text-[13px] font-bold" style={{ color: '#3FAF7A' }}>{steps.length}</span>
+              <span className="text-[9px] uppercase tracking-wide font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>Steps</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <span className="text-[13px] font-bold" style={{ color: '#3FAF7A' }}>{personaList.length}</span>
+              <span className="text-[9px] uppercase tracking-wide font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>Personas</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -251,7 +253,7 @@ export function FlowBlueprintView({
       <div className="flex-1 overflow-auto relative">
         <div
           className="relative"
-          style={{ minWidth: totalWidth, minHeight: 520, padding: '20px 0' }}
+          style={{ minWidth: totalWidth, minHeight: Math.max(520, totalHeight), padding: '20px 0' }}
         >
           {/* Waterline gradient */}
           <div

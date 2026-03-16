@@ -39,11 +39,11 @@ import {
   listPrototypeSessions,
   getEpicVerdicts,
 } from '@/lib/api'
-import { useBRDData, useContextFrame, useWorkspaceData, useEpicPlan, useEpicVerdicts } from '@/lib/hooks/use-api'
+import { useBRDData, useContextFrame, useWorkspaceData, useEpicPlan, useEpicVerdicts, useIntelligence } from '@/lib/hooks/use-api'
 import { useRealtimeBRD } from '@/lib/realtime'
 import type { CanvasData } from '@/types/workspace'
 import type { NextAction } from '@/lib/api'
-import { buildActionChatContext } from '@/lib/action-constants'
+import { buildActionChatContext, buildStrategicActionChatContext } from '@/lib/action-constants'
 import type { VpStep } from '@/types/api'
 import type { FeatureOverlay, PrototypeSession } from '@/types/prototype'
 import type { EpicTourPhase, EpicVerdict, ReviewSummary, ReviewState } from '@/types/epic-overlay'
@@ -77,6 +77,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const brdData = brdSwr ?? null
   const nextActions = brdSwr?.next_actions ?? null
   const { data: contextFrame, isLoading: isContextFrameLoading, mutate: mutateContextFrame } = useContextFrame(projectId)
+  const { data: intelligenceData, isLoading: isIntelligenceLoading, mutate: mutateIntelligence } = useIntelligence(projectId)
   useRealtimeBRD(projectId)
   // Persist phase to localStorage so refresh restores the current view
   useEffect(() => {
@@ -89,7 +90,9 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | 'calls' | null>(null)
   const [discoveryViewMode, setDiscoveryViewMode] = useState<'brd' | 'canvas' | 'flow' | 'ai'>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('discovery-view-mode') as 'brd' | 'canvas' | 'flow' | 'ai') || 'brd'
+      const stored = localStorage.getItem('discovery-view-mode') as 'brd' | 'canvas' | 'flow' | 'ai'
+      // Canvas tab hidden — fallback to brd if stored
+      return stored === 'canvas' ? 'brd' : (stored || 'brd')
     }
     return 'brd'
   })
@@ -97,6 +100,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   // BRD scroll tracking — active section for page_context
   const [activeBrdSection, setActiveBrdSection] = useState<string | null>(null)
+  // Trigger to switch ReviewBubble to chat tab (incremented on action clicks)
+  const [chatTabTrigger, setChatTabTrigger] = useState(0)
 
   // Dynamic page context for chat — tells the LLM what the user is looking at
   const pageContext = useMemo(() => {
@@ -219,11 +224,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     return map
   }, [epicConfirmations])
 
-  // Revalidate BRD + context frame when chat tools mutate data
+  // Revalidate BRD + context frame + intelligence when chat tools mutate data
   const handleDataMutated = useCallback(() => {
     mutateBrd()
     mutateContextFrame()
-  }, [mutateBrd, mutateContextFrame])
+    mutateIntelligence()
+  }, [mutateBrd, mutateContextFrame, mutateIntelligence])
 
   // Chat integration
   const {
@@ -283,7 +289,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           setIsReviewActive(true)
           setReviewPhase('active')
           setReviewState('in_progress')
-          setPanelOpen(true)
+          // Don't setPanelOpen here — ReviewBubble manages its own open state
+          // and will auto-open when review mode fully engages (session + epicPlan)
         }
       })
       .catch(() => {})
@@ -526,6 +533,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   // Intelligence action click → open chat with context pre-loaded
   const handleIntelligenceAction = useCallback((action: import('@/lib/api/workspace').SynthesizedAction) => {
     setConversationContext(action.chat_context)
+    setChatTabTrigger((n) => n + 1)
     sendMessage(action.sentence)
   }, [setConversationContext, sendMessage])
 
@@ -740,11 +748,17 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 isBrdLoading={isBrdLoading}
                 nextActions={nextActions}
                 contextActions={contextFrame?.actions}
-                isLoadingActions={isContextFrameLoading}
+                strategicActions={intelligenceData?.actions}
+                isLoadingActions={isIntelligenceLoading}
                 onNavigateToPhase={(p) => setPhase(p)}
                 onActionExecute={handleActionExecuteFromOverview}
                 onActionChat={(action) => {
                   setConversationContext(buildActionChatContext(action))
+                  setPanelOpen(true)
+                  sendMessage(action.sentence)
+                }}
+                onStrategicActionChat={(action) => {
+                  setConversationContext(buildStrategicActionChatContext(action))
                   setPanelOpen(true)
                   sendMessage(action.sentence)
                 }}
@@ -757,8 +771,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 {/* View mode toggle */}
                 <div className="flex items-center justify-end mb-2 flex-shrink-0">
                   <div className="inline-flex items-center bg-gray-100 rounded-md p-0.5 text-[12px]">
-                    {(['brd', 'canvas', 'flow', 'ai'] as const).map((mode) => {
-                      const labels = { brd: 'BRD View', canvas: 'Canvas', flow: 'Flow', ai: 'AI' }
+                    {(['brd', 'flow', 'ai'] as const).map((mode) => {
+                      const labels = { brd: 'BRD View', canvas: 'Canvas', flow: 'Solution Flow', ai: 'Data & AI' }
                       return (
                         <button
                           key={mode}
@@ -930,14 +944,15 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           onSetConversationContext={setConversationContext}
           onNavigateToCollaborate={() => setPhase('collaborate')}
           hideClientPulse={phase === 'collaborate'}
+          chatTabTrigger={chatTabTrigger}
           // Entity detection
           entityDetection={entityDetection}
           isSavingAsSignal={isSavingAsSignal}
           onSaveAsSignal={async () => { await saveAsSignal(); mutateBrd(); mutateContextFrame() }}
           onDismissDetection={dismissDetection}
-          // Review props (triggers review mode when present)
-          session={isReviewActive ? reviewSession ?? undefined : undefined}
-          epicPlan={isReviewActive ? epicPlan ?? undefined : undefined}
+          // Review props — only on Build phase, otherwise show normal Briefing/Chat
+          session={isReviewActive && phase === 'build' ? reviewSession ?? undefined : undefined}
+          epicPlan={isReviewActive && phase === 'build' ? epicPlan ?? undefined : undefined}
           epicPhase={epicPhase}
           epicCardIndex={epicCardIndex}
           epicConfirmations={epicConfirmations ?? []}

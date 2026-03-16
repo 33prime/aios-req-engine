@@ -58,6 +58,10 @@ class ProjectAwareness:
     # Stakeholder awareness
     key_stakeholders: list[dict] = field(default_factory=list)
 
+    # Confirmation state
+    pending_confirmation_count: int = 0
+    meeting_confirmations: list[dict] = field(default_factory=list)
+
 
 # ── Cache ──────────────────────────────────────────────────────────
 _awareness_cache: dict[str, tuple[float, ProjectAwareness]] = {}
@@ -298,6 +302,33 @@ def format_awareness_snapshot(awareness: ProjectAwareness) -> str:
     if awareness.whats_discovered:
         sections.append("## Discovered\n" + "\n".join(f"- {d}" for d in awareness.whats_discovered))
 
+    # Stakeholders
+    if awareness.key_stakeholders:
+        stakeholder_lines: list[str] = []
+        for s in awareness.key_stakeholders:
+            line = s.get("name", "Unknown")
+            if s.get("role"):
+                line += f" ({s['role']})"
+            if s.get("email"):
+                line += f", email: {s['email']}"
+            stakeholder_lines.append(f"- {line}")
+        sections.append("## Stakeholders\n" + "\n".join(stakeholder_lines))
+
+    # Confirmation state
+    if awareness.pending_confirmation_count > 0:
+        conf_line = f"{awareness.pending_confirmation_count} pending confirmations"
+        meeting_count = len(awareness.meeting_confirmations)
+        if meeting_count > 0:
+            conf_line += f", {meeting_count} suggest a meeting"
+        sections.append(f"## Confirmations\n{conf_line}")
+
+    # Prototype state
+    proto_sessions = awareness.phase_metrics.get("sessions", 0)
+    if proto_sessions > 0:
+        sections.append(
+            f"## Prototype\n{proto_sessions} session{'s' if proto_sessions != 1 else ''} completed"
+        )
+
     # Timeline
     sections.append(
         f"## Timeline\nPast: {awareness.past}\nNow: {awareness.present}\nAhead: {awareness.future}"
@@ -437,11 +468,11 @@ async def _build_awareness(project_id: str, project_name: str) -> ProjectAwarene
             return []
 
     def _q_stakeholders():
-        """Get key stakeholders."""
+        """Get key stakeholders with email for action personalization."""
         try:
             resp = (
                 supabase.table("stakeholders")
-                .select("first_name, last_name, name, role, stakeholder_type")
+                .select("first_name, last_name, name, role, stakeholder_type, email")
                 .eq("project_id", pid)
                 .limit(5)
                 .execute()
@@ -454,11 +485,36 @@ async def _build_awareness(project_id: str, project_name: str) -> ProjectAwarene
                     ),
                     "role": s.get("role", ""),
                     "type": s.get("stakeholder_type", ""),
+                    "email": s.get("email", ""),
                 }
                 for s in (resp.data or [])
             ]
         except Exception:
             return []
+
+    def _q_confirmations():
+        """Get pending confirmation state for action generation."""
+        try:
+            # Count pending confirmations
+            pending = (
+                supabase.table("open_questions")
+                .select("id, question, suggested_method", count="exact")
+                .eq("project_id", pid)
+                .eq("status", "open")
+                .execute()
+            )
+            questions = pending.data or []
+            meeting_confs = [
+                {"question": q.get("question", "")}
+                for q in questions
+                if q.get("suggested_method") == "meeting"
+            ]
+            return {
+                "pending_confirmation_count": pending.count or 0,
+                "meeting_confirmations": meeting_confs[:5],
+            }
+        except Exception:
+            return {"pending_confirmation_count": 0, "meeting_confirmations": []}
 
     (
         flow_overview,
@@ -466,12 +522,14 @@ async def _build_awareness(project_id: str, project_name: str) -> ProjectAwarene
         proto_data,
         recent_unlocks,
         stakeholders,
+        confirmations,
     ) = await asyncio.gather(
         asyncio.to_thread(_q_flow_overview),
         asyncio.to_thread(_q_counts),
         asyncio.to_thread(_q_prototype),
         asyncio.to_thread(_q_recent_unlocks),
         asyncio.to_thread(_q_stakeholders),
+        asyncio.to_thread(_q_confirmations),
     )
 
     # Merge data
@@ -548,6 +606,8 @@ async def _build_awareness(project_id: str, project_name: str) -> ProjectAwarene
         present=temporal["present"],
         future=temporal["future"],
         key_stakeholders=stakeholders,
+        pending_confirmation_count=confirmations.get("pending_confirmation_count", 0),
+        meeting_confirmations=confirmations.get("meeting_confirmations", []),
     )
 
     logger.info(

@@ -349,6 +349,45 @@ export type BuildPipelineStatus =
   | 'completed'
   | 'failed'
 
+export interface BuildLogEntry {
+  phase: string
+  message: string
+  type?: string
+  data?: Phase0CompleteData | PayloadAssembledData | ArchitectureCompleteData | ScreenBuiltData | PipelineCompleteData | Record<string, unknown>
+  timestamp?: string
+}
+
+export interface Phase0CompleteData {
+  feature_count: number
+  epics: { name: string; feature_count: number }[]
+  depth_summary: Record<string, number>
+}
+
+export interface PayloadAssembledData {
+  feature_count: number
+  persona_count: number
+  flow_step_count: number
+}
+
+export interface ArchitectureCompleteData {
+  sections: { label: string; screen_count: number }[]
+  screens: { name: string; route: string }[]
+  total_screens: number
+}
+
+export interface ScreenBuiltData {
+  name: string
+  route: string
+  index: number
+  total: number
+}
+
+export interface PipelineCompleteData {
+  screen_count: number
+  file_count: number
+  total_s: number
+}
+
 export interface BuildStatus {
   build_id: string
   status: BuildPipelineStatus
@@ -361,4 +400,5 @@ export interface BuildStatus {
   deploy_url: string | null
   github_repo_url: string | null
   errors: string[]
+  build_log?: BuildLogEntry[]
 }

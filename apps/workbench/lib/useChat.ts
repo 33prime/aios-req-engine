@@ -36,13 +36,9 @@ export interface ChatMessage {
 }
 
 // Tools that mutate project data — frontend should revalidate after these execute
+// Consolidated 6-tool system: write, process, solution_flow, client_portal all mutate
 const MUTATING_TOOLS = new Set([
-  'create_entity', 'update_entity', 'delete_entity', 'add_signal', 'create_task',
-  'create_confirmation', 'attach_evidence', 'generate_strategic_context',
-  'update_strategic_context', 'update_project_type', 'identify_stakeholders',
-  'update_solution_flow_step', 'refine_solution_flow_step',
-  'add_solution_flow_step', 'remove_solution_flow_step',
-  'reorder_solution_flow_steps', 'resolve_solution_flow_question',
+  'write', 'process', 'solution_flow', 'client_portal',
 ])
 
 interface UseChatOptions {

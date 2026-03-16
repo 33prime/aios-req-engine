@@ -24,32 +24,19 @@ import {
   X,
   Sparkles,
   Loader2,
-  CheckCircle2,
   XCircle,
-  Zap,
-  Cpu,
-  Hammer,
-  Rocket,
 } from 'lucide-react'
 import EpicTourController from '@/components/prototype/EpicTourController'
+import BuildCinematicView from '@/components/prototype/BuildCinematicView'
 import { DesignSelectionChat } from '@/components/prototype/DesignSelectionChat'
 import { startBuild, getBuildStatus, cancelBuild } from '@/lib/api'
 import type {
   PrototypeSession,
   DesignSelection,
   BuildStatus,
-  BuildPipelineStatus,
 } from '@/types/prototype'
 import type { EpicOverlayPlan, EpicTourPhase, ReviewSummary } from '@/types/epic-overlay'
 import ReviewSummaryOverlay from '@/components/prototype/ReviewSummaryOverlay'
-
-// Build phase metadata for progress display
-const BUILD_PHASES: { key: BuildPipelineStatus; label: string; icon: typeof Zap }[] = [
-  { key: 'phase0', label: 'Analyzing discovery data', icon: Zap },
-  { key: 'planning', label: 'Planning architecture', icon: Cpu },
-  { key: 'building', label: 'Building screens', icon: Hammer },
-  { key: 'deploying', label: 'Deploying to Netlify', icon: Rocket },
-]
 
 interface BuildPhaseViewProps {
   projectId: string
@@ -290,7 +277,7 @@ export function BuildPhaseView({
     try {
       const result = await startBuild(projectId, { designSelection: selection })
       setActiveBuildId(result.build_id)
-      setBuildStatus({ build_id: result.build_id, status: 'pending', streams_total: 0, streams_completed: 0, tasks_total: 0, tasks_completed: 0, total_tokens_used: 0, total_cost_usd: 0, deploy_url: null, github_repo_url: null, errors: [] })
+      setBuildStatus({ build_id: result.build_id, status: 'pending', streams_total: 0, streams_completed: 0, tasks_total: 0, tasks_completed: 0, total_tokens_used: 0, total_cost_usd: 0, deploy_url: null, github_repo_url: null, errors: [], build_log: [] })
       setShowDesignModal(false)
     } catch (error) {
       console.error('Failed to start build:', error)
@@ -606,53 +593,12 @@ export function BuildPhaseView({
             />
           </>
         ) : isBuilding && buildStatus ? (
-          /* ── Build Progress View ── */
-          <div className="flex items-center justify-center h-full">
-            <div className="w-full max-w-md text-center px-6">
-              <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-brand-primary-light flex items-center justify-center">
-                <Hammer className="w-8 h-8 text-brand-primary animate-pulse" />
-              </div>
-              <h3 className="text-base font-semibold text-[#37352f] mb-1">Building Your Prototype</h3>
-              <p className="text-sm text-text-placeholder mb-6">
-                AI agents are building a live, interactive prototype from your discovery data.
-              </p>
-
-              {/* Phase steps */}
-              <div className="space-y-2 text-left mb-6">
-                {BUILD_PHASES.map((phase) => {
-                  const phaseOrder = BUILD_PHASES.map((p) => p.key)
-                  const currentIdx = phaseOrder.indexOf(buildStatus.status as BuildPipelineStatus)
-                  const thisIdx = phaseOrder.indexOf(phase.key)
-                  const isActive = buildStatus.status === phase.key
-                  const isComplete = currentIdx > thisIdx
-                  const Icon = isComplete ? CheckCircle2 : isActive ? Loader2 : phase.icon
-
-                  return (
-                    <div key={phase.key} className="flex items-center gap-3 py-1.5">
-                      <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${
-                        isComplete ? 'text-brand-primary' :
-                        isActive ? 'text-brand-primary animate-spin' :
-                        'text-text-placeholder'
-                      }`} />
-                      <span className={`text-sm ${
-                        isComplete || isActive ? 'text-text-body font-medium' : 'text-text-placeholder'
-                      }`}>
-                        {phase.label}
-                        {isActive && <span className="text-text-placeholder font-normal">...</span>}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <button
-                onClick={handleCancelBuild}
-                className="text-sm text-text-placeholder hover:text-red-500 transition-colors underline underline-offset-2"
-              >
-                Cancel build
-              </button>
-            </div>
-          </div>
+          /* ── Cinematic Build Experience ── */
+          <BuildCinematicView
+            status={buildStatus.status}
+            buildLog={buildStatus.build_log ?? []}
+            onCancel={handleCancelBuild}
+          />
         ) : buildError ? (
           /* ── Build Failed View ── */
           <div className="flex items-center justify-center h-full">

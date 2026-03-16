@@ -104,7 +104,7 @@ export function AIAgentsView({ projectId, flow, personas }: AIAgentsViewProps) {
     })
   }, [agents])
 
-  const { positions, totalWidth, heroId } = useWeightedLayout(layoutItems)
+  const { positions, totalWidth, totalHeight, heroId } = useWeightedLayout(layoutItems)
 
   const activeAgent = agents.find(a => a.id === activeAgentId) || null
   const isPersonaFiltered = activePersona !== null
@@ -279,7 +279,7 @@ export function AIAgentsView({ projectId, flow, personas }: AIAgentsViewProps) {
       <div className="flex-1 overflow-auto relative">
         <div
           className="relative"
-          style={{ minWidth: totalWidth, minHeight: 520, padding: '20px 0' }}
+          style={{ minWidth: totalWidth, minHeight: Math.max(520, totalHeight), padding: '20px 0' }}
         >
           {/* Background gradient */}
           <div

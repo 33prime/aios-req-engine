@@ -367,6 +367,7 @@ async def get_build_status(project_id: UUID, build_id: UUID):
         deploy_url=build.get("deploy_url"),
         github_repo_url=build.get("github_repo_url"),
         errors=build.get("errors", []),
+        build_log=build.get("build_log") or [],
     )
 
 
@@ -588,6 +589,26 @@ async def _run_build_pipeline(
                     prototype_id,
                     prebuild_intelligence=prebuild_result.model_dump() if prebuild_result else None,
                 )
+
+                # Structured event: phase0_complete
+                if prebuild_result:
+                    epic_plan = prebuild_result.epic_plan or {}
+                    epics_data = []
+                    for epic in epic_plan.get("epics", []):
+                        epics_data.append({
+                            "name": epic.get("name", ""),
+                            "feature_count": len(epic.get("features", [])),
+                        })
+                    append_build_log(build_id, {
+                        "phase": "phase0",
+                        "type": "phase0_complete",
+                        "message": "Phase 0 intelligence complete",
+                        "data": {
+                            "feature_count": len(prebuild_result.feature_specs),
+                            "epics": epics_data,
+                            "depth_summary": prebuild_result.depth_summary,
+                        },
+                    })
             except Exception as e:
                 logger.warning(f"Phase 0 failed (non-fatal): {e}")
                 append_build_log(build_id, {"phase": "phase0", "message": f"Phase 0 skipped: {e}"})
@@ -628,6 +649,18 @@ async def _run_build_pipeline(
                     raise
         payload = payload_response.payload
 
+        # Enrich phase0_complete with persona/flow counts now that payload is ready
+        append_build_log(build_id, {
+            "phase": "planning",
+            "type": "payload_assembled",
+            "message": "Payload assembled",
+            "data": {
+                "feature_count": len(payload.features),
+                "persona_count": len(payload.personas),
+                "flow_step_count": len(payload.solution_flow_steps),
+            },
+        })
+
         # Ensure we have prebuild intelligence (from Phase 0 or DB)
         if not prebuild_result and not skip_phase0:
             from app.db.prototypes import get_prototype
@@ -651,11 +684,21 @@ async def _run_build_pipeline(
 
         from app.pipeline import run_prototype_pipeline
 
+        def _progress_cb(event_type: str, data: dict) -> None:
+            """Write structured pipeline events into build_log."""
+            append_build_log(build_id, {
+                "phase": "building",
+                "type": event_type,
+                "message": f"Pipeline: {event_type}",
+                "data": data,
+            })
+
         update_build_status(build_id, "building")
         pipeline_result = await run_prototype_pipeline(
             payload=payload,
             prebuild=prebuild_result,
             build_dir=build_path,
+            on_progress=_progress_cb,
         )
 
         stats = pipeline_result.stats
@@ -756,6 +799,12 @@ async def _run_build_pipeline(
                     deploy_url=deploy_url,
                     netlify_site_id=site_id,
                 )
+                append_build_log(build_id, {
+                    "phase": "deploying",
+                    "type": "deploy_complete",
+                    "message": "Prototype deployed",
+                    "data": {},
+                })
             except Exception as e:
                 logger.error(f"Deployment failed: {e}")
                 append_build_log(build_id, {"phase": "deploying", "message": f"Deploy failed: {e}"})

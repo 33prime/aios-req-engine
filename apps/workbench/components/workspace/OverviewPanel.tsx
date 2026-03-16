@@ -23,6 +23,11 @@ import {
   Calendar,
   Globe,
   Sparkles,
+  Users,
+  CheckSquare,
+  FileText,
+  Compass,
+  Target,
 } from 'lucide-react'
 import { TaskListCompact } from '@/components/tasks'
 import {
@@ -33,10 +38,10 @@ import {
   useBRDHealth,
   useProjectPulse,
 } from '@/lib/hooks/use-api'
-import type { CanvasData, BRDWorkspaceData, SectionScore, QuestionCounts, BRDHealthData } from '@/types/workspace'
+import type { CanvasData, BRDWorkspaceData, SectionScore, QuestionCounts, BRDHealthData, StrategicAction } from '@/types/workspace'
 import type { ReadinessScore, NextAction, TaskStatsResponse, CollaborationHistoryResponse, TerseAction } from '@/lib/api'
+import type { SynthesizedAction } from '@/lib/api/workspace'
 import type { ProjectPulse, Meeting } from '@/types/api'
-import { GAP_SOURCE_ICONS, GAP_SOURCE_COLORS } from '@/lib/action-constants'
 
 interface OverviewPanelProps {
   projectId: string
@@ -46,10 +51,12 @@ interface OverviewPanelProps {
   isBrdLoading?: boolean
   nextActions: NextAction[] | null
   contextActions?: TerseAction[]
+  strategicActions?: SynthesizedAction[]
   isLoadingActions?: boolean
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
   onActionExecute?: (action: NextAction) => void
   onActionChat?: (action: TerseAction) => void
+  onStrategicActionChat?: (action: SynthesizedAction) => void
   /** Open the unified health modal (managed by WorkspaceLayout) */
   onOpenHealth?: () => void
 }
@@ -69,9 +76,11 @@ export function OverviewPanel({
   brdData,
   isBrdLoading,
   contextActions,
+  strategicActions,
   isLoadingActions,
   onNavigateToPhase,
   onActionChat,
+  onStrategicActionChat,
   onOpenHealth,
 }: OverviewPanelProps) {
   // All data via SWR (cached, deduped — instant on return visits)
@@ -91,7 +100,7 @@ export function OverviewPanel({
   const completeness = brdData?.completeness ?? null
   const touchpoints = history?.touchpoints ?? []
   const overallScore = completeness?.overall_score ?? 0
-  const topActions = contextActions?.slice(0, 3) ?? []
+  const topStrategicActions = strategicActions?.slice(0, 3) ?? []
   const [taskRefreshKey, setTaskRefreshKey] = useState(0)
 
   // Last activity time from touchpoints
@@ -120,10 +129,10 @@ export function OverviewPanel({
         />
 
         <ContextActionsCard
-          actions={topActions}
-          isLoading={isLoadingActions && !contextActions}
+          actions={topStrategicActions}
+          isLoading={isLoadingActions && !strategicActions}
           onNavigateToPhase={onNavigateToPhase}
-          onActionChat={onActionChat}
+          onActionChat={onStrategicActionChat}
         />
 
         <div className="bg-white rounded-2xl border border-border shadow-md p-5 overflow-hidden">
@@ -394,15 +403,26 @@ function SectionBar({
 }
 
 // ---------------------------------------------------------------------------
-// Context Frame Actions (top 3)
+// Strategic Actions (top 3 from intelligence synthesis)
 // ---------------------------------------------------------------------------
 
-const ACTION_TYPE_MAP: Record<string, { label: string; bg: string; text: string }> = {
-  structural: { label: 'Review', bg: '#E8F5E9', text: '#3FAF7A' },
-  signal: { label: 'Signal', bg: '#E8F0F5', text: '#044159' },
-  knowledge: { label: 'Interview', bg: '#F5F5F5', text: '#333333' },
+const STRATEGIC_ICONS: Record<string, typeof Sparkles> = {
+  explore: MessageCircle,
+  interview: Users,
+  validate: CheckSquare,
+  signal: FileText,
+  synthesize: Compass,
+  confirm: Target,
 }
-const ACTION_TYPE_DEFAULT = { label: 'Research', bg: '#F5F5F5', text: '#7B7B7B' }
+
+const STRATEGIC_COLORS: Record<string, string> = {
+  explore: '#3FAF7A',
+  interview: '#0A1E2F',
+  validate: '#25785A',
+  signal: '#044159',
+  synthesize: '#666666',
+  confirm: '#3FAF7A',
+}
 
 function ContextActionsCard({
   actions,
@@ -410,10 +430,10 @@ function ContextActionsCard({
   onNavigateToPhase,
   onActionChat,
 }: {
-  actions: TerseAction[]
+  actions: SynthesizedAction[]
   isLoading?: boolean
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
-  onActionChat?: (action: TerseAction) => void
+  onActionChat?: (action: SynthesizedAction) => void
 }) {
   return (
     <div className="bg-white rounded-2xl border border-border shadow-md p-5 flex flex-col">
@@ -437,35 +457,36 @@ function ContextActionsCard({
       ) : actions.length > 0 ? (
         <div className="flex-1 flex flex-col gap-2">
           {actions.map((action, idx) => {
-            const sourceColor = GAP_SOURCE_COLORS[action.gap_source] || '#999999'
-            const Icon = GAP_SOURCE_ICONS[action.gap_type] || GAP_SOURCE_ICONS[action.gap_source] || Sparkles
-            const badge = ACTION_TYPE_MAP[action.gap_source] || ACTION_TYPE_DEFAULT
+            const color = STRATEGIC_COLORS[action.action_type] || '#666666'
+            const Icon = STRATEGIC_ICONS[action.action_type] || Sparkles
             return (
               <button
-                key={action.action_id}
+                key={idx}
                 onClick={() => onActionChat ? onActionChat(action) : onNavigateToPhase('discovery')}
                 className="flex-1 flex items-start gap-3 p-3 bg-[#F4F4F4] rounded-xl text-left hover:bg-[#EEEEEE] transition-colors cursor-pointer group"
               >
                 <span
-                  className="flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-semibold flex-shrink-0 mt-0.5"
-                  style={{
-                    backgroundColor: sourceColor + '18',
-                    color: sourceColor,
-                  }}
+                  className="flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0 mt-0.5"
+                  style={{ backgroundColor: color + '14' }}
                 >
-                  {idx + 1}
+                  <Icon className="w-3.5 h-3.5" style={{ color }} />
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span
-                      className="text-[9px] uppercase font-semibold px-1.5 py-0.5 rounded"
-                      style={{ backgroundColor: badge.bg, color: badge.text }}
-                    >
-                      {badge.label}
-                    </span>
-                    <Icon className="w-3 h-3 flex-shrink-0" style={{ color: sourceColor }} />
-                  </div>
                   <p className="text-[12px] text-text-body leading-relaxed">{action.sentence}</p>
+                  {action.insight_rationale && (
+                    <p className="text-[10px] text-text-placeholder mt-0.5 leading-snug">{action.insight_rationale}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1">
+                    {action.stakeholder_name && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-[#044159] bg-[#E8F0F5] px-1.5 py-0.5 rounded">
+                        <Users className="w-2.5 h-2.5" />
+                        {action.stakeholder_name}
+                      </span>
+                    )}
+                    <span className="text-[10px] font-medium text-brand-primary">
+                      {action.cta_label || 'Start conversation'}
+                    </span>
+                  </div>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-border group-hover:text-brand-primary transition-colors flex-shrink-0 mt-0.5" />
               </button>

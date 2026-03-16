@@ -286,6 +286,7 @@ class BuildStatusResponse(BaseModel):
     deploy_url: str | None = None
     github_repo_url: str | None = None
     errors: list[str] = Field(default_factory=list)
+    build_log: list[dict] = Field(default_factory=list)
 
 
 class BuildRequest(BaseModel):

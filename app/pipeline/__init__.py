@@ -17,11 +17,15 @@ import logging
 import shutil
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from app.core.schemas_prototype_builder import PrebuildIntelligence, PrototypePayload
+
+# Callback type: (event_type: str, data: dict) -> None
+ProgressCallback = Callable[[str, dict[str, Any]], None] | None
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +65,7 @@ async def run_prototype_pipeline(
     prebuild: PrebuildIntelligence,
     *,
     build_dir: Path | None = None,
+    on_progress: ProgressCallback = None,
 ) -> PipelineResult:
     """Full pipeline: coherence -> builders -> cleanup -> stitch -> finisher -> build.
 
@@ -100,12 +105,40 @@ async def run_prototype_pipeline(
         f"{stats.screen_count} screens in {stats.coherence_s:.1f}s"
     )
 
+    # Fire architecture_complete event
+    if on_progress:
+        section_data = []
+        all_screens = []
+        for s in sections:
+            if not isinstance(s, dict):
+                continue
+            screens = s.get("screens", [])
+            section_data.append({"label": s.get("label", ""), "screen_count": len(screens)})
+            for scr in screens:
+                scr_name = scr.get("nav_label", scr.get("page_title", ""))
+                all_screens.append({"name": scr_name, "route": scr.get("route", "")})
+        on_progress("architecture_complete", {
+            "sections": section_data,
+            "screens": all_screens,
+            "total_screens": stats.screen_count,
+        })
+
     # ── 2. Haiku Builders (parallel) ──
     t0 = time.monotonic()
     pages = await run_haiku_builders(project_plan, payload, prebuild)
     stats.builders_s = time.monotonic() - t0
     stats.page_count = len(pages)
     logger.info(f"Pipeline: builders done — {stats.page_count} pages in {stats.builders_s:.1f}s")
+
+    # Fire screen_built events for each completed page
+    if on_progress:
+        for i, page in enumerate(pages):
+            on_progress("screen_built", {
+                "name": page.get("component_name", ""),
+                "route": page.get("route", ""),
+                "index": i,
+                "total": stats.screen_count,
+            })
 
     if stats.page_count < stats.screen_count:
         missing = stats.screen_count - stats.page_count
@@ -240,6 +273,14 @@ async def run_prototype_pipeline(
         f"tsc={'PASS' if tsc_passed else 'FAIL'}, "
         f"vite={'PASS' if vite_passed else 'FAIL'}"
     )
+
+    # Fire pipeline_complete event
+    if on_progress:
+        on_progress("pipeline_complete", {
+            "screen_count": stats.screen_count,
+            "file_count": stats.file_count,
+            "total_s": round(stats.total_s, 1),
+        })
 
     return PipelineResult(
         files=files,
