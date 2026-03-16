@@ -49,6 +49,7 @@ interface OverviewPanelProps {
   isLoadingActions?: boolean
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
   onActionExecute?: (action: NextAction) => void
+  onActionChat?: (action: TerseAction) => void
   /** Open the unified health modal (managed by WorkspaceLayout) */
   onOpenHealth?: () => void
 }
@@ -70,6 +71,7 @@ export function OverviewPanel({
   contextActions,
   isLoadingActions,
   onNavigateToPhase,
+  onActionChat,
   onOpenHealth,
 }: OverviewPanelProps) {
   // All data via SWR (cached, deduped — instant on return visits)
@@ -121,6 +123,7 @@ export function OverviewPanel({
           actions={topActions}
           isLoading={isLoadingActions && !contextActions}
           onNavigateToPhase={onNavigateToPhase}
+          onActionChat={onActionChat}
         />
 
         <div className="bg-white rounded-2xl border border-border shadow-md p-5 overflow-hidden">
@@ -405,10 +408,12 @@ function ContextActionsCard({
   actions,
   isLoading,
   onNavigateToPhase,
+  onActionChat,
 }: {
   actions: TerseAction[]
   isLoading?: boolean
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
+  onActionChat?: (action: TerseAction) => void
 }) {
   return (
     <div className="bg-white rounded-2xl border border-border shadow-md p-5 flex flex-col">
@@ -438,7 +443,7 @@ function ContextActionsCard({
             return (
               <button
                 key={action.action_id}
-                onClick={() => onNavigateToPhase('discovery')}
+                onClick={() => onActionChat ? onActionChat(action) : onNavigateToPhase('discovery')}
                 className="flex-1 flex items-start gap-3 p-3 bg-[#F4F4F4] rounded-xl text-left hover:bg-[#EEEEEE] transition-colors cursor-pointer group"
               >
                 <span

@@ -104,10 +104,10 @@ interface DiscoveryProbeData {
 }
 
 const NORTH_STAR_CATEGORY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  organizational_impact: { bg: '#DBEAFE', text: '#1D4ED8', label: 'Org Impact' },
-  human_behavioral_goal: { bg: '#E8F5E9', text: '#25785A', label: 'Behavior' },
-  success_metrics: { bg: '#FEF3C7', text: '#B45309', label: 'Metrics' },
-  cultural_constraints: { bg: '#F3E8FF', text: '#7C3AED', label: 'Culture' },
+  organizational_impact: { bg: 'rgba(4,65,89,0.08)', text: '#044159', label: 'Org Impact' },
+  human_behavioral_goal: { bg: 'rgba(63,175,122,0.1)', text: '#25785A', label: 'Behavior' },
+  success_metrics: { bg: '#F0F1F3', text: '#666', label: 'Metrics' },
+  cultural_constraints: { bg: 'rgba(10,30,47,0.07)', text: '#0A1E2F', label: 'Culture' },
 }
 
 // =============================================================================
@@ -476,10 +476,10 @@ function MeetingCard({ data, onAction }: { data: MeetingData; onAction: (cmd: st
 // =============================================================================
 
 const TYPE_BADGE_STYLES: Record<string, string> = {
-  feature: 'bg-[#E8F5E9] text-[#25785A]',
-  constraint: 'bg-[#FEF3C7] text-[#B45309]',
-  task: 'bg-[#DBEAFE] text-[#1D4ED8]',
-  question: 'bg-[#F3E8FF] text-[#7C3AED]',
+  feature: 'bg-[rgba(63,175,122,0.1)] text-[#25785A]',
+  constraint: 'bg-[rgba(10,30,47,0.07)] text-[#0A1E2F]',
+  task: 'bg-[rgba(4,65,89,0.08)] text-[#044159]',
+  question: 'bg-[#F0F1F3] text-[#666]',
 }
 
 function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction: (cmd: string) => void }) {
@@ -572,10 +572,10 @@ function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction
 // =============================================================================
 
 const EVIDENCE_TAG_STYLES: Record<string, string> = {
-  feature: 'hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-brand-primary',
-  constraint: 'hover:bg-[#FEF3C7] hover:text-[#B45309] hover:border-[#B45309]',
-  assumption: 'hover:bg-[#F3E8FF] hover:text-[#7C3AED] hover:border-[#7C3AED]',
-  dismiss: 'hover:bg-surface-subtle hover:text-[#999] hover:border-[#999]',
+  feature: 'hover:bg-[rgba(63,175,122,0.08)] hover:text-[#25785A] hover:border-brand-primary',
+  constraint: 'hover:bg-[rgba(63,175,122,0.08)] hover:text-[#25785A] hover:border-brand-primary',
+  assumption: 'hover:bg-[rgba(63,175,122,0.08)] hover:text-[#25785A] hover:border-brand-primary',
+  dismiss: 'hover:bg-surface-subtle hover:text-[#999] hover:border-[#ccc]',
 }
 
 function EvidenceCard({ data, onAction }: { data: EvidenceData; onAction: (cmd: string) => void }) {

@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Assistant UI — Playground</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #FAFAFA; color: #333; }
+
+  /* Layout */
+  .playground { display: flex; gap: 32px; max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .controls { width: 280px; flex-shrink: 0; position: sticky; top: 24px; align-self: flex-start; }
+  .preview { flex: 1; max-width: 420px; }
+
+  /* Control panel */
+  .controls h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #999; margin-bottom: 12px; }
+  .control-group { margin-bottom: 20px; }
+  .control-group label { display: block; font-size: 12px; font-weight: 500; color: #666; margin-bottom: 6px; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btn { padding: 6px 12px; font-size: 11px; font-weight: 600; border: 1px solid #E5E5E5; border-radius: 8px; background: white; cursor: pointer; transition: all 0.15s; }
+  .btn:hover { border-color: #3FAF7A; color: #3FAF7A; }
+  .btn.active { background: #3FAF7A; color: white; border-color: #3FAF7A; }
+  .note { font-size: 11px; color: #999; margin-top: 8px; line-height: 1.5; }
+
+  /* Chat preview container */
+  .chat-frame {
+    background: #F4F4F4;
+    border-radius: 20px;
+    border: 1px solid #E5E5E5;
+    overflow: hidden;
+    height: 680px;
+    display: flex;
+    flex-direction: column;
+  }
+  .chat-header {
+    padding: 14px 16px;
+    background: white;
+    border-bottom: 1px solid #E5E5E5;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .chat-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #3FAF7A; }
+  .chat-header span { font-size: 13px; font-weight: 600; color: #1D1D1F; }
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .chat-input-area {
+    padding: 12px 16px;
+    background: white;
+    border-top: 1px solid #E5E5E5;
+  }
+  .chat-input {
+    width: 100%; padding: 10px 14px; font-size: 13px; font-family: inherit;
+    border: 1px solid #E5E5E5; border-radius: 16px; background: #F4F4F4;
+    outline: none; color: #333;
+  }
+  .chat-input:focus { background: white; border-color: #3FAF7A; box-shadow: 0 0 0 3px rgba(63,175,122,0.1); }
+  .chat-input::placeholder { color: #B0B0B0; }
+  .input-hint { font-size: 11px; color: #B0B0B0; margin-top: 6px; }
+
+  /* Message bubbles */
+  .msg { display: flex; }
+  .msg.user { justify-content: flex-end; }
+  .msg.assistant { justify-content: flex-start; }
+
+  .msg .bubble {
+    max-width: 90%; padding: 12px 16px; font-size: 13px; line-height: 1.65;
+    border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .msg.user .bubble {
+    background: #0A1E2F; color: white;
+    border-bottom-right-radius: 6px;
+  }
+  .msg.assistant .bubble {
+    background: white; border: 1px solid #E5E5E5; color: #333;
+    border-bottom-left-radius: 6px;
+    width: 100%;
+  }
+
+  /* Markdown in assistant messages */
+  .msg.assistant .bubble p { margin-bottom: 8px; }
+  .msg.assistant .bubble p:last-child { margin-bottom: 0; }
+  .msg.assistant .bubble strong { font-weight: 600; color: #1a1a1a; }
+  .msg.assistant .bubble em { color: #555; }
+  .msg.assistant .bubble ul { margin: 6px 0; padding-left: 18px; }
+  .msg.assistant .bubble ul li { margin-bottom: 4px; font-size: 13px; }
+  .msg.assistant .bubble code {
+    background: #F0F1F3; color: #0A1E2F; padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', monospace;
+  }
+  .msg.assistant .bubble blockquote {
+    border-left: 2px solid rgba(63,175,122,0.3); padding-left: 12px; margin: 8px 0; color: #666; font-style: italic;
+  }
+  .msg.assistant .bubble h3 { font-size: 13px; font-weight: 600; margin: 10px 0 4px; color: #1D1D1F; }
+
+  /* Streaming cursor */
+  .streaming-cursor {
+    display: inline-block; width: 2px; height: 16px; margin-left: 2px;
+    background: #3FAF7A; border-radius: 1px;
+    animation: pulse 1s ease-in-out infinite;
+    vertical-align: text-bottom;
+  }
+
+  /* ====== ACTIVITY INDICATOR (replaces bouncing dots) ====== */
+  .activity-indicator {
+    display: flex; justify-content: flex-start;
+    animation: slideIn 0.3s ease-out;
+  }
+  .activity-inner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    background: white; border: 1px solid #E5E5E5;
+    border-radius: 16px; border-bottom-left-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .activity-spinner {
+    width: 16px; height: 16px; position: relative;
+  }
+  .activity-spinner .track {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 2px solid rgba(63,175,122,0.15);
+  }
+  .activity-spinner .fill {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 2px solid #3FAF7A; border-top-color: transparent;
+    animation: spin 0.7s linear infinite;
+  }
+  .activity-label {
+    font-size: 12px; font-weight: 500; color: #888;
+  }
+
+  /* OLD bouncing dots (for comparison) */
+  .thinking-dots {
+    display: flex; justify-content: flex-start;
+  }
+  .thinking-dots-inner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px;
+    background: white; border: 1px solid #E5E5E5;
+    border-radius: 16px; border-bottom-left-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .thinking-dots .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #3FAF7A;
+    animation: typing 1.4s ease-in-out infinite;
+  }
+  .thinking-dots .dot:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots .dot:nth-child(3) { animation-delay: 0.4s; }
+
+  /* ====== TOOL CHIPS ====== */
+  .tool-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tool-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 999px;
+    background: #F0F1F3; font-size: 11px; font-weight: 500; color: #666;
+  }
+  .tool-chip svg { width: 12px; height: 12px; color: #888; flex-shrink: 0; }
+  .tool-chip.running {
+    background: rgba(63,175,122,0.08); color: #2a8f5f;
+  }
+  .tool-chip.running svg { color: #3FAF7A; }
+
+  /* Timestamp */
+  .msg-time { font-size: 10px; color: #B0B0B0; margin-top: 3px; }
+
+  /* ====== ANIMATIONS ====== */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes typing {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-4px); }
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .fade-in { animation: fadeIn 0.3s ease-out; }
+  .slide-in { animation: slideIn 0.3s ease-out; }
+
+  /* Scenario title */
+  .scenario-bar {
+    padding: 8px 16px; background: #0A1E2F; color: white;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .scenario-bar .tag { padding: 2px 8px; background: rgba(63,175,122,0.2); color: #3FAF7A; border-radius: 6px; font-size: 10px; }
+
+  /* ====== CARD SYSTEM (matches QuickActionCards.tsx) ====== */
+  .card-base { border: 1px solid #E5E5E5; border-radius: 16px; background: #F7F8FA; padding: 16px; margin-top: 12px; }
+  .card-resolved { border: 1px solid rgba(63,175,122,0.4); background: rgba(232,245,233,0.3); border-radius: 16px; padding: 14px 16px; display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .card-resolved svg { width: 14px; height: 14px; color: #3FAF7A; }
+  .card-resolved span { font-size: 12px; color: #25785A; font-weight: 500; }
+  .card-header { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 10px; }
+  .card-label { font-size: 13px; font-weight: 500; color: #333; }
+  .card-muted { font-size: 11px; color: #888; }
+  .card-body { font-size: 12px; color: #666; line-height: 1.55; }
+
+  .btn-pill { display: inline-flex; align-items: center; gap: 4px; padding: 6px 16px; border-radius: 999px; font-size: 12px; font-weight: 500; border: 1px solid; cursor: pointer; transition: all 0.15s; }
+  .btn-pill.primary { border-color: #3FAF7A; color: #3FAF7A; background: white; }
+  .btn-pill.primary:hover { background: #E8F5E9; }
+  .btn-pill.filled { border-color: #3FAF7A; color: white; background: #3FAF7A; }
+  .btn-pill.filled:hover { background: #25785A; }
+  .btn-pill.secondary { border-color: #D5D5D5; color: #666; background: white; }
+  .btn-pill.secondary:hover { background: #F4F4F4; }
+  .btn-pill.ghost { border: none; color: #999; background: none; padding: 6px 12px; }
+  .btn-pill.ghost:hover { color: #666; }
+  .btn-pill.confirmed { border-color: transparent; background: #E8F5E9; color: #25785A; pointer-events: none; }
+
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+  /* All badges use brand palette — green, navy, gray tones only */
+  .badge-severity { background: rgba(10,30,47,0.08); color: #0A1E2F; font-weight: 700; }
+  .badge-green { background: rgba(63,175,122,0.1); color: #25785A; }
+  .badge-navy { background: rgba(4,65,89,0.08); color: #044159; }
+  .badge-muted { background: #F0F1F3; color: #666; }
+  .badge-feature { background: rgba(63,175,122,0.1); color: #25785A; }
+  .badge-constraint { background: rgba(10,30,47,0.07); color: #0A1E2F; }
+  .badge-task { background: rgba(4,65,89,0.08); color: #044159; }
+  .badge-question { background: #F0F1F3; color: #666; }
+
+  .card-bullets { list-style: none; padding: 0; margin: 6px 0; }
+  .card-bullets li { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: #666; margin-bottom: 4px; }
+  .card-bullets li::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3FAF7A; flex-shrink: 0; margin-top: 6px; }
+  .card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .card-divider { border: none; border-top: 1px solid #E5E5E5; margin: 12px 0; }
+  .card-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* Email / Meeting card special */
+  .card-email, .card-meeting { border: 1px solid #E5E5E5; border-radius: 16px; background: #F7F8FA; overflow: hidden; margin-top: 12px; }
+  .card-email-header, .card-meeting-header { padding: 12px 16px; background: #F0F1F3; border-bottom: 1px solid #E5E5E5; display: flex; align-items: center; gap: 8px; }
+  .card-email-header svg, .card-meeting-header svg { width: 12px; height: 12px; color: #999; }
+  .card-email-header span, .card-meeting-header span { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .card-email-body, .card-meeting-body { padding: 12px 16px; }
+  .card-email-footer, .card-meeting-footer { padding: 12px 16px; border-top: 1px solid #E5E5E5; display: flex; gap: 8px; }
+  .card-field { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .card-field-label { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 0.04em; width: 32px; }
+  .card-field-value { font-size: 12px; color: #333; }
+  .card-field-value.bold { font-weight: 500; }
+
+  /* Evidence card */
+  .evidence-quote { border-left: 3px solid rgba(63,175,122,0.4); padding-left: 12px; margin-bottom: 8px; }
+  .evidence-quote p { font-size: 12px; font-style: italic; color: #666; }
+  .evidence-quote .source { font-size: 10px; color: #999; margin-top: 4px; }
+  .evidence-tags { display: flex; gap: 6px; }
+  .evidence-tag { padding: 4px 12px; border-radius: 999px; border: 1px solid #E5E5E5; font-size: 12px; font-weight: 500; color: #666; cursor: pointer; transition: all 0.15s; text-transform: capitalize; }
+  .evidence-tag:hover { border-color: #3FAF7A; color: #25785A; background: rgba(63,175,122,0.08); }
+  .evidence-tag.dismiss:hover { border-color: #ccc; color: #999; background: #F4F4F4; }
+
+  /* Smart summary checkboxes */
+  .summary-item { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; cursor: pointer; }
+  .summary-check { width: 18px; height: 18px; border-radius: 4px; border: 1px solid #D5D5D5; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; transition: all 0.15s; }
+  .summary-check.checked { background: #3FAF7A; border-color: #3FAF7A; }
+  .summary-check svg { width: 12px; height: 12px; color: white; }
+  .summary-info .type-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+  .summary-info .item-label { font-size: 12px; color: #333; display: block; }
+  .summary-footer { display: flex; justify-content: space-between; align-items: center; }
+
+  /* Signal proposal */
+  .signal-card { border: 1px solid #E5E5E5; border-radius: 16px; background: white; overflow: hidden; margin-top: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .signal-card-header { padding: 8px 12px; background: #F4F4F4; border-bottom: 1px solid #E5E5E5; display: flex; align-items: center; gap: 8px; }
+  .signal-card-header svg { width: 14px; height: 14px; color: #3FAF7A; }
+  .signal-card-header span { font-size: 12px; font-weight: 500; color: #333; }
+  .signal-card-actions { display: flex; gap: 6px; padding: 8px 12px; }
+
+  /* Processing results card */
+  .processing-card { border: 1px solid #E5E5E5; border-radius: 12px; background: white; overflow: hidden; margin-top: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .processing-card-header { padding: 12px 16px; border-bottom: 1px solid #F0F0F0; background: rgba(249,250,251,0.5); }
+  .processing-card-body { padding: 12px 16px; }
+  .processing-section { margin-bottom: 8px; }
+  .processing-section-title { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .processing-entities { display: flex; flex-wrap: wrap; gap: 4px; padding-left: 20px; }
+  .processing-entity { padding: 2px 8px; font-size: 11px; border-radius: 4px; }
+  .processing-entity.created { background: rgba(63,175,122,0.1); color: #25785A; }
+  .processing-entity.updated { background: rgba(4,65,89,0.08); color: #044159; }
+  .processing-actions { padding: 12px 16px; border-top: 1px solid #F0F0F0; display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<div class="playground">
+  <!-- Left: Controls -->
+  <div class="controls">
+    <h2>Chat UI Playground</h2>
+    <p class="note" style="margin-bottom:20px">Compare the current vs proposed chat experience. Click scenarios to see the full message flow animated.</p>
+
+    <div class="control-group">
+      <label>Scenario</label>
+      <div class="btn-row">
+        <button class="btn active" onclick="runScenario('search')">Search</button>
+        <button class="btn" onclick="runScenario('create')">Create</button>
+        <button class="btn" onclick="runScenario('action-card')">Action Click</button>
+        <button class="btn" onclick="runScenario('multi-tool')">Multi-Tool</button>
+      </div>
+      <label style="margin-top:10px">Cards</label>
+      <div class="btn-row">
+        <button class="btn" onclick="runScenario('gap-closer')">Gap Closer</button>
+        <button class="btn" onclick="runScenario('choice')">Choice</button>
+        <button class="btn" onclick="runScenario('proposal')">Proposal</button>
+        <button class="btn" onclick="runScenario('email-draft')">Email</button>
+        <button class="btn" onclick="runScenario('meeting')">Meeting</button>
+        <button class="btn" onclick="runScenario('smart-summary')">Summary</button>
+        <button class="btn" onclick="runScenario('evidence')">Evidence</button>
+        <button class="btn" onclick="runScenario('discovery-probe')">Probe</button>
+        <button class="btn" onclick="runScenario('signal-proposal')">Signal</button>
+        <button class="btn" onclick="runScenario('processing')">Doc Processing</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Indicator Style</label>
+      <div class="btn-row">
+        <button class="btn active" id="style-new" onclick="setStyle('new')">New (Spinner + Label)</button>
+        <button class="btn" id="style-old" onclick="setStyle('old')">Old (Bouncing Dots)</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Show Tool Chips</label>
+      <div class="btn-row">
+        <button class="btn active" id="chips-on" onclick="setChips(true)">On</button>
+        <button class="btn" id="chips-off" onclick="setChips(false)">Off</button>
+      </div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #E5E5E5;margin:20px 0">
+
+    <div class="control-group">
+      <label>Activity Indicator Preview</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+        <div class="activity-indicator" style="animation:none">
+          <div class="activity-inner">
+            <div class="activity-spinner"><div class="track"></div><div class="fill"></div></div>
+            <span class="activity-label">Thinking...</span>
+          </div>
+        </div>
+        <div class="activity-indicator" style="animation:none">
+          <div class="activity-inner">
+            <div class="activity-spinner"><div class="track"></div><div class="fill"></div></div>
+            <span class="activity-label">Searching project...</span>
+          </div>
+        </div>
+        <div class="activity-indicator" style="animation:none">
+          <div class="activity-inner">
+            <div class="activity-spinner"><div class="track"></div><div class="fill"></div></div>
+            <span class="activity-label">Creating feature...</span>
+          </div>
+        </div>
+        <div class="activity-indicator" style="animation:none">
+          <div class="activity-inner">
+            <div class="activity-spinner"><div class="track"></div><div class="fill"></div></div>
+            <span class="activity-label">Updating solution flow...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Tool Chip Samples</label>
+      <div class="tool-chips" style="margin-top:8px">
+        <span class="tool-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>Searched 12 results</span>
+        <span class="tool-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Created feature</span>
+        <span class="tool-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v12"/><path d="M18 9a3 3 0 0 1 0 6h0a3 3 0 0 1 0-6h0"/><path d="M6 21a3 3 0 0 1 0-6h0a3 3 0 0 1 0 6h0"/></svg>Updated flow step</span>
+        <span class="tool-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 16,12 14,15 10,9 8,12 2,12"/></svg>Checked status</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Chat Preview -->
+  <div class="preview">
+    <div class="chat-frame">
+      <div class="scenario-bar">
+        <span id="scenario-title">Search Query</span>
+        <span class="tag" id="scenario-tag">search + semantic</span>
+      </div>
+      <div class="chat-header">
+        <div class="dot"></div>
+        <span>AIOS Assistant</span>
+      </div>
+      <div class="chat-messages" id="messages"></div>
+      <div class="chat-input-area">
+        <input class="chat-input" placeholder="Ask anything..." disabled>
+        <div class="input-hint">Enter to send &middot; Drop files to upload</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const messagesEl = document.getElementById('messages')
+let currentStyle = 'new'
+let showChips = true
+let currentScenario = null
+
+function setStyle(s) {
+  currentStyle = s
+  document.getElementById('style-new').classList.toggle('active', s === 'new')
+  document.getElementById('style-old').classList.toggle('active', s === 'old')
+  if (currentScenario) runScenario(currentScenario)
+}
+
+function setChips(on) {
+  showChips = on
+  document.getElementById('chips-on').classList.toggle('active', on)
+  document.getElementById('chips-off').classList.toggle('active', !on)
+  if (currentScenario) runScenario(currentScenario)
+}
+
+// SVG icons
+const icons = {
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+  write: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  flow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v12"/><path d="M18 9a3 3 0 0 1 0 6"/><path d="M6 21a3 3 0 0 1 0-6"/></svg>',
+  status: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 16,12 14,15 10,9 8,12 2,12"/></svg>',
+  process: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
+}
+
+function addMessage(role, content, opts = {}) {
+  const div = document.createElement('div')
+  div.className = `msg ${role} slide-in`
+
+  let html = `<div class="bubble">${content}</div>`
+
+  if (opts.chips && showChips) {
+    let chipHtml = '<div class="tool-chips fade-in">'
+    for (const chip of opts.chips) {
+      chipHtml += `<span class="tool-chip">${icons[chip.icon] || ''}${chip.label}</span>`
+    }
+    chipHtml += '</div>'
+    html = `<div style="width:100%"><div class="bubble">${content}</div>${chipHtml}<div class="msg-time">${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div></div>`
+  } else {
+    html = `<div style="${role === 'user' ? '' : 'width:100%'}"><div class="bubble">${content}</div><div class="msg-time">${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div></div>`
+  }
+
+  div.innerHTML = html
+  messagesEl.appendChild(div)
+  messagesEl.scrollTop = messagesEl.scrollHeight
+}
+
+function showIndicator(label) {
+  const div = document.createElement('div')
+  div.id = 'current-indicator'
+  div.className = 'slide-in'
+
+  if (currentStyle === 'new') {
+    div.innerHTML = `
+      <div class="activity-indicator">
+        <div class="activity-inner">
+          <div class="activity-spinner"><div class="track"></div><div class="fill"></div></div>
+          <span class="activity-label">${label}</span>
+        </div>
+      </div>`
+  } else {
+    div.innerHTML = `
+      <div class="thinking-dots">
+        <div class="thinking-dots-inner">
+          <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>
+      </div>`
+  }
+
+  messagesEl.appendChild(div)
+  messagesEl.scrollTop = messagesEl.scrollHeight
+}
+
+function updateIndicator(label) {
+  const el = document.getElementById('current-indicator')
+  if (!el) return showIndicator(label)
+  if (currentStyle === 'new') {
+    const labelEl = el.querySelector('.activity-label')
+    if (labelEl) labelEl.textContent = label
+  }
+}
+
+function removeIndicator() {
+  const el = document.getElementById('current-indicator')
+  if (el) el.remove()
+}
+
+function clearMessages() {
+  messagesEl.innerHTML = ''
+}
+
+function wait(ms) { return new Promise(r => setTimeout(r, ms)) }
+
+// Update control buttons
+function setActiveBtn(scenario) {
+  document.querySelectorAll('.control-group:first-of-type .btn').forEach(b => b.classList.remove('active'))
+  event?.target?.classList.add('active')
+}
+
+const SCENARIOS = {
+  'search': {
+    title: 'Search Query',
+    tag: 'search + semantic',
+    steps: async () => {
+      addMessage('user', 'What features do we have for market sizing?')
+      await wait(400)
+
+      showIndicator('Thinking...')
+      await wait(1200)
+
+      updateIndicator('Searching project...')
+      await wait(1800)
+
+      removeIndicator()
+      addMessage('assistant', `
+        <p>I found <strong>4 features</strong> related to market sizing in your project:</p>
+        <ul>
+          <li><strong>TAM/SAM/SOM Calculator</strong> — Automated market sizing with industry benchmarks and custom inputs. <em>Confirmed by consultant.</em></li>
+          <li><strong>Revenue Ceiling Detection</strong> — Signals when a client's growth is approaching category limits. <em>AI-generated, needs review.</em></li>
+          <li><strong>Market Data Import</strong> — Bulk import of market research data from CSV/Excel. <em>Must-have priority.</em></li>
+          <li><strong>Competitive Landscape View</strong> — Visual map of competitor positioning by market segment. <em>Nice-to-have.</em></li>
+        </ul>
+        <p>The first two are tied to the <strong>Revenue Intelligence</strong> workflow. Want me to look deeper into any of these?</p>
+      `, { chips: [{ icon: 'search', label: 'Searched 4 features' }] })
+    }
+  },
+
+  'create': {
+    title: 'Create Entity',
+    tag: 'write + create',
+    steps: async () => {
+      addMessage('user', 'Create a feature called "Pipeline Health Dashboard" — it should show real-time CRM pipeline metrics with anomaly detection')
+      await wait(400)
+
+      showIndicator('Thinking...')
+      await wait(800)
+
+      updateIndicator('Creating feature...')
+      await wait(1200)
+
+      removeIndicator()
+      addMessage('assistant', `
+        <p>Created <strong>Pipeline Health Dashboard</strong> as a new feature:</p>
+        <ul>
+          <li><strong>Description</strong> — Real-time CRM pipeline metrics with anomaly detection</li>
+          <li><strong>Priority</strong> — Must-have (auto-assigned based on workflow coverage)</li>
+          <li><strong>Linked workflow</strong> — Revenue Operations</li>
+        </ul>
+        <p>I've linked it to the <em>Revenue Operations</em> workflow since it directly supports pipeline visibility. The feature is marked as <strong>AI-generated</strong> and needs your confirmation.</p>
+      `, { chips: [{ icon: 'write', label: 'Created feature' }] })
+    }
+  },
+
+  'action-card': {
+    title: 'Action Card Click',
+    tag: 'intelligence action → chat',
+    steps: async () => {
+      // Simulate clicking an action from the intelligence section
+      addMessage('user', 'Interview the VP of Go-to-Market about their current revenue modeling process and where manual steps create bottlenecks')
+      await wait(400)
+
+      showIndicator('Thinking...')
+      await wait(600)
+
+      updateIndicator('Searching project...')
+      await wait(1500)
+
+      updateIndicator('Checking knowledge...')
+      await wait(1000)
+
+      removeIndicator()
+      addMessage('assistant', `
+        <p>Great focus area. Based on what we know about <strong>Sarah Chen (VP GTM)</strong>, here's a prep brief for that conversation:</p>
+        <h3>What we already know</h3>
+        <ul>
+          <li>She manages a team of 6 consultants doing <strong>40+ hours</strong> per engagement on manual data collection</li>
+          <li>Current pain: <em>"CRM data quality is inconsistent across client organizations"</em></li>
+          <li>Goal: reduce onboarding time by 50% through templates</li>
+        </ul>
+        <h3>Key questions to explore</h3>
+        <ul>
+          <li>Where in the revenue modeling workflow do manual steps create the biggest delays?</li>
+          <li>How do they currently handle market sizing for clients approaching saturation?</li>
+          <li>What does the handoff look like between market analysis and pipeline strategy?</li>
+        </ul>
+        <p>Want me to draft this as a meeting prep email to Sarah?</p>
+      `, { chips: [
+        { icon: 'search', label: 'Searched 8 results' },
+        { icon: 'search', label: 'Found 3 facts' },
+      ]})
+    }
+  },
+
+  'multi-tool': {
+    title: 'Multi-Tool',
+    tag: 'search → write → solution_flow',
+    steps: async () => {
+      addMessage('user', 'Based on what we know about the onboarding pain, add a solution flow step for "Guided Client Intake" right after the qualification step')
+      await wait(400)
+
+      showIndicator('Thinking...')
+      await wait(800)
+
+      updateIndicator('Searching project...')
+      await wait(1400)
+
+      updateIndicator('Looking up entities...')
+      await wait(900)
+
+      updateIndicator('Adding flow step...')
+      await wait(1200)
+
+      removeIndicator()
+      addMessage('assistant', `
+        <p>Done. I've added <strong>Guided Client Intake</strong> as Step 2 in the solution flow, right after <em>Tier Qualification</em>:</p>
+        <ul>
+          <li><strong>Goal</strong> — Collect structured business context (revenue, team size, market position) through a guided form before the first consultant session</li>
+          <li><strong>Actors</strong> — Small Business Owner, VP of Go-to-Market</li>
+          <li><strong>Key data</strong> — Revenue baseline, organizational structure, current tools, growth stage</li>
+          <li><strong>Reduces</strong> — 60% of manual data collection currently consuming billable hours</li>
+        </ul>
+        <p>This connects to the <strong>unstructured onboarding</strong> pain point and the <strong>template-based automation</strong> feature. Steps 3-10 have been renumbered.</p>
+      `, { chips: [
+        { icon: 'search', label: 'Searched 6 results' },
+        { icon: 'search', label: 'Found 10 entities' },
+        { icon: 'flow', label: 'Added flow step' },
+      ]})
+    }
+  },
+}
+
+// Helper: add inline card HTML after a message
+function addCard(html) {
+  const div = document.createElement('div')
+  div.className = 'msg assistant slide-in'
+  div.innerHTML = `<div style="width:100%">${html}</div>`
+  messagesEl.appendChild(div)
+  messagesEl.scrollTop = messagesEl.scrollHeight
+}
+
+// ---- Card scenarios ----
+SCENARIOS['gap-closer'] = {
+  title: 'Gap Closer Card', tag: 'suggest_actions → gap_closer',
+  steps: async () => {
+    addMessage('user', 'What gaps should I focus on?')
+    await wait(400); showIndicator('Thinking...'); await wait(800)
+    updateIndicator('Searching project...'); await wait(1200); removeIndicator()
+    addMessage('assistant', '<p>I found a critical structural gap in the <strong>Revenue Operations</strong> workflow:</p>')
+    addCard(`
+      <div class="card-base">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="card-label" style="flex:1">Revenue Operations workflow has no assigned actor for "Pipeline Review" step</span>
+          <span class="badge badge-severity">critical</span>
+        </div>
+        <p class="card-muted" style="border-left:2px solid #E5E5E5;padding-left:8px;margin-top:6px">This step processes 40% of inbound deals but nobody owns the review cadence. Sarah Chen's team may be the right fit.</p>
+        <div class="card-actions" style="margin-top:12px">
+          <button class="btn-pill primary">Assign Sarah Chen</button>
+          <button class="btn-pill secondary">Discuss</button>
+        </div>
+      </div>
+    `)
+  }
+}
+
+SCENARIOS['choice'] = {
+  title: 'Choice Card', tag: 'suggest_actions → choice',
+  steps: async () => {
+    addMessage('user', 'Should the calculator be self-service or consultant-guided?')
+    await wait(400); showIndicator('Thinking...'); await wait(1000); removeIndicator()
+    addMessage('assistant', '<p>This is a key architectural decision. Based on the personas and the tier-routing logic:</p>')
+    addCard(`
+      <div class="card-base">
+        <p class="card-header">Decision Required</p>
+        <p class="card-label" style="margin-bottom:12px">How should clients access the revenue calculator?</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-pill secondary" style="flex:1;justify-content:center">Self-service (Tier 1-2)</button>
+          <button class="btn-pill secondary" style="flex:1;justify-content:center">Consultant-guided only</button>
+          <button class="btn-pill secondary" style="flex:1;justify-content:center">Hybrid (tier-gated)</button>
+        </div>
+      </div>
+    `)
+  }
+}
+
+SCENARIOS['proposal'] = {
+  title: 'Proposal Card', tag: 'suggest_actions → proposal',
+  steps: async () => {
+    addMessage('user', 'I think we need a client health scoring feature')
+    await wait(400); showIndicator('Thinking...'); await wait(600)
+    updateIndicator('Searching project...'); await wait(1000); removeIndicator()
+    addMessage('assistant', '<p>Great idea. Based on the pain points around <strong>CRM data degradation</strong> and the <strong>Revenue Ceiling Detection</strong> feature, here\'s a structured proposal:</p>')
+    addCard(`
+      <div class="card-base">
+        <p class="card-header">New Feature Proposal</p>
+        <div class="card-tags">
+          <span class="badge badge-feature">feature</span>
+          <span class="badge badge-navy">must-have</span>
+          <span class="badge badge-muted">revenue-ops</span>
+        </div>
+        <ul class="card-bullets">
+          <li>Composite health score from CRM data quality, engagement frequency, and pipeline velocity</li>
+          <li>Automated alerts when client health drops below configurable thresholds</li>
+          <li>Linked to Revenue Operations and Pipeline Review workflows</li>
+        </ul>
+        <hr class="card-divider">
+        <div class="card-actions">
+          <button class="btn-pill filled">Add to BRD</button>
+          <button class="btn-pill secondary">Edit first</button>
+          <button class="btn-pill ghost">Skip</button>
+        </div>
+      </div>
+    `)
+  }
+}
+
+SCENARIOS['email-draft'] = {
+  title: 'Email Draft Card', tag: 'generate_client_email',
+  steps: async () => {
+    addMessage('user', 'Draft a follow-up email to Sarah about the onboarding discussion')
+    await wait(400); showIndicator('Thinking...'); await wait(1400); removeIndicator()
+    addMessage('assistant', '<p>Here\'s a follow-up email based on our discussion about the onboarding pain points:</p>')
+    addCard(`
+      <div class="card-email">
+        <div class="card-email-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+          <span>Email Draft</span>
+        </div>
+        <div class="card-email-body">
+          <div class="card-field"><span class="card-field-label">To</span><span class="card-field-value">Sarah Chen (VP GTM)</span></div>
+          <div class="card-field"><span class="card-field-label">Subj</span><span class="card-field-value bold">Follow-up: Onboarding Process & Template Automation</span></div>
+          <div style="border-top:1px solid #E5E5E5;margin-top:6px;padding-top:6px">
+            <p class="card-body">Hi Sarah,<br><br>Thank you for the insightful discussion about the current onboarding workflow. A few key takeaways I want to confirm:<br><br>1. Manual data collection consuming 60% of billable hours<br>2. CRM inconsistency across client organizations<br>3. Goal: 50% reduction in onboarding time via templates<br><br>I'd like to schedule a 30-minute follow-up to walk through the proposed "Guided Client Intake" flow. Would Thursday at 2pm work?</p>
+          </div>
+        </div>
+        <div class="card-email-footer">
+          <button class="btn-pill filled">Send Draft</button>
+          <button class="btn-pill secondary">Edit</button>
+        </div>
+      </div>
+    `)
+  }
+}
+
+SCENARIOS['meeting'] = {
+  title: 'Meeting Card', tag: 'generate_meeting_agenda',
+  steps: async () => {
+    addMessage('user', 'Set up a meeting with the revenue team to review the solution flow')
+    await wait(400); showIndicator('Thinking...'); await wait(1000); removeIndicator()
+    addMessage('assistant', '<p>Here\'s a meeting agenda based on the current solution flow status:</p>')
+    addCard(`
+      <div class="card-meeting">
+        <div class="card-meeting-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+          <span>Meeting</span>
+        </div>
+        <div class="card-meeting-body">
+          <p class="card-label">Solution Flow Review &mdash; Revenue Ops</p>
+          <p class="card-muted" style="margin:4px 0 8px">With: Sarah Chen, Mike R., Valerie T.</p>
+          <ol style="padding-left:0;margin:0;list-style:none">
+            <li style="display:flex;gap:6px;font-size:12px;color:#666;margin-bottom:4px"><span style="font-size:10px;color:#999;width:14px;flex-shrink:0">1.</span>Review 8 confirmed flow steps (5 min)</li>
+            <li style="display:flex;gap:6px;font-size:12px;color:#666;margin-bottom:4px"><span style="font-size:10px;color:#999;width:14px;flex-shrink:0">2.</span>Discuss 2 open onboarding steps (10 min)</li>
+            <li style="display:flex;gap:6px;font-size:12px;color:#666;margin-bottom:4px"><span style="font-size:10px;color:#999;width:14px;flex-shrink:0">3.</span>Resolve 11 blocking questions (10 min)</li>
+            <li style="display:flex;gap:6px;font-size:12px;color:#666;margin-bottom:4px"><span style="font-size:10px;color:#999;width:14px;flex-shrink:0">4.</span>Prototype timeline & next steps (5 min)</li>
+          </ol>
+        </div>
+        <div class="card-meeting-footer">
+          <button class="btn-pill filled">Book</button>
+          <button class="btn-pill secondary">Edit Agenda</button>
+        </div>
+      </div>
+    `)
+  }
+}
+
+SCENARIOS['smart-summary'] = {
+  title: 'Smart Summary Card', tag: 'suggest_actions → smart_summary',
+  steps: async () => {
+    addMessage('user', 'Let me tell you about the intake process — clients fill out a form with revenue, team size, and market position. Then consultants review it and build a custom analysis. The main pain is that every engagement starts from scratch.')
+    await wait(400); showIndicator('Thinking...'); await wait(600)
+    updateIndicator('Processing signal...'); await wait(1200); removeIndicator()
+    addMessage('assistant', '<p>I extracted several requirements from that. Review and save what looks right:</p>')
+    addCard(`
+      <div class="card-base">
+        <p class="card-header">From our discussion</p>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div class="summary-item">
+            <div class="summary-check checked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div class="summary-info">
+              <span class="type-badge badge-feature">feature</span>
+              <span class="item-label">Client Intake Form — collects revenue, team size, market position</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-check checked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div class="summary-info">
+              <span class="type-badge badge-constraint">constraint</span>
+              <span class="item-label">Every engagement starts from scratch — no template reuse</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-check checked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div class="summary-info">
+              <span class="type-badge badge-task">task</span>
+              <span class="item-label">Consultants review intake and build custom analysis manually</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div class="summary-info">
+              <span class="type-badge badge-question">question</span>
+              <span class="item-label">How long does the manual analysis typically take per engagement?</span>
+            </div>
+          </div>
+        </div>
+        <hr class="card-divider">
+        <div class="summary-footer">
+          <span class="card-muted">3 of 4 selected</span>
+          <button class="btn-pill filled">Save selected to BRD</button>
+        </div>
+      </div>
+    `)
+  }
+}
+
+SCENARIOS['evidence'] = {
+  title: 'Evidence Card', tag: 'suggest_actions → evidence',
+  steps: async () => {
+    addMessage('user', 'Show me the key evidence from the last meeting transcript')
+    await wait(400); showIndicator('Thinking...'); await wait(800)
+    updateIndicator('Searching project...'); await wait(1200); removeIndicator()
+    addMessage('assistant', '<p>Here are the most relevant quotes from the March 12 transcript. Tag each to connect it to the right requirement:</p>')
+    addCard(`
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card-base" style="padding:14px 16px">
+          <div class="evidence-quote">
+            <p>&ldquo;We spend about 40 hours per engagement just on data collection and documentation. That's 60% of our billable time going to non-strategic work.&rdquo;</p>
+            <p class="source">Sarah Chen &mdash; March 12 transcript, section 2</p>
+          </div>
+          <div class="evidence-tags">
+            <button class="evidence-tag">feature</button>
+            <button class="evidence-tag">constraint</button>
+            <button class="evidence-tag">assumption</button>
+            <button class="evidence-tag dismiss">dismiss</button>
+          </div>
+        </div>
+        <div class="card-base" style="padding:14px 16px">
+          <div class="evidence-quote">
+            <p>&ldquo;The CRM data is never clean. Role definitions differ by client, job titles don't map to actual responsibilities, and we end up re-doing org charts from scratch.&rdquo;</p>
+            <p class="source">Sarah Chen &mdash; March 12 transcript, section 3</p>
+          </div>
+          <div class="evidence-tags">
+            <button class="evidence-tag">feature</button>
+            <button class="evidence-tag">constraint</button>
+            <button class="evidence-tag">assumption</button>
+            <button class="evidence-tag dismiss">dismiss</button>
+          </div>
+        </div>
+      </div>
+    `)
+  }
+}
+
+SCENARIOS['discovery-probe'] = {
+  title: 'Discovery Probe Card', tag: 'suggest_actions → discovery_probe',
+  steps: async () => {
+    addMessage('user', 'What should I explore in the next client conversation?')
+    await wait(400); showIndicator('Thinking...'); await wait(600)
+    updateIndicator('Checking knowledge...'); await wait(1000); removeIndicator()
+    addMessage('assistant', '<p>Based on the current gaps in our understanding, here are the highest-value probes:</p>')
+    addCard(`
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card-base">
+          <div style="margin-bottom:8px"><span class="badge badge-navy">Org Impact</span></div>
+          <p class="card-muted" style="margin-bottom:4px">We know the team has 6 consultants but don't understand reporting lines or decision authority.</p>
+          <p class="card-label" style="margin-bottom:4px">Who ultimately approves changes to the revenue modeling process, and how does that decision flow through the org?</p>
+          <p class="card-muted" style="font-style:italic;margin-bottom:12px">Understanding authority mapping will determine whether this is a bottom-up adoption or top-down mandate.</p>
+          <div class="card-actions">
+            <button class="btn-pill primary">Discuss in Chat</button>
+            <button class="btn-pill secondary">Mark Resolved</button>
+          </div>
+        </div>
+        <div class="card-base">
+          <div style="margin-bottom:8px"><span class="badge badge-muted">Metrics</span></div>
+          <p class="card-muted" style="margin-bottom:4px">Goal is "50% reduction in onboarding time" but no baseline measurement exists.</p>
+          <p class="card-label" style="margin-bottom:4px">How do you currently measure onboarding time, and what does a typical engagement timeline look like end-to-end?</p>
+          <p class="card-muted" style="font-style:italic;margin-bottom:12px">Without a baseline, the 50% target is aspirational rather than measurable.</p>
+          <div class="card-actions">
+            <button class="btn-pill primary">Discuss in Chat</button>
+            <button class="btn-pill secondary">Mark Resolved</button>
+          </div>
+        </div>
+      </div>
+    `)
+  }
+}
+
+SCENARIOS['signal-proposal'] = {
+  title: 'Signal Proposal Card', tag: 'process → signal',
+  steps: async () => {
+    addMessage('user', 'Process this as a signal: "The client wants automated market ceiling alerts when growth stalls, with configurable thresholds per industry vertical"')
+    await wait(400); showIndicator('Thinking...'); await wait(600)
+    updateIndicator('Processing signal...'); await wait(1800); removeIndicator()
+    addMessage('assistant', '<p>I processed that signal and generated a proposal with <strong>3 changes</strong>:</p>')
+    addCard(`
+      <div class="signal-card">
+        <div class="signal-card-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Proposal: 3 changes</span>
+        </div>
+        <div class="signal-card-actions">
+          <button class="btn-pill filled" style="padding:6px 14px;font-size:11px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Apply</button>
+          <button style="padding:6px 14px;font-size:11px;border-radius:12px;background:#F0F0F0;border:none;color:#666;cursor:pointer">Discard</button>
+        </div>
+      </div>
+    `)
+  }
+}
+
+SCENARIOS['processing'] = {
+  title: 'Document Processing Card', tag: 'file upload → extraction',
+  steps: async () => {
+    addCard(`
+      <div class="processing-card">
+        <div class="processing-card-header">
+          <div style="display:flex;align-items:center;gap:8px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#3FAF7A" stroke-width="2" style="width:16px;height:16px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span style="font-size:14px;font-weight:600;color:#333">Q1_Revenue_Analysis.pdf</span>
+          </div>
+          <p style="font-size:12px;color:#999;margin-top:2px">Processing complete</p>
+        </div>
+        <div class="processing-card-body">
+          <div class="processing-section">
+            <div class="processing-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#3FAF7A" stroke-width="2" style="width:12px;height:12px"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+              <span style="color:#25785A">Created (5)</span>
+            </div>
+            <div class="processing-entities">
+              <span class="processing-entity created">Revenue Ceiling Alert</span>
+              <span class="processing-entity created">Market Saturation Index</span>
+              <span class="processing-entity created">Industry Vertical Config</span>
+              <span class="processing-entity created">VP of Revenue</span>
+              <span class="processing-entity created">Growth Stall Pattern</span>
+            </div>
+          </div>
+          <div class="processing-section">
+            <div class="processing-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#044159" stroke-width="2" style="width:12px;height:12px"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              <span style="color:#044159">Updated (3)</span>
+            </div>
+            <div class="processing-entities">
+              <span class="processing-entity updated">TAM/SAM/SOM Calculator</span>
+              <span class="processing-entity updated">Pipeline Health</span>
+              <span class="processing-entity updated">Revenue Operations workflow</span>
+            </div>
+          </div>
+        </div>
+        <div class="processing-actions">
+          <button class="btn-pill filled" style="font-size:11px">Accept New (5)</button>
+          <button style="padding:6px 14px;border-radius:999px;font-size:11px;font-weight:500;border:1px solid #044159;color:#044159;background:white;cursor:pointer">Accept Updates (3)</button>
+          <button class="btn-pill secondary" style="font-size:11px">View Details</button>
+          <button class="btn-pill ghost" style="font-size:11px;margin-left:auto">Later</button>
+        </div>
+      </div>
+    `)
+  }
+}
+
+async function runScenario(name) {
+  currentScenario = name
+  clearMessages()
+
+  const s = SCENARIOS[name]
+  document.getElementById('scenario-title').textContent = s.title
+  document.getElementById('scenario-tag').textContent = s.tag
+
+  // Update buttons — clear active in both scenario rows
+  document.querySelectorAll('.control-group:first-child .btn').forEach(b => b.classList.remove('active'))
+  if (event?.target?.classList.contains('btn')) event.target.classList.add('active')
+
+  await s.steps()
+}
+
+// Run initial scenario
+setTimeout(() => runScenario('search'), 300)
+</script>
+
+</body>
+</html>

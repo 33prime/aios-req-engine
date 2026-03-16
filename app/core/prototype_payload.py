@@ -184,6 +184,7 @@ async def assemble_prototype_payload(
         except Exception:
             return {}
 
+    # Split into two batches to avoid Supabase HTTP/2 connection limits
     (
         project,
         raw_features,
@@ -192,12 +193,6 @@ async def assemble_prototype_payload(
         raw_flow_steps,
         raw_drivers,
         raw_constraints,
-        raw_competitors,
-        company_info,
-        existing_prototype,
-        horizon_map,
-        question_counts,
-        driver_link_map,
     ) = await asyncio.gather(
         asyncio.to_thread(_q_project),
         asyncio.to_thread(_q_features),
@@ -206,6 +201,15 @@ async def assemble_prototype_payload(
         asyncio.to_thread(_q_solution_flow),
         asyncio.to_thread(_q_drivers),
         asyncio.to_thread(_q_constraints),
+    )
+    (
+        raw_competitors,
+        company_info,
+        existing_prototype,
+        horizon_map,
+        question_counts,
+        driver_link_map,
+    ) = await asyncio.gather(
         asyncio.to_thread(_q_competitors),
         asyncio.to_thread(_q_company),
         asyncio.to_thread(_q_prototype),

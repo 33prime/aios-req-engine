@@ -43,17 +43,16 @@ async def compute_intelligence_briefing(
         _build_structural_gaps,
         _build_workflow_context,
         _build_workflow_context_display,
-        _count_entities,
         _detect_context_phase,
-        _load_project_data,
     )
+    from app.core.project_data import count_entities, load_project_data
 
     # ── Phase 1: Data Loading ──
-    data = await _load_project_data(project_id)
+    data = await load_project_data(project_id)
     phase, phase_progress = _detect_context_phase(data)
     workflow_context = _build_workflow_context(data["workflow_pairs"])
     workflow_context_display = _build_workflow_context_display(data["workflow_pairs"])
-    entity_counts = _count_entities(data)
+    entity_counts = count_entities(data)
 
     # Load project name + session + beliefs + insights + cache in parallel
     def _load_session():
@@ -487,7 +486,7 @@ async def compute_intelligence_briefing(
 
 def compute_heartbeat_only(project_id: UUID) -> ProjectHeartbeat:
     """Instant heartbeat — no LLM, always fresh. <100ms."""
-    from app.core.action_engine import _count_entities
+    from app.core.project_data import count_entities as _count_entities
 
     data = _load_sync_data(project_id)
     entity_counts = _count_entities(data) if data else {}

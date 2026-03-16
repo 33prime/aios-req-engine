@@ -491,10 +491,62 @@ export const getBRDHealth = (projectId: string) =>
 
 /**
  * Get the deal pulse — a sales-ready 2-3 sentence project status narrative.
+ * @deprecated Use getIntelligence() instead.
  */
 export const getDealPulse = (projectId: string, regenerate = false) =>
   apiRequest<{ pulse_text: string | null; cached: boolean }>(
     `/projects/${projectId}/workspace/brd/pulse-text?regenerate=${regenerate}`
+  )
+
+// ============================================
+// Unified Intelligence API
+// ============================================
+
+export interface SynthesizedAction {
+  sentence: string
+  action_type: 'research' | 'interview' | 'signal' | 'review' | 'confirm'
+  entity_type: string
+  chat_context: string
+}
+
+export interface IntelligenceData {
+  pulse: {
+    stage: string
+    health_score: number
+    forecast: {
+      coverage_index: number
+      confidence_index: number
+      prototype_readiness: number
+    } | null
+    actions: Array<{
+      sentence: string
+      impact_score: number
+      entity_type: string | null
+      unblocks_gate: boolean
+    }>
+    stage_progress: number
+    gates_met: number
+    gates_total: number
+    health: Record<string, {
+      entity_type: string
+      health_score: number
+      count: number
+      confirmed: number
+      coverage: string
+      directive: string
+    }>
+  }
+  deal_pulse_text: string | null
+  actions: SynthesizedAction[]
+}
+
+/**
+ * Unified intelligence: pulse health + deal narrative + next actions.
+ * Single call replaces getPulseSnapshot + getDealPulse.
+ */
+export const getIntelligence = (projectId: string) =>
+  apiRequest<IntelligenceData>(
+    `/projects/${projectId}/workspace/intelligence`
   )
 
 // ============================================

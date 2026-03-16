@@ -66,9 +66,9 @@ async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
     """
     # Load shared project data once (used by Layer 1 + Layer 3)
     try:
-        from app.core.action_engine import _load_project_data
+        from app.core.project_data import load_project_data
 
-        project_data = await _load_project_data(project_id)
+        project_data = await load_project_data(project_id)
     except Exception as e:
         logger.warning(f"Failed to load project data for context snapshot: {e}")
         project_data = {}
@@ -270,8 +270,8 @@ async def _build_entity_inventory(
         if project_data is not None:
             data = project_data
         else:
-            from app.core.action_engine import _load_project_data
-            data = await _load_project_data(project_id)
+            from app.core.project_data import load_project_data
+            data = await load_project_data(project_id)
     except Exception as e:
         logger.warning(f"Failed to load project data for inventory: {e}")
         return {}
@@ -563,13 +563,12 @@ async def _build_gaps_layer(
         from app.core.action_engine import (
             _build_structural_gaps,
             _detect_context_phase,
-            _load_project_data,
         )
 
         if project_data is not None:
             data = project_data
         else:
-            data = await _load_project_data(project_id)
+            data = await load_project_data(project_id)
         phase, _ = _detect_context_phase(data)
 
         structural_gaps = _build_structural_gaps(data["workflow_pairs"], phase.value)
@@ -655,9 +654,9 @@ async def _build_extraction_briefing(
     """
     try:
         if project_data is None:
-            from app.core.action_engine import _load_project_data
+            from app.core.project_data import load_project_data
 
-            project_data = await _load_project_data(project_id)
+            project_data = await load_project_data(project_id)
     except Exception as e:
         logger.warning(f"Failed to load project data for briefing: {e}")
         return ""

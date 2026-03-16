@@ -1,9 +1,11 @@
 /**
  * BuildPhaseView - Prototype embed + epic tour
  *
- * Two modes:
- * 1. Normal: prototype iframe with URL controls + "Review with Overlays" button
- * 2. Review: EpicTourController navigates iframe by changing src URL
+ * Three modes:
+ * 1. Empty: No prototype → "Generate Prototype" button (opens design selection)
+ * 2. Building: Build in progress → live progress indicator
+ * 3. Normal: Prototype deployed → iframe with URL controls + review
+ * 4. Review: EpicTourController navigates iframe by changing src URL
  *
  * Navigation uses iframe src swapping + postMessage for feature highlighting.
  * When the tour moves to a new epic, the iframe loads that page and highlights
@@ -22,15 +24,32 @@ import {
   X,
   Sparkles,
   Loader2,
+  CheckCircle2,
+  XCircle,
+  Zap,
+  Cpu,
+  Hammer,
+  Rocket,
 } from 'lucide-react'
 import EpicTourController from '@/components/prototype/EpicTourController'
 import { DesignSelectionChat } from '@/components/prototype/DesignSelectionChat'
+import { startBuild, getBuildStatus, cancelBuild } from '@/lib/api'
 import type {
   PrototypeSession,
   DesignSelection,
+  BuildStatus,
+  BuildPipelineStatus,
 } from '@/types/prototype'
 import type { EpicOverlayPlan, EpicTourPhase, ReviewSummary } from '@/types/epic-overlay'
 import ReviewSummaryOverlay from '@/components/prototype/ReviewSummaryOverlay'
+
+// Build phase metadata for progress display
+const BUILD_PHASES: { key: BuildPipelineStatus; label: string; icon: typeof Zap }[] = [
+  { key: 'phase0', label: 'Analyzing discovery data', icon: Zap },
+  { key: 'planning', label: 'Planning architecture', icon: Cpu },
+  { key: 'building', label: 'Building screens', icon: Hammer },
+  { key: 'deploying', label: 'Deploying to Netlify', icon: Rocket },
+]
 
 interface BuildPhaseViewProps {
   projectId: string
@@ -38,7 +57,7 @@ interface BuildPhaseViewProps {
   prototypeUpdatedAt?: string | null
   readinessScore: number
   onUpdatePrototypeUrl: (url: string) => Promise<void>
-  onGeneratePrototype?: (selection: DesignSelection) => Promise<void>
+  onPrototypeBuilt?: (deployUrl: string) => void
   // Review mode props
   isReviewActive: boolean
   onStartReview: () => void
@@ -72,7 +91,7 @@ export function BuildPhaseView({
   prototypeUrl,
   readinessScore,
   onUpdatePrototypeUrl,
-  onGeneratePrototype,
+  onPrototypeBuilt,
   isReviewActive,
   onStartReview,
   onEndReview,
@@ -100,8 +119,6 @@ export function BuildPhaseView({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [iframeKey, setIframeKey] = useState(0)
   const [showDesignModal, setShowDesignModal] = useState(false)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [isEndingReview, setIsEndingReview] = useState(false)
   // Current iframe URL — base URL + tour route
   const [activeIframeSrc, setActiveIframeSrc] = useState(prototypeUrl || '')
   const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null)
@@ -114,8 +131,17 @@ export function BuildPhaseView({
     epic_routes?: Record<string, string>
     feature_routes?: Record<string, string>
   } | null>(null)
+
+  // Build pipeline state
+  const [activeBuildId, setActiveBuildId] = useState<string | null>(null)
+  const [buildStatus, setBuildStatus] = useState<BuildStatus | null>(null)
+  const [buildError, setBuildError] = useState<string | null>(null)
+  const buildPollRef = useRef<NodeJS.Timeout | null>(null)
+
   const inputRef = useRef<HTMLInputElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  const isBuilding = activeBuildId !== null && buildStatus?.status !== 'completed' && buildStatus?.status !== 'failed'
 
   useEffect(() => {
     setUrlValue(prototypeUrl || '')
@@ -258,17 +284,65 @@ export function BuildPhaseView({
 
   const refreshIframe = () => setIframeKey((k) => k + 1)
 
-  const handleGeneratePrototype = async (selection: DesignSelection) => {
-    if (!onGeneratePrototype) return
-    setIsGenerating(true)
+  // Build pipeline: start build → poll for status → surface deploy URL
+  const handleStartBuild = async (selection: DesignSelection) => {
+    setBuildError(null)
     try {
-      await onGeneratePrototype(selection)
+      const result = await startBuild(projectId, { designSelection: selection })
+      setActiveBuildId(result.build_id)
+      setBuildStatus({ build_id: result.build_id, status: 'pending', streams_total: 0, streams_completed: 0, tasks_total: 0, tasks_completed: 0, total_tokens_used: 0, total_cost_usd: 0, deploy_url: null, github_repo_url: null, errors: [] })
       setShowDesignModal(false)
     } catch (error) {
-      console.error('Failed to generate prototype:', error)
-    } finally {
-      setIsGenerating(false)
+      console.error('Failed to start build:', error)
+      setBuildError(error instanceof Error ? error.message : 'Failed to start build')
     }
+  }
+
+  // Poll build status
+  useEffect(() => {
+    if (!activeBuildId) return
+    const terminal = ['completed', 'failed']
+    if (buildStatus && terminal.includes(buildStatus.status)) return
+
+    const poll = async () => {
+      try {
+        const status = await getBuildStatus(projectId, activeBuildId)
+        setBuildStatus(status)
+
+        if (status.status === 'completed' && status.deploy_url) {
+          onPrototypeBuilt?.(status.deploy_url)
+          setActiveBuildId(null)
+        } else if (status.status === 'failed') {
+          setBuildError(status.errors?.[0] || 'Build failed')
+        }
+      } catch {
+        // Non-fatal polling error
+      }
+    }
+
+    poll()
+    buildPollRef.current = setInterval(poll, 3000)
+    return () => {
+      if (buildPollRef.current) clearInterval(buildPollRef.current)
+    }
+  }, [activeBuildId, buildStatus?.status, projectId, onPrototypeBuilt])
+
+  const handleCancelBuild = async () => {
+    if (!activeBuildId) return
+    try {
+      await cancelBuild(projectId, activeBuildId)
+      setBuildStatus((prev) => prev ? { ...prev, status: 'failed' } : prev)
+      setBuildError('Build cancelled')
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  const handleRetryBuild = () => {
+    setActiveBuildId(null)
+    setBuildStatus(null)
+    setBuildError(null)
+    setShowDesignModal(true)
   }
 
   // Get features for a given card from epic plan
@@ -514,7 +588,7 @@ export function BuildPhaseView({
             onBackToReview={onBackToReview ?? (() => {})}
           />
         )}
-        {prototypeUrl ? (
+        {prototypeUrl && !isBuilding ? (
           <>
             {iframeLoading && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-sm">
@@ -531,32 +605,92 @@ export function BuildPhaseView({
               onLoad={() => setIframeLoading(false)}
             />
           </>
+        ) : isBuilding && buildStatus ? (
+          /* ── Build Progress View ── */
+          <div className="flex items-center justify-center h-full">
+            <div className="w-full max-w-md text-center px-6">
+              <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-brand-primary-light flex items-center justify-center">
+                <Hammer className="w-8 h-8 text-brand-primary animate-pulse" />
+              </div>
+              <h3 className="text-base font-semibold text-[#37352f] mb-1">Building Your Prototype</h3>
+              <p className="text-sm text-text-placeholder mb-6">
+                AI agents are building a live, interactive prototype from your discovery data.
+              </p>
+
+              {/* Phase steps */}
+              <div className="space-y-2 text-left mb-6">
+                {BUILD_PHASES.map((phase) => {
+                  const phaseOrder = BUILD_PHASES.map((p) => p.key)
+                  const currentIdx = phaseOrder.indexOf(buildStatus.status as BuildPipelineStatus)
+                  const thisIdx = phaseOrder.indexOf(phase.key)
+                  const isActive = buildStatus.status === phase.key
+                  const isComplete = currentIdx > thisIdx
+                  const Icon = isComplete ? CheckCircle2 : isActive ? Loader2 : phase.icon
+
+                  return (
+                    <div key={phase.key} className="flex items-center gap-3 py-1.5">
+                      <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${
+                        isComplete ? 'text-brand-primary' :
+                        isActive ? 'text-brand-primary animate-spin' :
+                        'text-text-placeholder'
+                      }`} />
+                      <span className={`text-sm ${
+                        isComplete || isActive ? 'text-text-body font-medium' : 'text-text-placeholder'
+                      }`}>
+                        {phase.label}
+                        {isActive && <span className="text-text-placeholder font-normal">...</span>}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <button
+                onClick={handleCancelBuild}
+                className="text-sm text-text-placeholder hover:text-red-500 transition-colors underline underline-offset-2"
+              >
+                Cancel build
+              </button>
+            </div>
+          </div>
+        ) : buildError ? (
+          /* ── Build Failed View ── */
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center max-w-md px-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+                <XCircle className="w-8 h-8 text-red-400" />
+              </div>
+              <h3 className="text-base font-semibold text-[#37352f] mb-2">Build Failed</h3>
+              <p className="text-sm text-text-placeholder mb-5 break-words">
+                {buildError}
+              </p>
+              <button
+                onClick={handleRetryBuild}
+                className="px-5 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-[#25785A] transition-colors inline-flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Try Again
+              </button>
+            </div>
+          </div>
         ) : (
+          /* ── Empty State ── */
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-md">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-brand-primary-light flex items-center justify-center">
                 <Sparkles className="w-8 h-8 text-brand-primary" />
               </div>
-              <h3 className="text-base font-semibold text-[#37352f] mb-2">Add a Prototype</h3>
+              <h3 className="text-base font-semibold text-[#37352f] mb-2">Build a Prototype</h3>
               <p className="text-sm text-text-placeholder mb-5">
-                Paste your prototype URL to start reviewing epics.
+                Generate a live, interactive prototype from your discovery data — deployed in under a minute.
               </p>
-              {onGeneratePrototype ? (
-                <button
-                  onClick={() => setShowDesignModal(true)}
-                  className="px-5 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-[#25785A] transition-colors inline-flex items-center gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Generate Prototype
-                </button>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="px-5 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-[#25785A] transition-colors"
-                >
-                  Add Prototype URL
-                </button>
-              )}
+              <button
+                onClick={() => setShowDesignModal(true)}
+                className="px-5 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-[#25785A] transition-colors inline-flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Generate Prototype
+              </button>
               <div className="mt-3">
                 <button
                   onClick={() => setIsEditing(true)}
@@ -574,9 +708,9 @@ export function BuildPhaseView({
       <DesignSelectionChat
         isOpen={showDesignModal}
         onClose={() => setShowDesignModal(false)}
-        onGenerate={handleGeneratePrototype}
+        onGenerate={handleStartBuild}
         projectId={projectId}
-        isGenerating={isGenerating}
+        isGenerating={isBuilding}
       />
     </div>
   )

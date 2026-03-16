@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { RefreshCw, Loader2 } from 'lucide-react'
-import { getDealPulse, getPulseSnapshot } from '@/lib/api'
-import type { PulseSnapshot } from '@/types/api'
+import { Loader2 } from 'lucide-react'
+import { getIntelligence } from '@/lib/api'
+import { Markdown } from '@/components/ui/Markdown'
+import type { IntelligenceData, SynthesizedAction } from '@/lib/api/workspace'
 import type { BRDWorkspaceData } from '@/types/workspace'
 
 interface IntelligenceSectionProps {
@@ -13,6 +14,7 @@ interface IntelligenceSectionProps {
   onRefreshAll?: () => void
   isRefreshing?: boolean
   projectId?: string
+  onActionClick?: (action: SynthesizedAction) => void
 }
 
 // ============================================================================
@@ -77,7 +79,7 @@ function StageJourney({ currentStage }: { currentStage: string }) {
 }
 
 // ============================================================================
-// Action Card — matches ProjectHealthOverlay exactly (3-col grid)
+// Action Card — 3-col grid with click→chat
 // ============================================================================
 
 const ACTION_BADGE_STYLES: Record<string, { label: string; bg: string; text: string }> = {
@@ -85,19 +87,16 @@ const ACTION_BADGE_STYLES: Record<string, { label: string; bg: string; text: str
   research: { label: 'Research', bg: '#D1FAE5', text: '#047857' },
   review: { label: 'Review', bg: 'rgba(4,65,89,0.08)', text: '#044159' },
   signal: { label: 'Signal', bg: 'rgba(63,175,122,0.08)', text: '#2a8f5f' },
+  confirm: { label: 'Confirm', bg: 'rgba(63,175,122,0.12)', text: '#2a8f5f' },
 }
 
-function actionBadgeFor(action: PulseSnapshot['actions'][number]) {
-  if (action.unblocks_gate) return ACTION_BADGE_STYLES.review
-  const s = action.sentence.toLowerCase()
-  if (s.includes('interview') || s.includes('stakeholder') || s.includes('call'))
-    return ACTION_BADGE_STYLES.interview
-  if (s.includes('upload') || s.includes('compet') || s.includes('research'))
-    return ACTION_BADGE_STYLES.research
-  return ACTION_BADGE_STYLES.signal
-}
-
-function NextActions({ actions }: { actions: PulseSnapshot['actions'] }) {
+function NextActions({
+  actions,
+  onActionClick,
+}: {
+  actions: SynthesizedAction[]
+  onActionClick?: (action: SynthesizedAction) => void
+}) {
   const items = actions.slice(0, 3)
   if (items.length === 0) {
     return <p className="text-[12px] text-brand-primary">No urgent actions right now</p>
@@ -106,11 +105,12 @@ function NextActions({ actions }: { actions: PulseSnapshot['actions'] }) {
   return (
     <div className="grid grid-cols-3 gap-3">
       {items.map((action, i) => {
-        const badge = actionBadgeFor(action)
+        const badge = ACTION_BADGE_STYLES[action.action_type] || ACTION_BADGE_STYLES.signal
         return (
           <div
             key={i}
             className="flex flex-col gap-2 p-3 bg-[#F5F5F5] rounded-lg border border-transparent hover:border-brand-primary hover:bg-white cursor-pointer transition-all"
+            onClick={() => onActionClick?.(action)}
           >
             <div className="flex items-center gap-2">
               <span className="w-[20px] h-[20px] rounded-full bg-brand-primary text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
@@ -143,23 +143,19 @@ export function IntelligenceSection({
   onRefreshAll,
   isRefreshing,
   projectId: projectIdProp,
+  onActionClick,
 }: IntelligenceSectionProps) {
   const projectId = projectIdProp || ''
 
-  const [pulse, setPulse] = useState<PulseSnapshot | null>(null)
-  const [pulseText, setPulseText] = useState<string | null>(null)
+  const [intelligence, setIntelligence] = useState<IntelligenceData | null>(null)
   const [loading, setLoading] = useState(false)
 
   const loadData = useCallback(async () => {
     if (!projectId) return
     setLoading(true)
     try {
-      const [pulseResult, dealPulse] = await Promise.allSettled([
-        getPulseSnapshot(projectId),
-        getDealPulse(projectId),
-      ])
-      if (pulseResult.status === 'fulfilled') setPulse(pulseResult.value)
-      if (dealPulse.status === 'fulfilled') setPulseText(dealPulse.value.pulse_text)
+      const result = await getIntelligence(projectId)
+      setIntelligence(result)
     } catch {
       // Silent fail
     } finally {
@@ -169,19 +165,13 @@ export function IntelligenceSection({
 
   useEffect(() => { loadData() }, [loadData])
 
-  const handleRefresh = async () => {
-    onRefreshAll?.()
-    await loadData()
-  }
+  // Compute health score from unified response
+  const avgHealth = intelligence?.pulse?.health_score ?? 0
+  const stage = intelligence?.pulse?.stage || 'discovery'
+  const forecast = intelligence?.pulse?.forecast
+  const pulseText = intelligence?.deal_pulse_text
+  const actions = intelligence?.actions || []
 
-  // Compute health score from pulse (same as ProjectHealthOverlay)
-  const healthEntries = Object.entries(pulse?.health || {})
-  const avgHealth = healthEntries.length > 0
-    ? healthEntries.reduce((sum, [, h]) => sum + h.health_score, 0) / healthEntries.length
-    : 0
-
-  const stage = pulse?.stage || 'discovery'
-  const forecast = pulse?.forecast
   const subMetrics = forecast
     ? [
         { label: 'Coverage', value: Math.round(forecast.coverage_index * 100) },
@@ -194,34 +184,20 @@ export function IntelligenceSection({
     <section className="mb-8">
       <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
         {/* Header: Score ring + stage journey + sub-metrics */}
-        <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <ScoreRing score={avgHealth} />
-            <div className="flex flex-col gap-1.5">
-              <StageJourney currentStage={stage} />
-              {subMetrics.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {subMetrics.map((m) => (
-                    <span key={m.label} className="bg-[#F5F5F5] text-[#7B7B7B] text-[10px] px-2 py-0.5 rounded-full">
-                      {m.label} {m.value}%
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing || loading}
-            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-text-placeholder hover:text-[#666666] transition-colors disabled:opacity-50"
-          >
-            {isRefreshing || loading ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <RefreshCw className="w-3 h-3" />
+        <div className="px-5 pt-5 pb-3 flex items-center gap-4">
+          <ScoreRing score={avgHealth} />
+          <div className="flex flex-col gap-1.5">
+            <StageJourney currentStage={stage} />
+            {subMetrics.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {subMetrics.map((m) => (
+                  <span key={m.label} className="bg-[#F5F5F5] text-[#7B7B7B] text-[10px] px-2 py-0.5 rounded-full">
+                    {m.label} {m.value}%
+                  </span>
+                ))}
+              </div>
             )}
-            Refresh
-          </button>
+          </div>
         </div>
 
         {/* Pulse narrative */}
@@ -232,7 +208,10 @@ export function IntelligenceSection({
               Generating project summary...
             </div>
           ) : pulseText ? (
-            <p className="text-[14px] text-[#666666] leading-relaxed">{pulseText}</p>
+            <Markdown
+              content={pulseText}
+              className="text-[14px] text-[#444444] leading-[1.75] [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_strong]:text-text-body [&_strong]:font-semibold [&_em]:text-[#555555]"
+            />
           ) : (
             <p className="text-[13px] text-text-placeholder italic">
               Add more signals and entities to generate a project summary.
@@ -240,13 +219,13 @@ export function IntelligenceSection({
           )}
         </div>
 
-        {/* Next actions — 3-column grid matching ProjectHealthOverlay */}
-        {pulse && (pulse.actions || []).length > 0 && (
+        {/* Next actions — 3-column grid with click→chat */}
+        {actions.length > 0 && (
           <div className="border-t border-[#F0F0F0] px-5 py-4">
             <p className="text-[11px] font-semibold text-text-placeholder uppercase tracking-wide mb-2.5">
               Next Actions
             </p>
-            <NextActions actions={pulse.actions || []} />
+            <NextActions actions={actions} onActionClick={onActionClick} />
           </div>
         )}
       </div>

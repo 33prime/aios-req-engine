@@ -404,6 +404,7 @@ def compile_prompt(
     conversation_context: str | None = None,
     warm_memory: str = "",
     forge_state: dict | None = None,
+    next_actions: list[str] | None = None,
 ) -> CompiledPrompt:
     """Compile a full prompt from cognitive frame + project state.
 
@@ -436,6 +437,15 @@ def compile_prompt(
 
     # Awareness snapshot (~300-500t, always — the peripheral vision)
     dynamic_sections.append(format_awareness_snapshot(awareness))
+
+    # Next actions from intelligence engine (~0-150t)
+    # These are the exact NEXT ACTIONS cards the consultant sees in the UI
+    if next_actions:
+        lines = ["# Current Priorities (visible to consultant as Next Actions cards)"]
+        for i, sentence in enumerate(next_actions, 1):
+            lines.append(f"{i}. {sentence}")
+        lines.append("When the consultant asks about one of these, help them knock it out — be warm and proactive.")
+        dynamic_sections.append("\n".join(lines))
 
     # Warm memory (~0-200t, cross-conversation context)
     if warm_memory:

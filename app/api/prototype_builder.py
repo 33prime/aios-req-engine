@@ -340,6 +340,7 @@ async def start_build(
         config=body.config,
         skip_phase0=body.skip_phase0,
         skip_deploy=body.skip_deploy,
+        design_selection=body.design_selection,
     )
 
     return {"build_id": str(build_id), "status": "pending"}
@@ -558,6 +559,7 @@ async def _run_build_pipeline(
     config,
     skip_phase0: bool = False,
     skip_deploy: bool = False,
+    design_selection: dict | None = None,
 ) -> None:
     """Background task: full build pipeline."""
     from app.core.config import get_settings
@@ -597,7 +599,33 @@ async def _run_build_pipeline(
             {"phase": "planning", "message": "Assembling payload"},
         )
 
-        payload_response = await assemble_prototype_payload(project_id=project_id)
+        # Parse design_selection if provided
+        _design_sel = None
+        if design_selection:
+            from app.core.schemas_prototypes import DesignSelection as DSel
+
+            try:
+                _design_sel = DSel(**design_selection)
+            except Exception:
+                logger.warning("Invalid design_selection — using defaults")
+
+        # Retry payload assembly — Supabase HTTP/2 connections can drop under parallel load
+        payload_response = None
+        for _attempt in range(3):
+            try:
+                payload_response = await assemble_prototype_payload(
+                    project_id=project_id,
+                    design_selection=_design_sel,
+                )
+                break
+            except Exception as e:
+                if _attempt < 2:
+                    import asyncio as _aio
+
+                    logger.warning(f"Payload assembly attempt {_attempt + 1} failed: {e}, retrying...")
+                    await _aio.sleep(2)
+                else:
+                    raise
         payload = payload_response.payload
 
         # Ensure we have prebuild intelligence (from Phase 0 or DB)

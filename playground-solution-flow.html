@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solution Flow — Living Blueprint</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #F8F9FB;
+  color: #333;
+  overflow: hidden;
+  height: 100vh;
+}
+::-webkit-scrollbar { height: 6px; width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D4D4D4; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #B0B0B0; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   LAYOUT
+   ═══════════════════════════════════════════════════════════════════ */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#app.present-mode {
+  background: #0A1E2F;
+}
+
+/* ── Header ──────────────────────────────────────────────────── */
+header {
+  background: #0A1E2F;
+  padding: 20px 32px 16px;
+  flex-shrink: 0;
+  transition: all 0.5s ease;
+}
+#app.present-mode header { display: none; }
+
+.thesis {
+  font-size: 18px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.9);
+  line-height: 1.5;
+  max-width: 900px;
+  margin-bottom: 16px;
+  letter-spacing: -0.01em;
+}
+.thesis em {
+  color: #3FAF7A;
+  font-style: normal;
+  font-weight: 500;
+}
+
+/* Value Bar */
+.value-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.value-bar-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255,255,255,0.4);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+.value-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+}
+.value-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3FAF7A 0%, #2DD4A8 50%, #3FAF7A 100%);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.value-bar-markers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+}
+.value-bar-marker {
+  flex: 1;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+.value-bar-stat {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+}
+.value-bar-stat strong {
+  color: #3FAF7A;
+  font-weight: 600;
+}
+
+/* Controls Row */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.persona-pills {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+.persona-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 4px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.12);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-size: 12px;
+  font-weight: 500;
+}
+.persona-pill:hover {
+  border-color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.9);
+}
+.persona-pill.active {
+  background: rgba(255,255,255,0.1);
+  border-color: var(--pill-color);
+  color: #fff;
+}
+.persona-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.view-btns {
+  display: flex;
+  gap: 2px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 2px;
+}
+.view-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.view-btn:hover { color: rgba(255,255,255,0.8); }
+.view-btn.active {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+.present-btn {
+  padding: 5px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(63,175,122,0.4);
+  background: rgba(63,175,122,0.1);
+  color: #3FAF7A;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.present-btn:hover {
+  background: rgba(63,175,122,0.2);
+  border-color: #3FAF7A;
+}
+
+/* ── Main Canvas ─────────────────────────────────────────────── */
+main {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+  position: relative;
+  padding: 0;
+}
+
+.canvas-inner {
+  min-width: max-content;
+  padding: 24px 48px 24px;
+  position: relative;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Horizon Layer (H2/H3 floating above) ───────────────────── */
+.horizon-layer {
+  display: flex;
+  gap: 24px;
+  padding: 0 60px;
+  margin-bottom: 8px;
+  min-height: 72px;
+  align-items: flex-end;
+}
+.horizon-station {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1.5px dashed;
+  position: relative;
+  min-width: 200px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0.85;
+}
+.horizon-station:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+}
+.horizon-station.h2 {
+  background: rgba(139, 92, 246, 0.06);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+.horizon-station.h3 {
+  background: rgba(236, 72, 153, 0.06);
+  border-color: rgba(236, 72, 153, 0.3);
+}
+.horizon-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+.h2 .horizon-badge { background: rgba(139,92,246,0.15); color: #7C3AED; }
+.h3 .horizon-badge { background: rgba(236,72,153,0.15); color: #DB2777; }
+.horizon-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1D1D1F;
+  margin-bottom: 2px;
+}
+.horizon-value {
+  font-size: 11px;
+  color: #7B7B7B;
+}
+
+/* Unlock lines (SVG) */
+.unlock-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── River ───────────────────────────────────────────────────── */
+.river-container {
+  position: relative;
+  padding: 16px 0;
+}
+.river-path {
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  right: 20px;
+  height: 4px;
+  background: linear-gradient(90deg, #E2E8F0, #CBD5E1, #E2E8F0);
+  border-radius: 2px;
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+/* Data flow threads */
+.data-threads {
+  position: absolute;
+  bottom: -18px;
+  left: 0;
+  right: 0;
+  height: 28px;
+  z-index: 0;
+}
+.data-thread {
+  position: absolute;
+  height: 2px;
+  border-radius: 1px;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+.data-thread.highlighted { opacity: 0.8; }
+.data-thread-label {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.data-thread.highlighted .data-thread-label { opacity: 1; }
+
+/* Station cards */
+.stations {
+  display: flex;
+  gap: 20px;
+  position: relative;
+  z-index: 2;
+  padding: 0 40px;
+}
+.station {
+  width: 228px;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 12px;
+  border: 1.5px solid #E5E5E5;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.station:hover {
+  border-color: #D4D4D4;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transform: translateY(-3px);
+}
+.station.active {
+  border-color: #3FAF7A;
+  box-shadow: 0 4px 20px rgba(63,175,122,0.15);
+  transform: translateY(-3px);
+}
+.station.dimmed {
+  opacity: 0.25;
+  transform: scale(0.97);
+  pointer-events: none;
+}
+.station.persona-highlight {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+  pointer-events: auto !important;
+}
+
+/* Confidence ring */
+.station.confidence-high { border-left: 3px solid #3FAF7A; }
+.station.confidence-medium { border-left: 3px solid #F59E0B; }
+.station.confidence-low { border-left: 3px solid #EF4444; }
+
+/* Station header */
+.station-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.phase-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.phase-entry { background: #DBEAFE; color: #1E40AF; }
+.phase-core_experience { background: #D1FAE5; color: #065F46; }
+.phase-output { background: #FEF3C7; color: #92400E; }
+.phase-admin { background: #F3F4F6; color: #374151; }
+
+.value-badges {
+  display: flex;
+  gap: 3px;
+}
+.value-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+.badge-transform { background: #FEF3C7; }
+.badge-unlock { background: #EDE9FE; }
+.badge-connect { background: #DBEAFE; }
+.badge-amplify { background: #D1FAE5; }
+
+.station-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1D1D1F;
+  line-height: 1.35;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.station-goal {
+  font-size: 12px;
+  color: #7B7B7B;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.station-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.station-personas {
+  display: flex;
+  gap: -4px;
+}
+.station-personas .persona-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+  border: 2px solid #fff;
+  margin-left: -4px;
+}
+.station-personas .persona-dot:first-child { margin-left: 0; }
+.station-step-num {
+  font-size: 11px;
+  color: #B0B0B0;
+  font-weight: 500;
+}
+
+/* ── Persona Journey Arcs ────────────────────────────────────── */
+.persona-arcs {
+  height: 32px;
+  position: relative;
+  margin-bottom: 4px;
+  padding: 0 40px;
+}
+.persona-arc-line {
+  position: absolute;
+  height: 3px;
+  border-radius: 1.5px;
+  opacity: 0.35;
+  transition: opacity 0.3s ease;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.persona-arc-line.highlighted { opacity: 0.8; }
+.persona-arc-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+.persona-arc-dot.highlighted { opacity: 1; }
+
+/* ── Detail Panel (expanded station) ─────────────────────────── */
+.detail-panel {
+  margin: 20px 40px 0;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #E5E5E5;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.detail-panel.open {
+  max-height: 800px;
+  opacity: 1;
+  margin-top: 20px;
+}
+
+.detail-content {
+  padding: 28px 32px;
+}
+.detail-top {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 24px;
+}
+.detail-story {
+  flex: 1.2;
+}
+.detail-story-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #7B7B7B;
+  margin-bottom: 8px;
+}
+.detail-narrative {
+  font-size: 15px;
+  line-height: 1.65;
+  color: #333;
+}
+.detail-narrative .persona-mention {
+  font-weight: 600;
+  color: #044159;
+}
+.detail-narrative .metric {
+  font-weight: 600;
+  color: #3FAF7A;
+}
+
+/* Intelligence cards */
+.detail-cards {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.intel-card {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+.intel-card-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.intel-card-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #333;
+}
+.intel-card-evidence {
+  font-size: 11px;
+  color: #7B7B7B;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* Before/After */
+.intel-card.before-after {
+  background: #FAFAFA;
+  border-color: #E5E5E5;
+}
+.before-after-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.ba-column-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.ba-today .ba-column-label { color: #991B1B; }
+.ba-tomorrow .ba-column-label { color: #065F46; }
+.ba-item {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #4B4B4B;
+  padding: 3px 0;
+}
+.ba-today .ba-item { color: #7B7B7B; text-decoration: line-through; text-decoration-color: #D4D4D4; }
+.ba-tomorrow .ba-item { color: #333; font-weight: 500; }
+.ba-quote {
+  font-size: 11px;
+  font-style: italic;
+  color: #999;
+  margin-top: 4px;
+}
+
+/* Unlock card */
+.intel-card.unlock-card {
+  background: rgba(139,92,246,0.04);
+  border-color: rgba(139,92,246,0.2);
+}
+.intel-card.unlock-card .intel-card-label { color: #7C3AED; }
+
+/* Insight card */
+.intel-card.insight-card {
+  background: rgba(59,130,246,0.04);
+  border-color: rgba(59,130,246,0.2);
+}
+.intel-card.insight-card .intel-card-label { color: #1D4ED8; }
+
+/* Tension card */
+.intel-card.tension-card {
+  background: rgba(245,158,11,0.04);
+  border-color: rgba(245,158,11,0.2);
+}
+.intel-card.tension-card .intel-card-label { color: #B45309; }
+.tension-sides {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.tension-side {
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(245,158,11,0.06);
+}
+.tension-resolution {
+  font-size: 12px;
+  color: #7B7B7B;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(245,158,11,0.15);
+}
+.tension-resolve-btn {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: #F59E0B;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+/* Fields table */
+.detail-fields {
+  margin-top: 20px;
+  border-top: 1px solid #F0F0F0;
+  padding-top: 16px;
+}
+.fields-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #7B7B7B;
+  margin-bottom: 10px;
+}
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+}
+.field-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #FAFAFA;
+}
+.field-type-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.field-type-captured { background: #3B82F6; }
+.field-type-displayed { background: #8B5CF6; }
+.field-type-computed { background: #3FAF7A; }
+.field-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #333;
+}
+.field-value {
+  font-size: 11px;
+  color: #7B7B7B;
+  margin-top: 1px;
+}
+.field-confidence {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.conf-known { background: #D1FAE5; color: #065F46; }
+.conf-inferred { background: #DBEAFE; color: #1E40AF; }
+.conf-guess { background: #FEF3C7; color: #92400E; }
+
+/* Open questions */
+.detail-questions {
+  margin-top: 16px;
+}
+.question-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #FEF3C7;
+  border: 1px solid rgba(245,158,11,0.2);
+  margin-top: 8px;
+}
+.question-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.question-text {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.4;
+}
+.question-context {
+  font-size: 11px;
+  color: #92400E;
+  margin-top: 3px;
+}
+
+/* ── Intelligence Summary Bar ────────────────────────────────── */
+.intel-summary {
+  flex-shrink: 0;
+  padding: 10px 32px;
+  background: #fff;
+  border-top: 1px solid #E5E5E5;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+#app.present-mode .intel-summary { display: none; }
+.intel-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #7B7B7B;
+}
+.intel-summary-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.intel-summary-item strong {
+  color: #333;
+  font-weight: 600;
+}
+
+/* ── Chat Panel Indicator ────────────────────────────────────── */
+.chat-indicator {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  writing-mode: vertical-rl;
+  background: #044159;
+  color: rgba(255,255,255,0.8);
+  padding: 16px 10px;
+  border-radius: 10px 0 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chat-indicator:hover {
+  background: #065F46;
+  padding-right: 14px;
+}
+.chat-indicator svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  transform: rotate(90deg);
+}
+#app.present-mode .chat-indicator { display: none; }
+
+/* ── Present Mode ────────────────────────────────────────────── */
+.present-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #0A1E2F;
+  flex-direction: column;
+}
+.present-overlay.active { display: flex; }
+
+.present-header {
+  padding: 24px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.present-counter {
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+  font-weight: 500;
+}
+.present-close {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+.present-close:hover { background: rgba(255,255,255,0.05); color: #fff; }
+
+.present-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 80px 60px;
+}
+.present-card {
+  max-width: 900px;
+  width: 100%;
+}
+.present-phase {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+.present-phase.entry { color: #60A5FA; }
+.present-phase.core_experience { color: #3FAF7A; }
+.present-phase.output { color: #FBBF24; }
+.present-phase.admin { color: #9CA3AF; }
+
+.present-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+}
+.present-goal {
+  font-size: 18px;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.5;
+  margin-bottom: 32px;
+}
+.present-narrative {
+  font-size: 17px;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.8);
+  padding: 24px 28px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 12px;
+  border-left: 3px solid #3FAF7A;
+}
+.present-badges {
+  display: flex;
+  gap: 8px;
+  margin-top: 24px;
+}
+.present-badge {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.present-nav {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding-bottom: 32px;
+}
+.present-nav-btn {
+  padding: 8px 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+.present-nav-btn:hover { background: rgba(255,255,255,0.05); color: #fff; }
+.present-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.present-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.present-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  transition: all 0.3s ease;
+}
+.present-dot.active {
+  background: #3FAF7A;
+  width: 24px;
+  border-radius: 4px;
+}
+
+/* ── Animations ──────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+.station {
+  animation: fadeIn 0.5s ease backwards;
+}
+.station:nth-child(1) { animation-delay: 0.05s; }
+.station:nth-child(2) { animation-delay: 0.1s; }
+.station:nth-child(3) { animation-delay: 0.15s; }
+.station:nth-child(4) { animation-delay: 0.2s; }
+.station:nth-child(5) { animation-delay: 0.25s; }
+.station:nth-child(6) { animation-delay: 0.3s; }
+.station:nth-child(7) { animation-delay: 0.35s; }
+.station:nth-child(8) { animation-delay: 0.4s; }
+
+.horizon-station {
+  animation: fadeIn 0.6s ease backwards;
+  animation-delay: 0.5s;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="thesis">
+      This solution transforms <em>manual inventory classification</em> into an AI-assisted pipeline &mdash; what takes <em>2 weeks of spreadsheet work</em> becomes same-day intelligent processing, freeing Sarah&rsquo;s team to focus on vendor strategy instead of data entry.
+    </div>
+    <div class="value-bar">
+      <span class="value-bar-label">Cumulative Value</span>
+      <div class="value-bar-track">
+        <div class="value-bar-fill" id="valueBarFill"></div>
+        <div class="value-bar-markers" id="valueBarMarkers"></div>
+      </div>
+      <span class="value-bar-stat"><strong>6</strong> pains resolved</span>
+      <span class="value-bar-stat"><strong>8.5 hrs</strong> saved / cycle</span>
+      <span class="value-bar-stat"><strong>$340K</strong> annual savings</span>
+    </div>
+    <div class="controls">
+      <div class="persona-pills" id="personaPills"></div>
+      <div class="view-btns">
+        <button class="view-btn active" data-view="map">Map</button>
+        <button class="view-btn" data-view="data">Data Flow</button>
+      </div>
+      <button class="present-btn" onclick="enterPresent()">Present</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="canvas-inner" id="canvasInner">
+      <div class="horizon-layer" id="horizonLayer"></div>
+      <div class="persona-arcs" id="personaArcs"></div>
+      <div class="river-container">
+        <div class="river-path"></div>
+        <div class="stations" id="stations"></div>
+      </div>
+      <div class="data-threads" id="dataThreads"></div>
+      <div class="detail-panel" id="detailPanel">
+        <div class="detail-content" id="detailContent"></div>
+      </div>
+    </div>
+    <svg class="unlock-lines" id="unlockLines"></svg>
+  </main>
+
+  <div class="intel-summary">
+    <div class="intel-summary-item">
+      <div class="intel-summary-dot" style="background:#3B82F6"></div>
+      <strong>3</strong> hidden connections
+    </div>
+    <div class="intel-summary-item">
+      <div class="intel-summary-dot" style="background:#F59E0B"></div>
+      <strong>1</strong> tension to resolve
+    </div>
+    <div class="intel-summary-item">
+      <div class="intel-summary-dot" style="background:#8B5CF6"></div>
+      <strong>2</strong> future unlocks
+    </div>
+    <div class="intel-summary-item">
+      <div class="intel-summary-dot" style="background:#3FAF7A"></div>
+      Quality <strong>87/100</strong>
+    </div>
+    <div class="intel-summary-item" style="margin-left:auto">
+      <div class="intel-summary-dot" style="background:#3FAF7A"></div>
+      <strong>8/9</strong> intelligence sources
+    </div>
+  </div>
+
+  <div class="chat-indicator" id="chatIndicator">
+    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+    Ask about this step
+  </div>
+</div>
+
+<!-- Present Mode Overlay -->
+<div class="present-overlay" id="presentOverlay">
+  <div class="present-header">
+    <div class="present-counter" id="presentCounter">Step 1 of 8</div>
+    <button class="present-close" onclick="exitPresent()">ESC &middot; Exit</button>
+  </div>
+  <div class="present-content" id="presentContent"></div>
+  <div class="present-nav">
+    <button class="present-nav-btn" id="prevBtn" onclick="presentNav(-1)">&larr; Previous</button>
+    <div class="present-dots" id="presentDots"></div>
+    <button class="present-nav-btn" id="nextBtn" onclick="presentNav(1)">Next &rarr;</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════════
+
+const personas = [
+  { name: "Sarah Chen", role: "Operations Manager", color: "#3FAF7A", initial: "SC" },
+  { name: "Tom Rivera", role: "Procurement Lead", color: "#3B82F6", initial: "TR" },
+  { name: "Alex Kim", role: "Warehouse Supervisor", color: "#F59E0B", initial: "AK" },
+  { name: "Lisa Park", role: "CFO", color: "#8B5CF6", initial: "LP" },
+];
+
+const steps = [
+  {
+    title: "Onboard & Configure Categories",
+    goal: "Set up inventory taxonomy and import existing category structures so the system understands the classification framework",
+    phase: "entry", actors: ["Sarah Chen", "Alex Kim"], valueBadges: ["transform"], confidence: "high",
+    dataIn: [], dataOut: ["Category Taxonomy"],
+    narrative: `Sarah and Alex sit down with the category configuration wizard. They import their existing 340-item taxonomy from the master spreadsheet. The system highlights 23 categories with fewer than 5 items \u2014 candidates for consolidation. Alex confirms 4 merges, and the taxonomy shrinks to 317 focused categories. The AI suggests 8 additional sub-categories based on recent inventory patterns. Total setup: 25 minutes.`,
+    beforeAfter: {
+      before: ["Manual taxonomy in spreadsheets", "No standardization across warehouses", "3 days to update categories", "\u201CEvery warehouse does it differently\u201D"],
+      after: ["AI-suggested taxonomy", "Standardized across all locations", "25-minute guided setup", "Consolidation recommendations included"]
+    },
+    fields: [
+      { name: "Category count", type: "computed", value: "317 active categories", confidence: "known" },
+      { name: "Import source", type: "captured", value: "Master spreadsheet (Excel)", confidence: "known" },
+      { name: "Consolidation suggestions", type: "computed", value: "23 flagged, 4 merged", confidence: "inferred" },
+      { name: "AI sub-categories", type: "computed", value: "8 new proposals", confidence: "guess" },
+    ],
+    pattern: "Guided wizard with import, preview, and AI suggestions",
+    questions: [],
+  },
+  {
+    title: "Import Historical Inventory Data",
+    goal: "Bring in 2 years of historical data to train the AI classifier and establish baseline metrics",
+    phase: "entry", actors: ["Sarah Chen"], valueBadges: ["connect"], confidence: "medium",
+    dataIn: ["Category Taxonomy"], dataOut: ["Inventory Record", "Historical Baseline"],
+    narrative: `Sarah uploads the last 24 months of inventory transactions \u2014 47,000 records across 3 warehouse locations. The system maps columns automatically, flagging 12 fields that need manual mapping. A progress bar shows the AI training on historical patterns. After 8 minutes, the system reports: 94% of records auto-classified, 2,800 items need manual review. A quality score of 87% appears \u2014 good enough to start, will improve with use.`,
+    insight: {
+      type: "connection", icon: "\u{1F517}",
+      title: "Hidden Connection",
+      text: "Data Migration and Setup & Configuration share 3 data entities (Inventory Record, Category Taxonomy, Location Code). We combined them into a connected import flow \u2014 they\u2019re actually one process that was split across two teams.",
+      evidence: "5 entity dependency links, 2 workflow overlaps"
+    },
+    fields: [
+      { name: "Records imported", type: "computed", value: "47,000 transactions", confidence: "known" },
+      { name: "Auto-mapped fields", type: "computed", value: "18/30 fields (12 need review)", confidence: "inferred" },
+      { name: "AI training quality", type: "computed", value: "87% accuracy on historical data", confidence: "inferred" },
+      { name: "Manual review queue", type: "computed", value: "2,800 items flagged", confidence: "inferred" },
+    ],
+    questions: [{ q: "Import all 3 warehouses simultaneously or phase by location?", ctx: "Phased approach reduces risk but delays AI training" }],
+    pattern: "Upload wizard with column mapping, progress tracking, and quality dashboard",
+  },
+  {
+    title: "Classify Incoming Inventory with AI",
+    goal: "Automatically classify new arrivals using trained AI, with human review for low-confidence items",
+    phase: "core_experience", actors: ["Sarah Chen", "Alex Kim"], valueBadges: ["transform", "amplify"], confidence: "high",
+    dataIn: ["Inventory Record", "Category Taxonomy"], dataOut: ["Classification Result"],
+    narrative: `Sarah opens her morning dashboard and sees 247 new items flagged for classification. The AI has pre-classified 89% of them with confidence above 90%. She filters to the 27 exceptions \u2014 mostly custom parts that don\u2019t match existing categories. She creates a new category \u2018Custom Fabrication\u2019, and the AI immediately reclassifies 12 items. Alex reviews the remaining 15, correcting 3 misclassifications. The AI notes his corrections for future training. Total time: 4 minutes. Yesterday\u2019s equivalent: 3 hours with a spreadsheet.`,
+    beforeAfter: {
+      before: ["Manual spreadsheet classification", "3 hours per batch of 250 items", "12% error rate", "\u201CI dread Monday mornings\u201D \u2014 Sarah"],
+      after: ["AI pre-classification (89% auto)", "4 minutes for 247 items", "2% error rate (human-reviewed)", "Focus on exceptions only"]
+    },
+    aiConfig: { role: "Pre-classify items based on trained model", behaviors: ["Auto-classify above 90% confidence", "Flag exceptions for review", "Learn from corrections"] },
+    tension: {
+      desc: "Automation Level Disagreement",
+      sideA: "\u201CClassification should be fully automated \u2014 no human review needed\u201D \u2014 CTO (3 supporting signals)",
+      sideB: "\u201CEvery classification must be reviewed by an operator\u201D \u2014 Ops Director (2 supporting signals)",
+      resolution: "Current design: AI + human review for exceptions. The 90% confidence threshold needs to be agreed upon."
+    },
+    unlocks: ["Predictive Demand Forecasting"],
+    fields: [
+      { name: "Items pending", type: "displayed", value: "247 new arrivals", confidence: "known" },
+      { name: "Auto-classified", type: "computed", value: "220 items (89%)", confidence: "known" },
+      { name: "Exception queue", type: "computed", value: "27 items for review", confidence: "known" },
+      { name: "AI confidence", type: "computed", value: "94.2% average", confidence: "inferred" },
+    ],
+    questions: [],
+    pattern: "Dashboard with AI confidence indicators, exception queue, inline corrections",
+  },
+  {
+    title: "Match Vendors to Classified Inventory",
+    goal: "Link classified items to preferred vendors based on category, history, and performance scores",
+    phase: "core_experience", actors: ["Tom Rivera"], valueBadges: ["connect", "transform"], confidence: "medium",
+    dataIn: ["Classification Result", "Vendor Profile"], dataOut: ["Vendor Match"],
+    narrative: `Tom opens his procurement dashboard and sees 220 newly classified items ready for vendor matching. The system has pre-matched 85% based on category history and vendor performance scores. He reviews the top suggestions \u2014 for \u2018Custom Fabrication\u2019, the system recommends 3 vendors ranked by quality, lead time, and cost. Tom selects the top vendor and adjusts the minimum order quantity. Total time: 8 minutes.`,
+    beforeAfter: {
+      before: ["Manual vendor lookup per item", "45 minutes per batch", "Relies on Tom\u2019s memory", "No performance data integration"],
+      after: ["AI-matched vendor suggestions", "8 minutes per batch", "Performance-ranked recommendations", "Historical data-driven decisions"]
+    },
+    unlocks: ["Automated Vendor Negotiation"],
+    fields: [
+      { name: "Items ready", type: "displayed", value: "220 classified items", confidence: "known" },
+      { name: "Auto-matched", type: "computed", value: "187 items (85%)", confidence: "inferred" },
+      { name: "Vendor suggestions", type: "computed", value: "Top 3 per category", confidence: "inferred" },
+    ],
+    questions: [{ q: "Should vendor matching consider warehouse proximity?", ctx: "Could reduce shipping costs 15-20% but limits vendor options" }],
+    pattern: "Split-pane: classified items left, vendor matches right with ranking cards",
+  },
+  {
+    title: "Monitor Inventory Health Dashboard",
+    goal: "Real-time view of inventory status, classification accuracy, and trend alerts for operations and leadership",
+    phase: "core_experience", actors: ["Sarah Chen", "Lisa Park"], valueBadges: ["amplify"], confidence: "high",
+    dataIn: ["Inventory Record", "Classification Result", "Vendor Match"], dataOut: ["Health Metrics"],
+    narrative: `Lisa opens her executive dashboard before the Monday morning meeting. Inventory health: 94% \u2014 up from 78% last quarter. Three KPI cards: classification accuracy (96.2%), vendor fill rate (91%), and days-on-hand trending from 45 to 32. A red alert flags: \u2018Supplier B lead time increased 40% \u2014 affects 23 items.\u2019 She taps the alert and sees the AI\u2019s recommendation: shift 12 items to Supplier A. She forwards it to Tom with one click.`,
+    fields: [
+      { name: "Health score", type: "computed", value: "94% (up from 78%)", confidence: "inferred" },
+      { name: "Classification accuracy", type: "computed", value: "96.2%", confidence: "known" },
+      { name: "Days on hand", type: "computed", value: "32 days (was 45)", confidence: "known" },
+      { name: "Active alerts", type: "computed", value: "1 critical, 3 warnings", confidence: "inferred" },
+    ],
+    questions: [],
+    pattern: "Executive dashboard with KPI cards, trend charts, and actionable alerts",
+  },
+  {
+    title: "Generate Smart Reorder Recommendations",
+    goal: "Predict optimal reorder points using AI analysis of consumption, lead times, and seasonal trends",
+    phase: "core_experience", actors: ["Tom Rivera", "Sarah Chen"], valueBadges: ["amplify", "unlock"], confidence: "medium",
+    dataIn: ["Inventory Record", "Health Metrics", "Vendor Match"], dataOut: ["Reorder Signal"],
+    narrative: `Tom reviews this week\u2019s reorder recommendations. The AI has flagged 34 items approaching reorder points, ranked by urgency. For each item: recommended quantity, preferred vendor, estimated cost, and confidence level. \u2018Stainless Steel Fasteners\u2019 shows a seasonal spike prediction \u2014 the AI recommends ordering 20% more based on last year\u2019s Q4 surge. Tom approves 28 with one click, adjusts 4, flags 2 for Sarah. Purchase orders generated automatically.`,
+    aiConfig: { role: "Predict reorder points and optimal quantities", behaviors: ["Analyze 24-month consumption", "Factor in lead times", "Detect seasonal patterns", "Auto-generate PO drafts"] },
+    unlocks: ["Predictive Demand Forecasting"],
+    fields: [
+      { name: "Items flagged", type: "computed", value: "34 approaching reorder", confidence: "inferred" },
+      { name: "Seasonal prediction", type: "computed", value: "Q4 surge: +20% for 12 categories", confidence: "guess" },
+      { name: "Estimated savings", type: "computed", value: "$47K vs. manual patterns", confidence: "guess" },
+    ],
+    questions: [{ q: "What\u2019s the acceptable risk tolerance for AI-recommended quantities?", ctx: "Higher tolerance = more automation but risk of over/under-ordering" }],
+    pattern: "Ranked recommendation list with bulk approve, quantity adjustment, auto-PO",
+  },
+  {
+    title: "Export Compliance & Analytics Reports",
+    goal: "Generate audit-ready compliance reports and analytics exports for regulatory and leadership requirements",
+    phase: "output", actors: ["Lisa Park", "Sarah Chen"], valueBadges: ["transform"], confidence: "high",
+    dataIn: ["Inventory Record", "Classification Result", "Health Metrics", "Reorder Signal"], dataOut: [],
+    narrative: `Lisa clicks \u2018Generate Q3 Report\u2019. The system pulls classification accuracy, vendor performance, inventory turns, and compliance metrics into a branded PDF. Every data point links to its source \u2014 auditors can trace any number. The report highlights: \u2018AI-assisted classification reduced errors from 12% to 2%, saving $340K in misclassification costs.\u2019 Sarah exports raw data to Excel. Both reports generated in 12 seconds.`,
+    beforeAfter: {
+      before: ["2 days to compile quarterly report", "Manual data from 4 systems", "No audit trail", "\u201CReport week is everyone\u2019s nightmare\u201D"],
+      after: ["12-second report generation", "Single source of truth", "Full data provenance chain", "Branded, audit-ready output"]
+    },
+    fields: [
+      { name: "Report types", type: "displayed", value: "Compliance PDF, Analytics Excel, Executive Summary", confidence: "known" },
+      { name: "Generation time", type: "computed", value: "12 seconds", confidence: "inferred" },
+      { name: "Audit trail depth", type: "computed", value: "Every metric traceable to source", confidence: "known" },
+    ],
+    questions: [],
+    pattern: "Report builder with template selection, preview, and multi-format export",
+  },
+  {
+    title: "Configure AI Classification Rules",
+    goal: "Fine-tune AI behavior, set confidence thresholds, and manage classification rule overrides",
+    phase: "admin", actors: ["Sarah Chen"], valueBadges: ["amplify"], confidence: "high",
+    dataIn: ["Classification Result"], dataOut: ["Category Taxonomy"],
+    narrative: `Sarah adjusts the auto-classification confidence threshold from 90% to 85% \u2014 the AI has proven accurate enough to reduce the exception queue. She adds a new rule: \u2018Items from Supplier X always classify as Industrial Grade.\u2019 She reviews the AI\u2019s learning log \u2014 847 corrections over 3 months improved accuracy from 87% to 96%. She exports the correction log for quarterly review.`,
+    fields: [
+      { name: "Confidence threshold", type: "captured", value: "85% (from 90%)", confidence: "known" },
+      { name: "Custom rules", type: "captured", value: "14 active overrides", confidence: "known" },
+      { name: "AI learning", type: "computed", value: "847 corrections \u2192 87% to 96%", confidence: "known" },
+    ],
+    questions: [],
+    pattern: "Settings panel with threshold sliders, rule builder, learning analytics",
+  },
+];
+
+const horizons = [
+  { title: "Predictive Demand Forecasting", horizon: "H2", value: "$2.4M annual savings potential", desc: "Once classification is reliable and reorder data flows, the system predicts demand 30 days out", unlockedBy: [2, 5] },
+  { title: "Automated Vendor Negotiation", horizon: "H2", value: "15% procurement cost reduction", desc: "With performance scores and volume data, AI drafts negotiation strategies", unlockedBy: [3] },
+  { title: "Supply Chain Digital Twin", horizon: "H3", value: "Full predictive supply chain model", desc: "The complete data foundation enables a digital twin of the entire supply chain", unlockedBy: [2, 3, 5] },
+];
+
+const dataThreads = [
+  { name: "Inventory Record", color: "#3B82F6", steps: [1, 2, 4, 5, 6] },
+  { name: "Category Taxonomy", color: "#F59E0B", steps: [0, 2, 7] },
+  { name: "Classification Result", color: "#3FAF7A", steps: [2, 3, 4, 6] },
+  { name: "Vendor Profile", color: "#F97316", steps: [3, 4, 5] },
+  { name: "Reorder Signal", color: "#8B5CF6", steps: [5, 6] },
+  { name: "Health Metrics", color: "#EC4899", steps: [4, 5, 6] },
+];
+
+const valueBadgeConfig = {
+  transform: { icon: "\u21C4", label: "Transform", bg: "#FEF3C7", color: "#92400E" },
+  unlock: { icon: "\u{1F511}", label: "Unlock", bg: "#EDE9FE", color: "#6D28D9" },
+  connect: { icon: "\u2B21", label: "Connect", bg: "#DBEAFE", color: "#1E40AF" },
+  amplify: { icon: "\u26A1", label: "Amplify", bg: "#D1FAE5", color: "#065F46" },
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+
+const state = {
+  activeStation: null,
+  activePersona: null,
+  view: "map",
+  presentMode: false,
+  presentStep: 0,
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════
+
+function renderPersonaPills() {
+  const el = document.getElementById("personaPills");
+  el.innerHTML = personas.map((p, i) => `
+    <button class="persona-pill" data-persona="${i}" style="--pill-color:${p.color}" onclick="togglePersona(${i})">
+      <div class="persona-avatar" style="background:${p.color}">${p.initial}</div>
+      ${p.name.split(" ")[0]}
+    </button>
+  `).join("");
+}
+
+function renderHorizons() {
+  const el = document.getElementById("horizonLayer");
+  el.innerHTML = horizons.map((h, i) => `
+    <div class="horizon-station ${h.horizon.toLowerCase()}" style="margin-left:${h.unlockedBy[0] * 248 + 40}px">
+      <span class="horizon-badge">${h.horizon}</span>
+      <div class="horizon-title">${h.title}</div>
+      <div class="horizon-value">${h.value}</div>
+    </div>
+  `).join("");
+}
+
+function renderStations() {
+  const el = document.getElementById("stations");
+  el.innerHTML = steps.map((s, i) => {
+    const personaDots = s.actors.map(name => {
+      const p = personas.find(pp => pp.name === name);
+      return p ? `<div class="persona-dot" style="background:${p.color}" title="${p.name}">${p.initial}</div>` : "";
+    }).join("");
+
+    const badges = s.valueBadges.map(b => {
+      const cfg = valueBadgeConfig[b];
+      return `<div class="value-badge badge-${b}" title="${cfg.label}">${cfg.icon}</div>`;
+    }).join("");
+
+    return `
+      <div class="station confidence-${s.confidence}" data-step="${i}" onclick="selectStation(${i})">
+        <div class="station-header">
+          <span class="phase-badge phase-${s.phase}">${s.phase.replace("_", " ")}</span>
+          <div class="value-badges">${badges}</div>
+        </div>
+        <div class="station-title">${s.title}</div>
+        <div class="station-goal">${s.goal}</div>
+        <div class="station-footer">
+          <div class="station-personas">${personaDots}</div>
+          <span class="station-step-num">Step ${i + 1}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderPersonaArcs() {
+  const container = document.getElementById("personaArcs");
+  container.innerHTML = "";
+  const stationWidth = 228;
+  const gap = 20;
+  const offset = 40;
+
+  personas.forEach((p, pi) => {
+    const involvedSteps = [];
+    steps.forEach((s, si) => {
+      if (s.actors.includes(p.name)) involvedSteps.push(si);
+    });
+    if (involvedSteps.length < 2) return;
+
+    const minStep = Math.min(...involvedSteps);
+    const maxStep = Math.max(...involvedSteps);
+    const left = offset + minStep * (stationWidth + gap) + stationWidth / 2;
+    const right = offset + maxStep * (stationWidth + gap) + stationWidth / 2;
+    const yOffset = pi * 7;
+
+    const line = document.createElement("div");
+    line.className = "persona-arc-line";
+    line.dataset.persona = pi;
+    line.style.cssText = `left:${left}px; width:${right - left}px; background:${p.color}; top:${12 + yOffset}px;`;
+    container.appendChild(line);
+
+    involvedSteps.forEach(si => {
+      const dot = document.createElement("div");
+      dot.className = "persona-arc-dot";
+      dot.dataset.persona = pi;
+      dot.style.cssText = `left:${offset + si * (stationWidth + gap) + stationWidth / 2}px; background:${p.color}; top:${12 + yOffset}px;`;
+      container.appendChild(dot);
+    });
+  });
+}
+
+function renderDataThreads() {
+  const container = document.getElementById("dataThreads");
+  container.innerHTML = "";
+  const stationWidth = 228;
+  const gap = 20;
+  const offset = 40;
+
+  dataThreads.forEach((t, ti) => {
+    if (t.steps.length < 2) return;
+    const minStep = Math.min(...t.steps);
+    const maxStep = Math.max(...t.steps);
+    const left = offset + minStep * (stationWidth + gap) + stationWidth / 2;
+    const right = offset + maxStep * (stationWidth + gap) + stationWidth / 2;
+    const y = 4 + ti * 4;
+
+    const line = document.createElement("div");
+    line.className = "data-thread";
+    line.dataset.thread = ti;
+    line.style.cssText = `left:${left}px; width:${right - left}px; background:${t.color}; top:${y}px;`;
+    line.innerHTML = `<span class="data-thread-label" style="left:50%; top:-14px; color:${t.color}">${t.name}</span>`;
+    container.appendChild(line);
+  });
+}
+
+function renderDetail(index) {
+  const s = steps[index];
+  const el = document.getElementById("detailContent");
+
+  let cardsHtml = "";
+
+  // Before / After
+  if (s.beforeAfter) {
+    cardsHtml += `
+      <div class="intel-card before-after">
+        <div class="intel-card-label"><span>\u21C4</span> Transformation</div>
+        <div class="before-after-grid">
+          <div class="ba-today">
+            <div class="ba-column-label">Today</div>
+            ${s.beforeAfter.before.map(b => `<div class="ba-item">${b}</div>`).join("")}
+          </div>
+          <div class="ba-tomorrow">
+            <div class="ba-column-label">Tomorrow</div>
+            ${s.beforeAfter.after.map(a => `<div class="ba-item">${a}</div>`).join("")}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Unlock
+  if (s.unlocks) {
+    const target = horizons.find(h => s.unlocks.includes(h.title));
+    if (target) {
+      cardsHtml += `
+        <div class="intel-card unlock-card">
+          <div class="intel-card-label">\u{1F511} This Step Unlocks</div>
+          <div class="intel-card-text"><strong>${target.title}</strong> (${target.horizon})</div>
+          <div class="intel-card-text" style="margin-top:4px">${target.desc}</div>
+          <div class="intel-card-evidence">${target.value}</div>
+        </div>`;
+    }
+  }
+
+  // Insight
+  if (s.insight) {
+    cardsHtml += `
+      <div class="intel-card insight-card">
+        <div class="intel-card-label">${s.insight.icon} ${s.insight.title}</div>
+        <div class="intel-card-text">${s.insight.text}</div>
+        <div class="intel-card-evidence">${s.insight.evidence}</div>
+      </div>`;
+  }
+
+  // Tension
+  if (s.tension) {
+    cardsHtml += `
+      <div class="intel-card tension-card">
+        <div class="intel-card-label">\u26A1 ${s.tension.desc}</div>
+        <div class="tension-sides">
+          <div class="tension-side">${s.tension.sideA}</div>
+          <div class="tension-side">${s.tension.sideB}</div>
+        </div>
+        <div class="tension-resolution">${s.tension.resolution}</div>
+        <button class="tension-resolve-btn">Resolve This \u2192</button>
+      </div>`;
+  }
+
+  // AI Config
+  if (s.aiConfig) {
+    cardsHtml += `
+      <div class="intel-card" style="background:rgba(63,175,122,0.04); border-color:rgba(63,175,122,0.2);">
+        <div class="intel-card-label" style="color:#065F46">\u26A1 AI Role</div>
+        <div class="intel-card-text"><strong>${s.aiConfig.role}</strong></div>
+        <div style="margin-top:6px">
+          ${s.aiConfig.behaviors.map(b => `<div style="font-size:12px; color:#4B4B4B; padding:2px 0">\u2022 ${b}</div>`).join("")}
+        </div>
+      </div>`;
+  }
+
+  // Fields
+  const fieldsHtml = s.fields.map(f => `
+    <div class="field-item">
+      <div class="field-type-dot field-type-${f.type}"></div>
+      <div>
+        <div class="field-name">${f.name}</div>
+        <div class="field-value">${f.value}</div>
+      </div>
+      <span class="field-confidence conf-${f.confidence}">${f.confidence}</span>
+    </div>
+  `).join("");
+
+  // Questions
+  const questionsHtml = s.questions.map(q => `
+    <div class="question-item">
+      <span class="question-icon">\u2753</span>
+      <div>
+        <div class="question-text">${q.q}</div>
+        ${q.ctx ? `<div class="question-context">${q.ctx}</div>` : ""}
+      </div>
+    </div>
+  `).join("");
+
+  el.innerHTML = `
+    <div class="detail-top">
+      <div class="detail-story">
+        <div class="detail-story-label">The Story</div>
+        <div class="detail-narrative">${s.narrative}</div>
+        ${s.pattern ? `<div style="margin-top:12px; font-size:12px; color:#7B7B7B"><strong>Implied Pattern:</strong> ${s.pattern}</div>` : ""}
+      </div>
+      <div class="detail-cards">
+        ${cardsHtml}
+      </div>
+    </div>
+    <div class="detail-fields">
+      <div class="fields-label">Information Fields</div>
+      <div class="fields-grid">${fieldsHtml}</div>
+    </div>
+    ${questionsHtml ? `<div class="detail-questions"><div class="fields-label">Open Questions</div>${questionsHtml}</div>` : ""}
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INTERACTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+function selectStation(index) {
+  const panel = document.getElementById("detailPanel");
+
+  if (state.activeStation === index) {
+    // Deselect
+    state.activeStation = null;
+    panel.classList.remove("open");
+    document.querySelectorAll(".station").forEach(s => s.classList.remove("active"));
+    return;
+  }
+
+  state.activeStation = index;
+
+  // Update station styles
+  document.querySelectorAll(".station").forEach((s, i) => {
+    s.classList.toggle("active", i === index);
+  });
+
+  // Render and show detail
+  renderDetail(index);
+  panel.classList.add("open");
+
+  // Scroll station into view
+  const station = document.querySelector(`.station[data-step="${index}"]`);
+  if (station) station.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+
+  // Update chat indicator
+  document.getElementById("chatIndicator").innerHTML = `
+    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;transform:rotate(90deg)"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+    Ask about Step ${index + 1}
+  `;
+
+  // Highlight data threads
+  highlightThreadsForStep(index);
+}
+
+function highlightThreadsForStep(index) {
+  document.querySelectorAll(".data-thread").forEach(t => {
+    const ti = parseInt(t.dataset.thread);
+    const thread = dataThreads[ti];
+    t.classList.toggle("highlighted", thread.steps.includes(index));
+  });
+}
+
+function togglePersona(index) {
+  if (state.activePersona === index) {
+    state.activePersona = null;
+    document.querySelectorAll(".persona-pill").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".station").forEach(s => {
+      s.classList.remove("dimmed", "persona-highlight");
+    });
+    document.querySelectorAll(".persona-arc-line, .persona-arc-dot").forEach(e => {
+      e.classList.remove("highlighted");
+    });
+    return;
+  }
+
+  state.activePersona = index;
+  const persona = personas[index];
+
+  document.querySelectorAll(".persona-pill").forEach((p, i) => {
+    p.classList.toggle("active", i === index);
+  });
+
+  document.querySelectorAll(".station").forEach((s, i) => {
+    const step = steps[i];
+    const involved = step.actors.includes(persona.name);
+    s.classList.toggle("dimmed", !involved);
+    s.classList.toggle("persona-highlight", involved);
+  });
+
+  document.querySelectorAll(".persona-arc-line, .persona-arc-dot").forEach(e => {
+    e.classList.toggle("highlighted", parseInt(e.dataset.persona) === index);
+  });
+}
+
+// View toggle
+document.querySelectorAll(".view-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".view-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.view = btn.dataset.view;
+
+    const threads = document.getElementById("dataThreads");
+    const arcs = document.getElementById("personaArcs");
+    if (state.view === "data") {
+      threads.style.opacity = "1";
+      threads.style.height = "40px";
+      arcs.style.opacity = "0.3";
+    } else {
+      threads.style.opacity = "";
+      threads.style.height = "";
+      arcs.style.opacity = "";
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// PRESENT MODE
+// ═══════════════════════════════════════════════════════════════════
+
+function enterPresent() {
+  state.presentMode = true;
+  state.presentStep = state.activeStation || 0;
+  document.getElementById("presentOverlay").classList.add("active");
+  document.getElementById("app").classList.add("present-mode");
+  renderPresentStep();
+  renderPresentDots();
+}
+
+function exitPresent() {
+  state.presentMode = false;
+  document.getElementById("presentOverlay").classList.remove("active");
+  document.getElementById("app").classList.remove("present-mode");
+}
+
+function presentNav(dir) {
+  state.presentStep = Math.max(0, Math.min(steps.length - 1, state.presentStep + dir));
+  renderPresentStep();
+  renderPresentDots();
+}
+
+function renderPresentStep() {
+  const s = steps[state.presentStep];
+  const i = state.presentStep;
+
+  document.getElementById("presentCounter").textContent = `Step ${i + 1} of ${steps.length}`;
+  document.getElementById("prevBtn").disabled = i === 0;
+  document.getElementById("nextBtn").disabled = i === steps.length - 1;
+
+  const badges = s.valueBadges.map(b => {
+    const cfg = valueBadgeConfig[b];
+    return `<span class="present-badge" style="background:${cfg.bg};color:${cfg.color}">${cfg.icon} ${cfg.label}</span>`;
+  }).join("");
+
+  document.getElementById("presentContent").innerHTML = `
+    <div class="present-card">
+      <div class="present-phase ${s.phase}">${s.phase.replace("_", " ")}</div>
+      <div class="present-title">${s.title}</div>
+      <div class="present-goal">${s.goal}</div>
+      <div class="present-narrative">${s.narrative}</div>
+      <div class="present-badges">${badges}</div>
+    </div>
+  `;
+}
+
+function renderPresentDots() {
+  document.getElementById("presentDots").innerHTML = steps.map((_, i) =>
+    `<div class="present-dot ${i === state.presentStep ? "active" : ""}"></div>`
+  ).join("");
+}
+
+// Keyboard nav for present mode
+document.addEventListener("keydown", (e) => {
+  if (!state.presentMode) return;
+  if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); presentNav(1); }
+  if (e.key === "ArrowLeft") presentNav(-1);
+  if (e.key === "Escape") exitPresent();
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+
+function init() {
+  renderPersonaPills();
+  renderHorizons();
+  renderStations();
+  renderPersonaArcs();
+  renderDataThreads();
+
+  // Animate value bar
+  setTimeout(() => {
+    document.getElementById("valueBarFill").style.width = "87%";
+  }, 800);
+
+  // Render value bar markers
+  document.getElementById("valueBarMarkers").innerHTML = steps.map(() =>
+    '<div class="value-bar-marker"></div>'
+  ).join("");
+}
+
+init();
+</script>
+</body>
+</html>

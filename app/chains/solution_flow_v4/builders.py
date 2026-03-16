@@ -97,15 +97,37 @@ STEP_DETAIL_TOOL = {
             "ai_config": {
                 "type": "object",
                 "properties": {
-                    "role": {"type": "string"},
-                    "behaviors": {"type": "array", "items": {"type": "string"}},
+                    "role": {"type": "string", "description": "What the AI does — the intelligence layer for this step"},
+                    "agent_name": {"type": "string", "description": "Short memorable name, e.g. 'Market Sizer', 'Revenue Forecaster', 'Pipeline Watcher'"},
+                    "agent_type": {
+                        "type": "string",
+                        "enum": ["classifier", "matcher", "predictor", "watcher", "generator", "processor"],
+                        "description": "classifier=sorts/labels, matcher=connects/recommends, predictor=forecasts, watcher=monitors/alerts, generator=creates/compiles, processor=transforms/validates",
+                    },
+                    "behaviors": {"type": "array", "items": {"type": "string"}, "description": "3-5 specific AI behaviors"},
                     "guardrails": {"type": "array", "items": {"type": "string"}},
                     "confidence_display": {
                         "type": "string",
                         "enum": ["hidden", "subtle", "prominent"],
                     },
                     "fallback": {"type": "string"},
+                    "data_requirements": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "source": {"type": "string"},
+                                "volume": {"type": "string"},
+                                "quality_needed": {"type": "string", "enum": ["minimal", "good", "high", "critical"]},
+                            },
+                            "required": ["source"],
+                        },
+                    },
+                    "automation_estimate": {"type": "integer", "description": "% automated 0-100. Data processing 80-95%, creative/judgment 30-60%"},
+                    "learning_trajectory": {"type": "string", "description": "How the agent improves over time"},
+                    "human_touchpoints": {"type": "array", "items": {"type": "string"}, "description": "Moments requiring human judgment"},
                 },
+                "required": ["role", "agent_name", "agent_type", "behaviors", "automation_estimate"],
             },
         },
         "required": [
@@ -113,6 +135,7 @@ STEP_DETAIL_TOOL = {
             "mock_data_narrative",
             "implied_pattern",
             "success_criteria",
+            "ai_config",
         ],
     },
 }
@@ -128,7 +151,7 @@ Fill in the details for this single step:
 5. **pain_points_addressed**: Which pain points this step alleviates
 6. **goals_addressed**: Which goals this step advances
 7. **open_questions**: What needs client clarification
-8. **ai_config**: If the step has an AI role, specify behaviors, guardrails, fallback
+8. **ai_config** (REQUIRED): EVERY step has an AI intelligence layer. Name the agent distinctly (e.g. 'Onboarding Guide', 'Market Sizer', 'Pipeline Watcher'). Classify its type (classifier/matcher/predictor/watcher/generator/processor). Set automation_estimate: data processing 80-95%, creative/judgment 30-60%. Even simple steps have smart defaults, validation, or pattern recognition.
 
 ## Rules
 - Confidence levels: "known" = in BRD data, "inferred" = logically derived, "guess" = reasonable assumption, "unknown" = needs client input
@@ -210,7 +233,7 @@ Insight notes: {skeleton.get("insight_notes", "none")}
 {step_context}
 </step_context>
 
-Generate the detailed information_fields, mock_data_narrative, implied_pattern, success_criteria, and open_questions for this step."""
+Generate the detailed information_fields, mock_data_narrative, implied_pattern, success_criteria, ai_config (with agent_name, agent_type, automation_estimate), and open_questions for this step. The AI role from the skeleton should inform your ai_config — give the agent a memorable name and classify its type."""
 
         try:
             response = await client.messages.create(

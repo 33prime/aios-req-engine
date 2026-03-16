@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow Validation — Client Portal Playground</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #0A1E2F;
+    --green: #3FAF7A;
+    --green-light: #E8F5E9;
+    --green-dark: #25785A;
+    --amber: #F59E0B;
+    --amber-light: #FEF3C7;
+    --amber-dark: #92400E;
+    --red: #EF4444;
+    --red-light: #FEE2E2;
+    --surface: #F8F9FB;
+    --card: #FFFFFF;
+    --border: #E5E7EB;
+    --text: #0A1E2F;
+    --text-secondary: #4B5563;
+    --text-muted: #9CA3AF;
+    --ctrl-bg: #111827;
+    --ctrl-surface: #1F2937;
+    --ctrl-border: #374151;
+    --ctrl-text: #E5E7EB;
+    --ctrl-muted: #9CA3AF;
+  }
+  html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #0a0a0f; color: var(--ctrl-text); }
+  body { display: flex; flex-direction: column; }
+
+  /* === LAYOUT === */
+  .main { display: flex; flex: 1; min-height: 0; }
+  .controls { width: 280px; flex-shrink: 0; background: var(--ctrl-bg); border-right: 1px solid var(--ctrl-border); overflow-y: auto; padding: 20px 16px; }
+  .preview-wrap { flex: 1; overflow-y: auto; background: var(--surface); }
+  .prompt-bar { background: var(--ctrl-bg); border-top: 1px solid var(--ctrl-border); padding: 12px 20px; display: flex; align-items: flex-start; gap: 12px; max-height: 140px; }
+  .prompt-bar pre { flex: 1; font-size: 12px; color: var(--ctrl-muted); white-space: pre-wrap; font-family: 'SF Mono', 'Fira Code', monospace; line-height: 1.5; max-height: 110px; overflow-y: auto; }
+  .copy-btn { background: var(--green); color: #fff; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .copy-btn:hover { filter: brightness(1.1); }
+
+  /* === CONTROLS === */
+  .ctrl-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ctrl-muted); margin-bottom: 10px; margin-top: 20px; }
+  .ctrl-title:first-child { margin-top: 0; }
+  .ctrl-group { margin-bottom: 6px; }
+  .ctrl-label { font-size: 12px; color: var(--ctrl-text); margin-bottom: 5px; display: block; }
+  .preset-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .preset-btn { padding: 5px 10px; font-size: 11px; border-radius: 6px; border: 1px solid var(--ctrl-border); background: var(--ctrl-surface); color: var(--ctrl-text); cursor: pointer; font-weight: 500; transition: all 0.15s; }
+  .preset-btn:hover { border-color: var(--green); }
+  .preset-btn.active { background: var(--green); border-color: var(--green); color: #fff; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+  .toggle-row label { font-size: 12px; color: var(--ctrl-text); cursor: pointer; }
+  .toggle { width: 36px; height: 20px; background: var(--ctrl-border); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; appearance: none; -webkit-appearance: none; border: none; }
+  .toggle:checked { background: var(--green); }
+  .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+  .toggle:checked::after { transform: translateX(16px); }
+  .radio-row { display: flex; gap: 4px; margin-bottom: 8px; }
+  .radio-btn { flex: 1; padding: 5px 4px; font-size: 10px; border-radius: 5px; border: 1px solid var(--ctrl-border); background: var(--ctrl-surface); color: var(--ctrl-muted); cursor: pointer; text-align: center; font-weight: 500; transition: all 0.15s; }
+  .radio-btn:hover { border-color: var(--green); color: var(--ctrl-text); }
+  .radio-btn.active { background: var(--green); border-color: var(--green); color: #fff; }
+  .divider { border: none; border-top: 1px solid var(--ctrl-border); margin: 16px 0; }
+
+  /* === PREVIEW === */
+  .portal-frame { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+  .portal-header { margin-bottom: 28px; }
+  .portal-header h1 { font-size: 22px; font-weight: 700; color: var(--text); }
+  .portal-header p { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+  .progress-bar-wrap { margin-top: 16px; }
+  .progress-meta { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .progress-meta span:first-child { color: var(--text-secondary); }
+  .progress-meta span:last-child { font-weight: 600; color: var(--green); }
+  .progress-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.5s ease; }
+
+  /* Workflow Card */
+  .wf-card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .wf-header { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .wf-name { font-size: 18px; font-weight: 700; color: var(--text); }
+  .wf-meta { display: flex; gap: 16px; margin-top: 6px; flex-wrap: wrap; }
+  .wf-meta-item { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+  .wf-meta-item strong { color: var(--text-secondary); font-weight: 600; }
+  .wf-narrative { padding: 16px 24px; background: linear-gradient(135deg, #f0f9ff 0%, #f0fdf4 100%); border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary); line-height: 1.6; font-style: italic; }
+
+  /* Column Headers */
+  .col-headers { display: grid; grid-template-columns: 1fr 40px 1fr; padding: 12px 24px 8px; gap: 0; }
+  .col-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+  .col-label.current { color: var(--amber-dark); }
+  .col-label.future { color: var(--green-dark); }
+  .col-arrow { text-align: center; color: var(--text-muted); font-size: 10px; }
+
+  /* Step Pairs */
+  .step-pairs { padding: 0 24px 16px; }
+  .step-row { display: grid; grid-template-columns: 1fr 40px 1fr; gap: 0; margin-bottom: 10px; align-items: stretch; }
+  .step-row:hover .step-card { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .step-card { border-radius: 8px; border: 1px solid var(--border); padding: 12px 14px; position: relative; transition: all 0.2s; cursor: pointer; }
+  .step-card:hover { border-color: #bbb; }
+  .step-card.current { border-left: 3px solid var(--amber); background: linear-gradient(135deg, #fffbeb 0%, #fff 40%); }
+  .step-card.future { border-left: 3px solid var(--green); background: linear-gradient(135deg, #ecfdf5 0%, #fff 40%); }
+  .step-card.active-feedback { border-color: var(--green); box-shadow: 0 0 0 2px rgba(63,175,122,0.2); }
+  .step-num { font-size: 10px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; }
+  .step-label { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.3; }
+  .step-actor { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 11px; }
+  .actor-dot { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .actor-dot.manual { background: var(--amber); }
+  .actor-dot.semi { background: #8B5CF6; }
+  .actor-dot.auto { background: var(--green); }
+  .step-actor-name { color: var(--text-secondary); font-weight: 500; }
+  .step-time { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .step-time .saved { color: var(--green-dark); font-weight: 600; }
+  .step-pain { margin-top: 6px; font-size: 11px; line-height: 1.45; color: var(--amber-dark); background: var(--amber-light); padding: 6px 8px; border-radius: 5px; }
+  .step-pain.subtle { background: none; padding: 0; font-style: italic; color: var(--text-muted); }
+  .step-benefit { margin-top: 6px; font-size: 11px; line-height: 1.45; color: var(--green-dark); background: var(--green-light); padding: 6px 8px; border-radius: 5px; }
+  .step-benefit.subtle { background: none; padding: 0; font-style: italic; color: var(--text-muted); }
+  .step-automation { display: inline-block; margin-top: 6px; font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 600; }
+  .step-automation.manual { background: #FEE2E2; color: #991B1B; }
+  .step-automation.semi { background: #EDE9FE; color: #5B21B6; }
+  .step-automation.auto { background: var(--green-light); color: var(--green-dark); }
+  .step-connector { display: flex; align-items: center; justify-content: center; }
+  .step-connector svg { opacity: 0.25; }
+  .step-row:hover .step-connector svg { opacity: 0.5; }
+
+  /* Feedback overlay */
+  .step-feedback { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+  .step-feedback textarea { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 11px; resize: none; font-family: inherit; line-height: 1.4; }
+  .step-feedback textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 2px rgba(63,175,122,0.15); }
+  .step-feedback-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px; }
+  .step-feedback-actions button { padding: 3px 10px; font-size: 10px; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; }
+  .fb-save { background: var(--green); color: #fff; }
+  .fb-cancel { background: var(--border); color: var(--text-secondary); }
+  .feedback-badge { position: absolute; top: 8px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+  /* ROI Summary */
+  .roi-bar { display: flex; align-items: center; gap: 20px; padding: 16px 24px; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f0f9ff 100%); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .roi-stat { display: flex; flex-direction: column; }
+  .roi-stat .roi-value { font-size: 20px; font-weight: 800; color: var(--green-dark); }
+  .roi-stat .roi-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .roi-divider { width: 1px; height: 32px; background: var(--border); }
+  .unlocks { padding: 14px 24px; border-bottom: 1px solid var(--border); }
+  .unlocks-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 8px; }
+  .unlock-chip { display: inline-block; font-size: 11px; padding: 4px 10px; background: #EDE9FE; color: #5B21B6; border-radius: 6px; margin: 2px 4px 2px 0; font-weight: 500; }
+
+  /* Verdict Section */
+  .verdict-section { padding: 20px 24px; }
+  .verdict-question { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+  .verdict-buttons { display: flex; gap: 10px; }
+  .verdict-btn { flex: 1; padding: 14px 16px; border-radius: 10px; border: 2px solid var(--border); background: var(--card); cursor: pointer; transition: all 0.2s; text-align: center; }
+  .verdict-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  .verdict-btn .v-icon { font-size: 22px; margin-bottom: 4px; }
+  .verdict-btn .v-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .verdict-btn .v-hint { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .verdict-btn.selected-confirm { border-color: var(--green); background: var(--green-light); }
+  .verdict-btn.selected-refine { border-color: var(--amber); background: var(--amber-light); }
+  .verdict-btn.selected-flag { border-color: var(--red); background: var(--red-light); }
+  .verdict-notes { margin-top: 12px; }
+  .verdict-notes textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; font-family: inherit; resize: none; line-height: 1.5; }
+  .verdict-notes textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(63,175,122,0.12); }
+
+  /* Navigation */
+  .wf-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; padding-bottom: 32px; }
+  .nav-btn { padding: 10px 24px; border-radius: 10px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .nav-btn.secondary { background: var(--card); border: 1px solid var(--border); color: var(--text-secondary); }
+  .nav-btn.secondary:hover { border-color: var(--text-muted); }
+  .nav-btn.primary { background: var(--green); color: #fff; }
+  .nav-btn.primary:hover { filter: brightness(1.08); }
+  .nav-dots { display: flex; gap: 6px; }
+  .nav-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.2s; cursor: pointer; }
+  .nav-dot.active { background: var(--green); transform: scale(1.3); }
+  .nav-dot.done { background: var(--green); opacity: 0.5; }
+
+  /* Completion State */
+  .completion { text-align: center; padding: 60px 24px; }
+  .completion-icon { width: 64px; height: 64px; border-radius: 50%; background: var(--green-light); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 28px; }
+  .completion h2 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .completion p { font-size: 14px; color: var(--text-secondary); max-width: 400px; margin: 0 auto; line-height: 1.5; }
+
+  /* Columns layout */
+  .columns-layout .col-headers { grid-template-columns: 1fr 1fr; }
+  .columns-layout .step-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .columns-layout .step-connector { display: none; }
+
+  /* Scrollbar */
+  .preview-wrap::-webkit-scrollbar, .controls::-webkit-scrollbar { width: 6px; }
+  .preview-wrap::-webkit-scrollbar-thumb, .controls::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+  .controls::-webkit-scrollbar-thumb { background: #555; }
+</style>
+</head>
+<body>
+<div class="main">
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;">Workflow Validation</div>
+    <div style="font-size:11px;color:var(--ctrl-muted);margin-bottom:16px;">Client portal playground</div>
+
+    <div class="ctrl-title">Presets</div>
+    <div class="preset-row" id="presets"></div>
+
+    <hr class="divider">
+    <div class="ctrl-title">Layout</div>
+    <div class="radio-row" id="layout-opts"></div>
+
+    <div class="ctrl-title">Detail Level</div>
+    <div class="radio-row" id="detail-opts"></div>
+
+    <hr class="divider">
+    <div class="ctrl-title">Show / Hide</div>
+    <div id="toggles"></div>
+
+    <hr class="divider">
+    <div class="ctrl-title">Pain Styling</div>
+    <div class="radio-row" id="pain-style-opts"></div>
+
+    <div class="ctrl-title">Verdict Style</div>
+    <div class="radio-row" id="verdict-style-opts"></div>
+
+    <hr class="divider">
+    <div style="margin-top:12px;">
+      <button onclick="resetDemo()" style="width:100%;padding:8px;font-size:11px;background:var(--ctrl-surface);border:1px solid var(--ctrl-border);color:var(--ctrl-text);border-radius:6px;cursor:pointer;font-weight:600;">Reset Demo State</button>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="preview-wrap">
+    <div class="portal-frame" id="preview"></div>
+  </div>
+</div>
+
+<!-- PROMPT OUTPUT -->
+<div class="prompt-bar">
+  <pre id="prompt-text"></pre>
+  <button class="copy-btn" onclick="copyPrompt()">Copy</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+const WORKFLOWS = [
+  {
+    name: "Client Onboarding",
+    owner: "Customer Success Team",
+    frequency: "8 per week",
+    frequencyNum: 8,
+    hourlyRate: 75,
+    narrative: "Today, onboarding a new client takes nearly an hour of manual work spread across your CS team. With the new system, it becomes a 6-minute guided flow with automatic compliance checks.",
+    unlocks: ["Scale onboarding 10x without new hires", "Real-time compliance visibility"],
+    steps: [
+      { label: "Receive application", curActor: "CSM", curActorInit: "C", curTime: 5, curAuto: "manual", curPain: "Manually monitor shared inbox, copy details into spreadsheet", futActor: "System", futActorInit: "S", futTime: 0, futAuto: "auto", futBenefit: "Instant capture via web form with field validation" },
+      { label: "Review credentials", curActor: "CSM", curActorInit: "C", curTime: 15, curAuto: "manual", curPain: "Cross-reference 3 different spreadsheets to verify eligibility", futActor: "AI + CSM", futActorInit: "A", futTime: 3, futAuto: "semi", futBenefit: "Auto-validated against database, CSM reviews exceptions only" },
+      { label: "Compliance check", curActor: "Compliance Officer", curActorInit: "CO", curTime: 20, curAuto: "manual", curPain: "Paper-based regulatory checklist, often delayed 2-3 days", futActor: "System", futActorInit: "S", futTime: 2, futAuto: "auto", futBenefit: "Automated screening against regulatory rules, instant results" },
+      { label: "Send welcome package", curActor: "CSM", curActorInit: "C", curTime: 10, curAuto: "manual", curPain: "Copy-paste template email, manually customize each field", futActor: "System", futActorInit: "S", futTime: 1, futAuto: "auto", futBenefit: "Personalized welcome auto-sent with dynamic content" },
+      { label: "Schedule kickoff call", curActor: "CSM", curActorInit: "C", curTime: 8, curAuto: "manual", curPain: "Back-and-forth emails over 2-3 days to find mutual time", futActor: "System", futActorInit: "S", futTime: 0, futAuto: "auto", futBenefit: "AI calendar matching, client self-books from available slots" },
+    ]
+  },
+  {
+    name: "Invoice Processing",
+    owner: "Finance / Accounts Payable",
+    frequency: "40 per week",
+    frequencyNum: 40,
+    hourlyRate: 65,
+    narrative: "Your AP team spends 30+ hours a week processing invoices manually. This workflow eliminates data entry entirely and cuts approval time from days to minutes.",
+    unlocks: ["Real-time cash flow visibility", "Early payment discount capture"],
+    steps: [
+      { label: "Receive invoice", curActor: "AP Clerk", curActorInit: "AP", curTime: 3, curAuto: "manual", curPain: "Scan email attachments, download and rename files manually", futActor: "System", futActorInit: "S", futTime: 0, futAuto: "auto", futBenefit: "OCR extraction from any format, auto-parsed line items" },
+      { label: "Data entry", curActor: "AP Clerk", curActorInit: "AP", curTime: 12, curAuto: "manual", curPain: "Re-type every line item into ERP, frequent errors require rework", futActor: "System", futActorInit: "S", futTime: 1, futAuto: "auto", futBenefit: "Auto-mapped to GL codes, human review only for anomalies" },
+      { label: "Manager approval", curActor: "Finance Manager", curActorInit: "FM", curTime: 15, curAuto: "manual", curPain: "Email chain buried in inbox, approvals delayed 2-5 days", futActor: "Finance Manager", futActorInit: "FM", futTime: 2, futAuto: "semi", futBenefit: "One-click mobile approval with full context, auto-escalation" },
+      { label: "Payment scheduling", curActor: "AP Clerk", curActorInit: "AP", curTime: 5, curAuto: "manual", curPain: "Manual bank transfer setup, risk of duplicate payments", futActor: "System", futActorInit: "S", futTime: 0, futAuto: "auto", futBenefit: "Rules-based payment batching with duplicate detection" },
+    ]
+  },
+  {
+    name: "Support Ticket Resolution",
+    owner: "Customer Support",
+    frequency: "50 per week",
+    frequencyNum: 50,
+    hourlyRate: 55,
+    narrative: "Support agents spend most of their time searching for answers, not helping customers. This transformation gives agents instant access to solutions and automates the routine follow-ups.",
+    unlocks: ["Handle 3x ticket volume with same team", "Proactive issue detection from patterns"],
+    steps: [
+      { label: "Ticket intake & triage", curActor: "Support Agent", curActorInit: "SA", curTime: 5, curAuto: "manual", curPain: "Manual categorization, priority guessing, often mis-routed", futActor: "AI Triage", futActorInit: "AI", futTime: 1, futAuto: "auto", futBenefit: "Auto-categorized by intent, routed to best-fit specialist" },
+      { label: "Research & diagnosis", curActor: "Support Agent", curActorInit: "SA", curTime: 25, curAuto: "manual", curPain: "Search knowledge base, Slack channels, ask senior colleagues", futActor: "AI + Agent", futActorInit: "A", futTime: 8, futAuto: "semi", futBenefit: "AI suggests top 3 solutions from similar resolved tickets" },
+      { label: "Solution delivery", curActor: "Support Agent", curActorInit: "SA", curTime: 10, curAuto: "manual", curPain: "Write custom response from scratch each time", futActor: "AI + Agent", futActorInit: "A", futTime: 3, futAuto: "semi", futBenefit: "Pre-drafted response with agent personalization" },
+      { label: "Follow-up check", curActor: "Support Agent", curActorInit: "SA", curTime: 5, curAuto: "manual", curPain: "Remember to check back in 48hrs, often forgotten", futActor: "System", futActorInit: "S", futTime: 0, futAuto: "auto", futBenefit: "Automated satisfaction survey + escalation if unresolved" },
+    ]
+  },
+  {
+    name: "Employee Offboarding",
+    owner: "HR / IT Operations",
+    frequency: "2 per week",
+    frequencyNum: 2,
+    hourlyRate: 70,
+    narrative: "Offboarding today is error-prone and creates security risks when access isn't revoked promptly. The new workflow ensures zero-gap security and structured knowledge capture.",
+    unlocks: ["Zero-day access revocation guarantee", "Institutional knowledge preservation"],
+    steps: [
+      { label: "Initiate offboarding", curActor: "HR Coordinator", curActorInit: "HR", curTime: 10, curAuto: "manual", curPain: "Create checklist from template, notify 4 departments by email", futActor: "System", futActorInit: "S", futTime: 1, futAuto: "auto", futBenefit: "Auto-triggered from HR system, all stakeholders notified instantly" },
+      { label: "Asset collection", curActor: "IT Admin", curActorInit: "IT", curTime: 30, curAuto: "manual", curPain: "Track down devices and licenses from incomplete records", futActor: "IT Admin", futActorInit: "IT", futTime: 5, futAuto: "semi", futBenefit: "Auto-generated asset checklist from inventory system" },
+      { label: "Access revocation", curActor: "IT Admin", curActorInit: "IT", curTime: 15, curAuto: "manual", curPain: "Login to each system individually — often miss shadow IT apps", futActor: "System", futActorInit: "S", futTime: 2, futAuto: "auto", futBenefit: "One-click batch revocation across all connected systems" },
+      { label: "Knowledge transfer", curActor: "Departing Employee", curActorInit: "DE", curTime: 60, curAuto: "manual", curPain: "Unstructured brain dump, tribal knowledge lost forever", futActor: "Departing Employee", futActorInit: "DE", futTime: 30, futAuto: "semi", futBenefit: "Guided capture templates with smart prompts by role" },
+      { label: "Final paperwork", curActor: "HR Coordinator", curActorInit: "HR", curTime: 20, curAuto: "manual", curPain: "Print, sign, scan, file — 3 separate physical touchpoints", futActor: "System", futActorInit: "S", futTime: 5, futAuto: "auto", futBenefit: "Digital signatures, auto-archived with retention policy" },
+    ]
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+const DEFAULTS = {
+  layout: 'rows',        // rows | columns
+  detail: 'standard',    // compact | standard | rich
+  showActors: true,
+  showTime: true,
+  showPainBenefit: true,
+  showROI: true,
+  showAutomation: true,
+  showNarrative: true,
+  showUnlocks: false,
+  perStepFeedback: true,
+  painStyle: 'bold',     // subtle | bold
+  verdictStyle: 'cards', // cards | buttons
+};
+
+const PRESETS = {
+  'Clean Focus': { ...DEFAULTS },
+  'Executive': { layout: 'rows', detail: 'compact', showActors: true, showTime: true, showPainBenefit: false, showROI: true, showAutomation: false, showNarrative: false, showUnlocks: false, perStepFeedback: false, painStyle: 'subtle', verdictStyle: 'buttons' },
+  'Full Story': { layout: 'rows', detail: 'rich', showActors: true, showTime: true, showPainBenefit: true, showROI: true, showAutomation: true, showNarrative: true, showUnlocks: true, perStepFeedback: true, painStyle: 'bold', verdictStyle: 'cards' },
+  'Minimal': { layout: 'columns', detail: 'compact', showActors: true, showTime: false, showPainBenefit: false, showROI: false, showAutomation: false, showNarrative: false, showUnlocks: false, perStepFeedback: false, painStyle: 'subtle', verdictStyle: 'buttons' },
+};
+
+let state = { ...DEFAULTS };
+let currentWf = 0;
+let verdicts = {};     // { 0: 'confirm', 1: 'refine' }
+let verdictNotes = {}; // { 1: 'Step 3 actor is wrong...' }
+let feedbackOpen = null; // 'current-2' or 'future-1'
+let stepFeedback = {};  // { '0-current-2': 'Takes 45 min not 15' }
+let activePreset = 'Clean Focus';
+
+// ═══════════════════════════════════════════════════════════════
+// CONTROLS SETUP
+// ═══════════════════════════════════════════════════════════════
+function buildControls() {
+  // Presets
+  const presetsEl = document.getElementById('presets');
+  Object.keys(PRESETS).forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn' + (name === activePreset ? ' active' : '');
+    btn.textContent = name;
+    btn.onclick = () => { activePreset = name; state = { ...PRESETS[name] }; buildControls(); updateAll(); };
+    presetsEl.appendChild(btn);
+  });
+
+  // Layout
+  buildRadio('layout-opts', 'layout', [['rows', 'Row Pairs'], ['columns', 'Columns']]);
+  // Detail
+  buildRadio('detail-opts', 'detail', [['compact', 'Compact'], ['standard', 'Standard'], ['rich', 'Rich']]);
+  // Toggles
+  const toggles = document.getElementById('toggles');
+  toggles.innerHTML = '';
+  [['showActors','Actors'],['showTime','Time'],['showPainBenefit','Pain / Benefit'],['showROI','ROI Summary'],['showAutomation','Automation Badges'],['showNarrative','Transformation Story'],['showUnlocks','Strategic Unlocks'],['perStepFeedback','Per-Step Feedback']].forEach(([key, label]) => {
+    const row = document.createElement('div');
+    row.className = 'toggle-row';
+    row.innerHTML = `<label for="t-${key}">${label}</label><input type="checkbox" class="toggle" id="t-${key}" ${state[key] ? 'checked' : ''}>`;
+    row.querySelector('input').onchange = (e) => { state[key] = e.target.checked; activePreset = ''; updateAll(); highlightPreset(); };
+    toggles.appendChild(row);
+  });
+  // Pain style
+  buildRadio('pain-style-opts', 'painStyle', [['subtle', 'Subtle'], ['bold', 'Bold']]);
+  // Verdict style
+  buildRadio('verdict-style-opts', 'verdictStyle', [['cards', 'Cards'], ['buttons', 'Buttons']]);
+}
+
+function buildRadio(containerId, stateKey, options) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  options.forEach(([val, label]) => {
+    const btn = document.createElement('button');
+    btn.className = 'radio-btn' + (state[stateKey] === val ? ' active' : '');
+    btn.textContent = label;
+    btn.onclick = () => { state[stateKey] = val; activePreset = ''; buildControls(); updateAll(); };
+    el.appendChild(btn);
+  });
+}
+
+function highlightPreset() {
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    const p = PRESETS[btn.textContent];
+    const match = p && Object.keys(p).every(k => state[k] === p[k]);
+    btn.classList.toggle('active', match);
+    if (match) activePreset = btn.textContent;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════════════
+function updateAll() { renderPreview(); updatePrompt(); }
+
+function renderPreview() {
+  const el = document.getElementById('preview');
+  const wf = WORKFLOWS[currentWf];
+  const reviewed = Object.keys(verdicts).length;
+  const total = WORKFLOWS.length;
+  const pct = Math.round((reviewed / total) * 100);
+  const allDone = reviewed === total;
+
+  if (allDone && verdicts[currentWf] !== undefined) {
+    // Check if we've reviewed all — show completion
+    const allReviewed = WORKFLOWS.every((_, i) => verdicts[i] !== undefined);
+    if (allReviewed) {
+      el.innerHTML = `
+        <div class="portal-header">
+          <h1>Your Workflows</h1>
+          <p>Help us make sure we captured your processes accurately.</p>
+          <div class="progress-bar-wrap">
+            <div class="progress-meta"><span>${total} of ${total} reviewed</span><span>100%</span></div>
+            <div class="progress-track"><div class="progress-fill" style="width:100%"></div></div>
+          </div>
+        </div>
+        <div class="completion">
+          <div class="completion-icon">\u2713</div>
+          <h2>All Workflows Reviewed</h2>
+          <p>Thank you! Your feedback will help us refine the solution to match exactly how your team works. We'll incorporate your input before the next session.</p>
+        </div>`;
+      return;
+    }
+  }
+
+  // ROI calc
+  const curTotal = wf.steps.reduce((s, st) => s + st.curTime, 0);
+  const futTotal = wf.steps.reduce((s, st) => s + st.futTime, 0);
+  const savedPerRun = curTotal - futTotal;
+  const savedPerWeek = savedPerRun * wf.frequencyNum;
+  const savedPerYear = savedPerWeek * 52;
+  const dollarPerWeek = Math.round((savedPerWeek / 60) * wf.hourlyRate);
+  const dollarPerYear = dollarPerWeek * 52;
+  const autoSteps = wf.steps.filter(s => s.futAuto === 'auto').length;
+
+  const layoutClass = state.layout === 'columns' ? ' columns-layout' : '';
+  const verdict = verdicts[currentWf];
+
+  let html = `
+    <div class="portal-header">
+      <h1>Your Workflows</h1>
+      <p>Help us make sure we captured your processes accurately.</p>
+      <div class="progress-bar-wrap">
+        <div class="progress-meta"><span>${reviewed} of ${total} reviewed</span><span>${pct}%</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      </div>
+    </div>
+    <div class="wf-card${layoutClass}">
+      <div class="wf-header">
+        <div class="wf-name">${wf.name}</div>
+        <div class="wf-meta">
+          <span class="wf-meta-item"><strong>${wf.owner}</strong></span>
+          <span class="wf-meta-item">${wf.frequency}</span>
+          <span class="wf-meta-item">${wf.steps.length} steps</span>
+          <span class="wf-meta-item">${curTotal} min \u2192 ${futTotal} min</span>
+        </div>
+      </div>`;
+
+  if (state.showNarrative) {
+    html += `<div class="wf-narrative">${wf.narrative}</div>`;
+  }
+
+  // Column headers
+  if (state.layout === 'rows') {
+    html += `<div class="col-headers"><span class="col-label current">Today</span><span class="col-arrow"></span><span class="col-label future">With Your Solution</span></div>`;
+  } else {
+    html += `<div class="col-headers"><span class="col-label current">Today</span><span class="col-label future">With Your Solution</span></div>`;
+  }
+
+  html += `<div class="step-pairs">`;
+  wf.steps.forEach((step, i) => {
+    html += `<div class="step-row" data-step="${i}">`;
+    html += renderStepCard(step, i, 'current', wf);
+    if (state.layout === 'rows') {
+      html += `<div class="step-connector"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>`;
+    }
+    html += renderStepCard(step, i, 'future', wf);
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  // ROI
+  if (state.showROI) {
+    html += `<div class="roi-bar">
+      <div class="roi-stat"><span class="roi-value">${savedPerRun} min</span><span class="roi-label">Saved per run</span></div>
+      <div class="roi-divider"></div>
+      <div class="roi-stat"><span class="roi-value">${Math.round(savedPerWeek / 60 * 10) / 10} hrs</span><span class="roi-label">Saved weekly</span></div>
+      <div class="roi-divider"></div>
+      <div class="roi-stat"><span class="roi-value">$${dollarPerYear.toLocaleString()}</span><span class="roi-label">Annual savings</span></div>
+      <div class="roi-divider"></div>
+      <div class="roi-stat"><span class="roi-value">${autoSteps}/${wf.steps.length}</span><span class="roi-label">Steps automated</span></div>
+    </div>`;
+  }
+
+  // Unlocks
+  if (state.showUnlocks && wf.unlocks.length) {
+    html += `<div class="unlocks"><div class="unlocks-title">Strategic Unlocks</div>`;
+    wf.unlocks.forEach(u => { html += `<span class="unlock-chip">${u}</span>`; });
+    html += `</div>`;
+  }
+
+  // Verdict
+  html += `<div class="verdict-section">
+    <div class="verdict-question">Does this accurately reflect how your team works?</div>`;
+
+  if (state.verdictStyle === 'cards') {
+    html += `<div class="verdict-buttons">
+      <div class="verdict-btn ${verdict === 'confirm' ? 'selected-confirm' : ''}" onclick="setVerdict('confirm')">
+        <div class="v-icon">\u2713</div><div class="v-label">This is right</div><div class="v-hint">Accurate as described</div>
+      </div>
+      <div class="verdict-btn ${verdict === 'refine' ? 'selected-refine' : ''}" onclick="setVerdict('refine')">
+        <div class="v-icon">\u270E</div><div class="v-label">Something's off</div><div class="v-hint">Details need adjusting</div>
+      </div>
+      <div class="verdict-btn ${verdict === 'flag' ? 'selected-flag' : ''}" onclick="setVerdict('flag')">
+        <div class="v-icon">\u26A0</div><div class="v-label">Missing steps</div><div class="v-hint">We missed part of the process</div>
+      </div>
+    </div>`;
+  } else {
+    html += `<div style="display:flex;gap:8px;">
+      <button onclick="setVerdict('confirm')" style="flex:1;padding:10px;border-radius:8px;border:2px solid ${verdict==='confirm'?'var(--green)':'var(--border)'};background:${verdict==='confirm'?'var(--green-light)':'var(--card)'};font-size:13px;font-weight:600;cursor:pointer;color:var(--text);">\u2713 This is right</button>
+      <button onclick="setVerdict('refine')" style="flex:1;padding:10px;border-radius:8px;border:2px solid ${verdict==='refine'?'var(--amber)':'var(--border)'};background:${verdict==='refine'?'var(--amber-light)':'var(--card)'};font-size:13px;font-weight:600;cursor:pointer;color:var(--text);">\u270E Something's off</button>
+      <button onclick="setVerdict('flag')" style="flex:1;padding:10px;border-radius:8px;border:2px solid ${verdict==='flag'?'var(--red)':'var(--border)'};background:${verdict==='flag'?'var(--red-light)':'var(--card)'};font-size:13px;font-weight:600;cursor:pointer;color:var(--text);">\u26A0 Missing steps</button>
+    </div>`;
+  }
+
+  if (verdict && verdict !== 'confirm') {
+    const notes = verdictNotes[currentWf] || '';
+    html += `<div class="verdict-notes"><textarea rows="3" placeholder="${verdict === 'refine' ? 'What needs adjusting? Click any step above to give specific feedback...' : 'What steps are we missing? Describe the parts of the process we didn\'t capture...'}" oninput="verdictNotes[${currentWf}]=this.value">${notes}</textarea></div>`;
+  }
+
+  html += `</div></div>`; // close verdict + card
+
+  // Navigation
+  html += `<div class="wf-nav">`;
+  if (currentWf > 0) {
+    html += `<button class="nav-btn secondary" onclick="goTo(${currentWf - 1})">\u2190 Previous</button>`;
+  }
+  html += `<div class="nav-dots">`;
+  WORKFLOWS.forEach((_, i) => {
+    const cls = i === currentWf ? 'active' : (verdicts[i] !== undefined ? 'done' : '');
+    html += `<div class="nav-dot ${cls}" onclick="goTo(${i})"></div>`;
+  });
+  html += `</div>`;
+  if (currentWf < WORKFLOWS.length - 1) {
+    html += `<button class="nav-btn primary" onclick="goTo(${currentWf + 1})">Next Workflow \u2192</button>`;
+  } else if (!verdicts[currentWf]) {
+    html += `<button class="nav-btn primary" disabled style="opacity:0.5;cursor:default;">Review to continue</button>`;
+  } else {
+    html += `<button class="nav-btn primary" onclick="goTo(${currentWf})">Complete \u2713</button>`;
+  }
+  html += `</div>`;
+
+  el.innerHTML = html;
+}
+
+function renderStepCard(step, i, side, wf) {
+  const isCurrent = side === 'current';
+  const actor = isCurrent ? step.curActor : step.futActor;
+  const actorInit = isCurrent ? step.curActorInit : step.futActorInit;
+  const time = isCurrent ? step.curTime : step.futTime;
+  const auto = isCurrent ? step.curAuto : step.futAuto;
+  const text = isCurrent ? step.curPain : step.futBenefit;
+  const feedbackKey = `${currentWf}-${side}-${i}`;
+  const isOpen = feedbackOpen === `${side}-${i}`;
+  const hasFeedback = !!stepFeedback[feedbackKey];
+  const painClass = state.painStyle === 'subtle' ? ' subtle' : '';
+
+  let html = `<div class="step-card ${side} ${isOpen ? 'active-feedback' : ''}" onclick="toggleFeedback('${side}-${i}')">`;
+  if (hasFeedback) html += `<div class="feedback-badge"></div>`;
+
+  if (state.detail !== 'compact') {
+    html += `<div class="step-num">Step ${i + 1}</div>`;
+  }
+  html += `<div class="step-label">${step.label}</div>`;
+
+  if (state.showActors) {
+    const dotClass = auto === 'auto' ? 'auto' : auto === 'semi' ? 'semi' : 'manual';
+    html += `<div class="step-actor"><span class="actor-dot ${dotClass}">${actorInit.charAt(0)}</span><span class="step-actor-name">${actor}</span></div>`;
+  }
+
+  if (state.showTime) {
+    if (isCurrent) {
+      html += `<div class="step-time">${time} min</div>`;
+    } else {
+      const saved = step.curTime - step.futTime;
+      if (saved > 0) {
+        html += `<div class="step-time">${time} min <span class="saved">(-${saved} min)</span></div>`;
+      } else {
+        html += `<div class="step-time">${time} min</div>`;
+      }
+    }
+  }
+
+  if (state.showPainBenefit && text && state.detail !== 'compact') {
+    if (isCurrent) {
+      html += `<div class="step-pain${painClass}">${text}</div>`;
+    } else {
+      html += `<div class="step-benefit${painClass}">${text}</div>`;
+    }
+  }
+
+  if (state.showAutomation && state.detail === 'rich') {
+    const labels = { manual: 'Manual', semi: 'Semi-auto', auto: 'Automated' };
+    html += `<span class="step-automation ${auto === 'auto' ? 'auto' : auto === 'semi' ? 'semi' : 'manual'}">${labels[auto] || auto}</span>`;
+  }
+
+  // Feedback input
+  if (state.perStepFeedback && isOpen) {
+    const fb = stepFeedback[feedbackKey] || '';
+    html += `<div class="step-feedback" onclick="event.stopPropagation()">
+      <textarea rows="2" placeholder="What's different about this step?" id="fb-${feedbackKey}" oninput="stepFeedback['${feedbackKey}']=this.value">${fb}</textarea>
+      <div class="step-feedback-actions">
+        <button class="fb-cancel" onclick="feedbackOpen=null;renderPreview();">Cancel</button>
+        <button class="fb-save" onclick="feedbackOpen=null;renderPreview();">Save</button>
+      </div>
+    </div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════════════════
+function setVerdict(v) {
+  if (verdicts[currentWf] === v) { delete verdicts[currentWf]; delete verdictNotes[currentWf]; }
+  else verdicts[currentWf] = v;
+  renderPreview();
+}
+
+function goTo(i) {
+  if (i < 0 || i > WORKFLOWS.length) return;
+  currentWf = Math.min(i, WORKFLOWS.length - 1);
+  feedbackOpen = null;
+  renderPreview();
+  document.querySelector('.preview-wrap').scrollTop = 0;
+}
+
+function toggleFeedback(key) {
+  if (!state.perStepFeedback) return;
+  feedbackOpen = feedbackOpen === key ? null : key;
+  renderPreview();
+  // Focus textarea after render
+  setTimeout(() => {
+    const ta = document.querySelector('.step-feedback textarea');
+    if (ta) ta.focus();
+  }, 50);
+}
+
+function resetDemo() {
+  currentWf = 0; verdicts = {}; verdictNotes = {}; feedbackOpen = null; stepFeedback = {};
+  renderPreview();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROMPT
+// ═══════════════════════════════════════════════════════════════
+function updatePrompt() {
+  const parts = [];
+  parts.push(`Build the Workflow Validation page for the client portal.`);
+  parts.push(`\nLayout: ${state.layout === 'rows' ? 'Row-based step pairs showing current \u2192 future side by side per step' : 'Two-column layout with current state on left, future state on right'}.`);
+  parts.push(`Detail level: ${state.detail}.`);
+
+  const shown = [];
+  const hidden = [];
+  if (state.showActors) shown.push('actor personas (with initials avatar)'); else hidden.push('actors');
+  if (state.showTime) shown.push('time per step with savings delta'); else hidden.push('time');
+  if (state.showPainBenefit) shown.push(`pain/benefit descriptions (${state.painStyle} style — ${state.painStyle === 'bold' ? 'colored backgrounds' : 'italic text only'})`); else hidden.push('pain/benefit text');
+  if (state.showROI) shown.push('ROI summary bar (time saved, cost saved, steps automated)'); else hidden.push('ROI');
+  if (state.showAutomation) shown.push('automation level badges (manual/semi/auto)'); else hidden.push('automation badges');
+  if (state.showNarrative) shown.push('transformation narrative at top of each workflow'); else hidden.push('narrative');
+  if (state.showUnlocks) shown.push('strategic unlock chips'); else hidden.push('unlocks');
+
+  if (shown.length) parts.push(`\nShow: ${shown.join(', ')}.`);
+  if (hidden.length) parts.push(`Hide: ${hidden.join(', ')}.`);
+
+  if (state.perStepFeedback) {
+    parts.push(`\nPer-step feedback: clicking any step card opens an inline textarea for specific corrections (e.g., "this takes 45 min not 15", "wrong actor").`);
+  }
+
+  parts.push(`\nVerdict style: ${state.verdictStyle === 'cards' ? 'Large cards with icon, label, and hint text' : 'Compact inline buttons'}. Three options: "This is right" (confirm, green), "Something\'s off" (refine, amber \u2014 shows notes textarea), "Missing steps" (flag, red \u2014 shows notes textarea).`);
+  parts.push(`\nNavigation: one workflow at a time, prev/next buttons with progress dots. ${WORKFLOWS.length} workflows total.`);
+  parts.push(`\nColor scheme: current state uses amber (#F59E0B) left border and warm backgrounds. Future state uses green (#3FAF7A) left border and cool green backgrounds. Brand navy #0A1E2F for text.`);
+  parts.push(`\nAfter all workflows reviewed: show completion state with thank-you message.`);
+  parts.push(`\nData source: GET /projects/{id}/workflows/pairs returns WorkflowPair[] with current_steps and future_steps. Each step has label, actor_persona_name, time_minutes, pain_description (current), benefit_description (future), automation_level.`);
+
+  document.getElementById('prompt-text').textContent = parts.join('');
+}
+
+function copyPrompt() {
+  const text = document.getElementById('prompt-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+buildControls();
+updateAll();
+</script>
+</body>
+</html>

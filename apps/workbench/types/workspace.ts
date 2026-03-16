@@ -722,6 +722,25 @@ export interface SolutionFlowStepSummary {
   review_resolved_at?: string | null
 }
 
+export interface StepAIConfig {
+  role?: string
+  ai_role?: string  // legacy field name from v3 generation
+  agent_name?: string
+  agent_type?: AgentType
+  behaviors?: string[]
+  data_requirements?: Array<{
+    source: string
+    volume?: string
+    quality_needed?: 'minimal' | 'good' | 'high' | 'critical'
+  }>
+  automation_estimate?: number
+  learning_trajectory?: string
+  human_touchpoints?: string[]
+  guardrails?: string[]
+  confidence_display?: string
+  fallback?: string
+}
+
 export interface SolutionFlowStepDetail extends SolutionFlowStepSummary {
   information_fields: InformationField[]
   mock_data_narrative: string
@@ -735,14 +754,7 @@ export interface SolutionFlowStepDetail extends SolutionFlowStepSummary {
   success_criteria: string[] | null
   pain_points_addressed: Array<{ text: string; persona?: string } | string> | null
   goals_addressed: string[] | null
-  ai_config: {
-    role?: string
-    ai_role?: string  // legacy field name from v3 generation
-    behaviors?: string[]
-    guardrails?: string[]
-    confidence_display?: string
-    fallback?: string
-  } | null
+  ai_config: StepAIConfig | null
   background_narrative?: string | null
   generation_version?: number
   preserved_from_version?: number | null
@@ -2037,5 +2049,61 @@ export interface UnlockSummary {
     promoted_feature_id: string | null
     confirmation_status: string
     created_at: string
+}
+
+// ============================================
+// Flow + AI Tab Types
+// ============================================
+
+export type DiscoveryViewMode = 'brd' | 'canvas' | 'flow' | 'ai'
+
+export interface FlowLayoutPosition {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export type FlowCardSize = 'size-sm' | 'size-md' | 'size-lg' | 'size-hero'
+
+// Agent derivation types
+export type AgentType = 'classifier' | 'matcher' | 'predictor' | 'watcher' | 'generator' | 'processor'
+export type AgentMaturity = 'learning' | 'reliable' | 'expert'
+
+export interface AgentDataNeed {
+  source: string
+  amount: string
+  quality: 'minimal' | 'good' | 'high' | 'critical'
+}
+
+export interface DerivedAgent {
+  id: string
+  name: string
+  role: string
+  type: AgentType
+  icon: string
+  sourceStepId: string
+  sourceStepIndex: number
+  sourceStepTitle: string
+  dataNeeds: AgentDataNeed[]
+  produces: string[]
+  humanPartners: string[]
+  feedsAgentIds: string[]
+  dependsOnAgentIds: string[]
+  maturity: AgentMaturity
+  automationRate: number
+  transform: { before: string; after: string }
+  dailyWork: string
+  growth: string
+  insight: string
+}
+
+// Horizon types for Flow view
+export interface FlowHorizon {
+  id: string
+  title: string
+  horizon_number: number
+  description: string
+  vision: string
 }
 

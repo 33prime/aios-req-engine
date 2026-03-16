@@ -6,7 +6,6 @@ from typing import Any
 from uuid import UUID
 
 from app.context.project_awareness import ProjectAwareness  # noqa: F401
-from app.core.action_engine import compute_context_frame
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -63,7 +62,6 @@ _PAGE_APPLY_CONFIDENCE: dict[str, bool] = {
 class ChatContext:
     """Assembled context for a chat turn — feeds the prompt compiler."""
 
-    context_frame: Any
     solution_flow_ctx: Any | None
     retrieval_context: str
     project_name: str
@@ -73,6 +71,7 @@ class ChatContext:
     horizon_state: dict = field(default_factory=dict)
     warm_memory: str = ""  # Cross-conversation context
     forge_state: dict = field(default_factory=dict)  # Forge module intelligence
+    next_actions: list[str] = field(default_factory=list)  # TerseAction sentences
 
 
 async def build_retrieval_context(
@@ -80,8 +79,13 @@ async def build_retrieval_context(
     project_id: str,
     page_context: str | None,
     focused_entity: dict[str, Any] | None,
+    retrieval_plan: dict | None = None,
 ) -> str:
-    """Run retrieval pre-fetch for chat context."""
+    """Run retrieval pre-fetch for chat context.
+
+    If retrieval_plan is provided (from prompt compiler), uses plan-driven params.
+    Otherwise falls back to page-context maps.
+    """
     try:
         from app.core.retrieval import retrieve
         from app.core.retrieval_format import format_retrieval_for_context
@@ -103,14 +107,25 @@ async def build_retrieval_context(
                     parts.append(f"Goal: {egoal}.")
                 context_hint = " ".join(parts)
 
-        entity_types = _PAGE_ENTITY_TYPES.get(page_context or "")
-        graph_depth = _PAGE_GRAPH_DEPTH.get(page_context or "", 1)
+        # Use retrieval plan if available, otherwise fall back to page-context maps
+        if retrieval_plan:
+            entity_types = retrieval_plan.get("entity_types")
+            graph_depth = retrieval_plan.get("graph_depth", 1)
+            apply_recency = retrieval_plan.get("apply_recency", True)
+            apply_confidence = retrieval_plan.get("apply_confidence", True)
+        else:
+            entity_types = _PAGE_ENTITY_TYPES.get(page_context or "")
+            graph_depth = _PAGE_GRAPH_DEPTH.get(page_context or "", 1)
+            apply_recency = True
+            apply_confidence = True
+
         logger.info(
-            "Retrieval profile: page=%s depth=%d types=%s short=%s",
+            "Retrieval profile: page=%s depth=%d types=%s short=%s plan=%s",
             page_context,
             graph_depth,
             entity_types,
             is_very_short,
+            "yes" if retrieval_plan else "no",
         )
         retrieval_result = await retrieve(
             query=message,
@@ -122,8 +137,8 @@ async def build_retrieval_context(
             context_hint=context_hint,
             entity_types=entity_types,
             graph_depth=graph_depth,
-            apply_recency=True,
-            apply_confidence=True,
+            apply_recency=apply_recency,
+            apply_confidence=apply_confidence,
         )
         return format_retrieval_for_context(retrieval_result, style="chat", max_tokens=2000)
     except Exception as e:
@@ -207,6 +222,18 @@ async def _safe_load_forge(project_id: str, page_context: str | None) -> dict:
         return {}
 
 
+async def _safe_load_next_actions(project_id: str) -> list[str]:
+    """Load top TerseAction sentences from the context frame (cached)."""
+    try:
+        from app.core.action_engine import compute_context_frame
+
+        frame = await compute_context_frame(UUID(project_id), max_actions=5)
+        return [a.sentence for a in (frame.actions or [])[:5]]
+    except Exception as e:
+        logger.debug(f"Next actions load failed (non-fatal): {e}")
+        return []
+
+
 async def _safe_load_warm_memory(project_id: str, conversation_id: UUID | str | None) -> str:
     """Load warm memory, returning empty on failure."""
     try:
@@ -225,36 +252,64 @@ async def assemble_chat_context(
     focused_entity: dict[str, Any] | None,
     supabase: Any,
     conversation_id: UUID | str | None = None,
+    intent_type: str = "discuss",
 ) -> ChatContext:
-    """Assemble all chat context in parallel (4 core + 5 intelligence)."""
+    """Assemble all chat context in two phases.
+
+    Phase A (parallel): Load awareness, project_name, confidence, horizon,
+    warm_memory, forge, solution_flow_ctx — everything except retrieval.
+
+    Phase B (sequential after awareness): Build retrieval with plan-driven
+    params from the cognitive frame.
+    """
     pid = str(project_id)
 
-    # All 8 tasks run in parallel
+    # Phase A: Everything except retrieval (which needs awareness for plan)
     (
-        context_frame,
         solution_flow_ctx,
-        retrieval_context,
         project_name,
         confidence_state,
         horizon_state,
         warm_memory,
         forge_state,
+        next_actions,
     ) = await asyncio.gather(
-        compute_context_frame(project_id, max_actions=5),
         build_solution_flow_ctx(page_context, pid, focused_entity),
-        build_retrieval_context(message, pid, page_context, focused_entity),
         get_project_name(supabase, pid),
         _safe_load_confidence(pid),
         _safe_load_horizon(pid),
         _safe_load_warm_memory(pid, conversation_id),
         _safe_load_forge(pid, page_context),
+        _safe_load_next_actions(pid),
     )
 
-    # Awareness needs project_name, loaded after the gather
+    # Load awareness (needs project_name)
     awareness = await _safe_load_awareness(pid, project_name)
 
+    # Phase B: Build retrieval plan from cognitive frame, then run retrieval
+    retrieval_plan = None
+    try:
+        from app.context.intent_classifier import classify_intent
+        from app.context.prompt_compiler import compile_cognitive_frame
+
+        intent = classify_intent(message, page_context)
+        frame = compile_cognitive_frame(
+            intent_type=intent.type,
+            awareness=awareness,
+            page_context=page_context,
+            focused_entity=focused_entity,
+            horizon_state=horizon_state,
+        )
+        if hasattr(frame, "retrieval_plan") and frame.retrieval_plan:
+            retrieval_plan = frame.retrieval_plan
+    except Exception as e:
+        logger.debug(f"Retrieval plan compilation failed (non-fatal): {e}")
+
+    retrieval_context = await build_retrieval_context(
+        message, pid, page_context, focused_entity, retrieval_plan
+    )
+
     return ChatContext(
-        context_frame=context_frame,
         solution_flow_ctx=solution_flow_ctx,
         retrieval_context=retrieval_context,
         project_name=project_name,
@@ -263,4 +318,5 @@ async def assemble_chat_context(
         horizon_state=horizon_state,
         warm_memory=warm_memory,
         forge_state=forge_state,
+        next_actions=next_actions,
     )

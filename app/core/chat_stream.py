@@ -107,11 +107,13 @@ async def generate_chat_stream(
             _persist_user_msg(),
         )
 
-        logger.info(
-            f"Context frame: phase={chat_ctx.context_frame.phase.value}, "
-            f"progress={chat_ctx.context_frame.phase_progress:.0%}, "
-            f"gaps={chat_ctx.context_frame.total_gap_count}"
-        )
+        if chat_ctx.awareness:
+            logger.info(
+                "Awareness: phase=%s, flows=%d, next=%s",
+                chat_ctx.awareness.active_phase,
+                len(chat_ctx.awareness.flows),
+                chat_ctx.awareness.whats_next[:2] if chat_ctx.awareness.whats_next else "[]",
+            )
 
         # Build prompt via the dimensional compiler.
         # Classifies intent → selects cognitive frame → compiles instructions.
@@ -136,6 +138,7 @@ async def generate_chat_stream(
                 conversation_context=config.conversation_context,
                 warm_memory=chat_ctx.warm_memory,
                 forge_state=chat_ctx.forge_state,
+                next_actions=chat_ctx.next_actions,
             )
             system_blocks = [
                 {
@@ -157,7 +160,7 @@ async def generate_chat_stream(
             # Fallback to legacy prompt builder if compiler fails
             logger.warning(f"Compiler failed, falling back to legacy: {e}")
             system_blocks = build_smart_chat_prompt(
-                context_frame=chat_ctx.context_frame,
+                context_frame=None,
                 project_name=chat_ctx.project_name,
                 page_context=config.page_context,
                 focused_entity=config.focused_entity,
@@ -233,6 +236,14 @@ async def generate_chat_stream(
                 tool_results = []
                 for tool_block in tool_use_blocks:
                     logger.info(f"Executing tool: {tool_block.name}")
+
+                    # Notify frontend that tool execution is starting
+                    yield _sse_event({
+                        "type": "tool_start",
+                        "tool_name": tool_block.name,
+                        "tool_input": {"action": (tool_block.input or {}).get("action")},
+                    })
+
                     tool_result = await execute_tool(
                         project_id=config.project_id,
                         tool_name=tool_block.name,

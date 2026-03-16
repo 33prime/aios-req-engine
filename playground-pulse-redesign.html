@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pulse UI Redesign — Playground</title>
+<style>
+  /* ============================================================
+     BRAND TOKENS — from design-tokens.ts
+     ============================================================ */
+  :root {
+    /* Brand */
+    --brand-primary: #3FAF7A;
+    --brand-primary-hover: #33a06d;
+    --brand-primary-active: #2a8f5f;
+    --brand-primary-light: rgba(63, 175, 122, 0.08);
+    --brand-primary-ring: rgba(63, 175, 122, 0.25);
+
+    /* Accent (Deep Navy) */
+    --accent: #044159;
+    --accent-hover: #033344;
+    --accent-light: rgba(4, 65, 89, 0.06);
+
+    /* Surfaces */
+    --surface-page: #FAFAFA;
+    --surface-card: #FFFFFF;
+    --surface-subtle: #F5F5F5;
+    --surface-muted: #F9F9F9;
+
+    /* Borders */
+    --border: #E5E5E5;
+    --border-strong: #D4D4D4;
+
+    /* Text */
+    --text-primary: #1D1D1F;
+    --text-body: #333333;
+    --text-secondary: #4B4B4B;
+    --text-muted: #7B7B7B;
+    --text-placeholder: #999999;
+
+    /* Status (on-brand only) */
+    --status-healthy: #3FAF7A;
+    --status-healthy-bg: #D1FAE5;
+    --status-healthy-text: #047857;
+    --status-attention: #044159;
+    --status-attention-bg: rgba(4, 65, 89, 0.08);
+    --status-missing-bg: #F5F5F5;
+    --status-missing-text: #999999;
+
+    /* Shadows */
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-card-hover: 0 4px 6px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12);
+    --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.18);
+
+    /* Spacing */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    /* Playground chrome */
+    --ctrl-bg: #1a1a2e;
+    --ctrl-border: #333355;
+    --ctrl-text: #ccc;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #0f0f1a;
+    color: var(--ctrl-text);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Controls Panel ── */
+  .controls {
+    width: 280px;
+    min-width: 280px;
+    background: var(--ctrl-bg);
+    border-right: 1px solid var(--ctrl-border);
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .controls h1 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+
+  .controls h1 span { color: var(--brand-primary); }
+
+  .ctrl-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ctrl-group label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+
+  .ctrl-group .seg {
+    display: flex;
+    gap: 4px;
+  }
+
+  .ctrl-group .seg button {
+    flex: 1;
+    padding: 7px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid var(--ctrl-border);
+    background: transparent;
+    color: var(--ctrl-text);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .ctrl-group .seg button.active {
+    background: var(--brand-primary);
+    border-color: var(--brand-primary);
+    color: #fff;
+  }
+
+  .ctrl-group .seg button:hover:not(.active) {
+    border-color: var(--text-muted);
+  }
+
+  .ctrl-group input[type=range] {
+    width: 100%;
+    accent-color: var(--brand-primary);
+  }
+
+  .ctrl-group .range-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ctrl-group .range-row span {
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    min-width: 36px;
+    text-align: right;
+    font-family: 'SF Mono', 'Cascadia Code', monospace;
+  }
+
+  .preset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .preset-row button {
+    padding: 5px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    border: 1px solid var(--ctrl-border);
+    background: transparent;
+    color: var(--ctrl-text);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .preset-row button:hover {
+    border-color: var(--brand-primary);
+    color: #fff;
+  }
+
+  .preset-row button.active {
+    background: var(--brand-primary);
+    border-color: var(--brand-primary);
+    color: #fff;
+  }
+
+  /* ── Main Area ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .preview-area {
+    flex: 1;
+    overflow: auto;
+    background: var(--surface-page);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  /* ── Prompt Output ── */
+  .prompt-area {
+    background: var(--ctrl-bg);
+    border-top: 1px solid var(--ctrl-border);
+    padding: 14px 20px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .prompt-area pre {
+    flex: 1;
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--ctrl-text);
+    white-space: pre-wrap;
+    max-height: 80px;
+    overflow-y: auto;
+  }
+
+  .prompt-area button {
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--brand-primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+  }
+
+  .prompt-area button:hover { opacity: 0.85; }
+
+  /* ============================================================
+     PREVIEW: Overview Background
+     ============================================================ */
+  .overview-bg {
+    width: 960px;
+    background: var(--surface-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    position: relative;
+  }
+
+  .overview-bg.dimmed {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  .overview-header {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .overview-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .overview-header .phase-nav {
+    display: flex;
+    gap: 4px;
+    background: var(--surface-subtle);
+    border-radius: var(--radius-md);
+    padding: 3px;
+  }
+
+  .overview-header .phase-nav span {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-radius: 6px;
+  }
+
+  .overview-header .phase-nav span.active {
+    background: var(--surface-card);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-card);
+  }
+
+  .overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    padding: 24px 28px;
+  }
+
+  .overview-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+  }
+
+  .overview-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .overview-card h3 .icon { font-size: 14px; }
+
+  /* ── Overview: Pulse Card ── */
+  .pulse-card-overview {
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .pulse-card-overview:hover {
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 2px var(--brand-primary-ring);
+  }
+
+  .pulse-mini {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .pulse-mini-ring {
+    width: 52px;
+    height: 52px;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .pulse-mini-ring svg {
+    width: 52px;
+    height: 52px;
+    transform: rotate(-90deg);
+  }
+
+  .pulse-mini-ring .score-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+  }
+
+  .pulse-mini-info { flex: 1; }
+
+  .pulse-mini-info .stage-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--brand-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .pulse-mini-info .summary {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+    margin-top: 2px;
+  }
+
+  .pulse-mini-info .view-link {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--brand-primary);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Overview: Next Best Actions Card */
+  .nba-overview-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .nba-overview-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--surface-subtle);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+
+  .nba-overview-item:hover {
+    border-color: var(--brand-primary);
+    background: var(--surface-card);
+  }
+
+  .nba-overview-num {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--brand-primary);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .nba-overview-content { flex: 1; }
+
+  .nba-overview-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-radius: 3px;
+    margin-bottom: 3px;
+  }
+
+  .nba-overview-badge.interview { background: var(--accent-light); color: var(--accent); }
+  .nba-overview-badge.research { background: var(--brand-primary-light); color: var(--brand-primary-active); }
+  .nba-overview-badge.review { background: var(--status-attention-bg); color: var(--accent); }
+  .nba-overview-badge.signal { background: var(--status-healthy-bg); color: var(--status-healthy-text); }
+
+  .nba-overview-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.35;
+  }
+
+  .nba-overview-arrow {
+    color: var(--border-strong);
+    font-size: 14px;
+    margin-top: 6px;
+    transition: color 0.15s;
+  }
+
+  .nba-overview-item:hover .nba-overview-arrow {
+    color: var(--brand-primary);
+  }
+
+  /* Placeholder cards */
+  .placeholder-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .placeholder-bar {
+    height: 10px;
+    background: var(--border);
+    border-radius: var(--radius-sm);
+  }
+
+  .placeholder-bar.w60 { width: 60%; }
+  .placeholder-bar.w80 { width: 80%; }
+  .placeholder-bar.w40 { width: 40%; }
+
+  /* ============================================================
+     MODAL: Pulse
+     ============================================================ */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,30,47,0.45);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .pulse-modal {
+    background: var(--surface-card);
+    border-radius: 16px;
+    box-shadow: var(--shadow-modal);
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.25s ease;
+    position: relative;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: var(--surface-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: var(--text-muted);
+    z-index: 2;
+    transition: all 0.15s;
+  }
+
+  .modal-close:hover {
+    background: var(--border);
+    color: var(--text-primary);
+  }
+
+  .modal-body {
+    display: flex;
+    overflow: auto;
+  }
+
+  /* ── Left Column ── */
+  .modal-left {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .score-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .score-ring {
+    width: 80px;
+    height: 80px;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .score-ring svg {
+    width: 80px;
+    height: 80px;
+    transform: rotate(-90deg);
+  }
+
+  .score-ring .score-num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .score-ring .score-num strong {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+
+  .score-ring .score-num small {
+    font-size: 10px;
+    color: var(--text-placeholder);
+    margin-top: 1px;
+  }
+
+  .score-meta { flex: 1; }
+
+  .score-meta .stage-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: var(--status-healthy-bg);
+    color: var(--status-healthy-text);
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .score-meta .gates-text {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  .narrative-brief {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    padding: 16px;
+    background: var(--surface-subtle);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--brand-primary);
+  }
+
+  .narrative-brief strong {
+    color: var(--text-primary);
+  }
+
+  /* Stage Journey */
+  .stage-journey {
+    display: flex;
+    align-items: center;
+  }
+
+  .sj-step {
+    display: flex;
+    align-items: center;
+  }
+
+  .sj-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .sj-dot.completed {
+    background: var(--brand-primary);
+    color: #fff;
+  }
+
+  .sj-dot.current {
+    background: var(--surface-card);
+    border: 2.5px solid var(--brand-primary);
+    color: var(--brand-primary);
+    box-shadow: 0 0 0 3px var(--brand-primary-ring);
+  }
+
+  .sj-dot.upcoming {
+    background: var(--border);
+    color: var(--text-placeholder);
+  }
+
+  .sj-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-left: 6px;
+    white-space: nowrap;
+  }
+
+  .sj-label.active {
+    color: var(--brand-primary-active);
+    font-weight: 700;
+  }
+
+  .sj-line {
+    width: 32px;
+    height: 2px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+
+  .sj-line.done { background: var(--brand-primary); }
+
+  /* Metric Pills */
+  .metric-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .metric-pills .pill {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .metric-pills .pill strong {
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+
+  /* ── Right Column ── */
+  .modal-right {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    border-left: 1px solid var(--border);
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  /* Health Clusters */
+  .health-clusters {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .health-cluster {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--surface-subtle);
+    border-radius: var(--radius-md);
+  }
+
+  .hc-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    width: 64px;
+    flex-shrink: 0;
+  }
+
+  .hc-items {
+    display: flex;
+    gap: 14px;
+    flex: 1;
+    flex-wrap: wrap;
+  }
+
+  .hc-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .hc-item .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .hc-item .dot.healthy { background: var(--brand-primary); }
+  .hc-item .dot.attention { background: var(--accent); }
+  .hc-item .dot.missing { background: var(--border-strong); }
+
+  .hc-item span {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .hc-item span strong {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  /* Next Actions */
+  .next-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .action-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    background: var(--surface-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+
+  .action-item:hover {
+    border-color: var(--brand-primary);
+    background: var(--surface-card);
+  }
+
+  .action-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--brand-primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .action-content { flex: 1; }
+
+  .action-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    border-radius: 3px;
+    margin-bottom: 4px;
+  }
+
+  /* All badge variants use brand green + navy accent only */
+  .action-badge.interview { background: var(--accent-light); color: var(--accent); }
+  .action-badge.research { background: var(--status-healthy-bg); color: var(--status-healthy-text); }
+  .action-badge.review { background: var(--status-attention-bg); color: var(--accent); }
+  .action-badge.signal { background: var(--brand-primary-light); color: var(--brand-primary-active); }
+
+  .action-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  .action-arrow {
+    color: var(--border-strong);
+    font-size: 16px;
+    margin-top: 8px;
+    transition: color 0.15s;
+  }
+
+  .action-item:hover .action-arrow { color: var(--brand-primary); }
+
+  /* ── CTA Button ── */
+  .modal-cta {
+    padding: 0 32px 24px;
+  }
+
+  .got-it-btn {
+    width: 100%;
+    padding: 13px;
+    background: var(--brand-primary);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+
+  .got-it-btn:hover { background: var(--brand-primary-hover); }
+
+  /* ============================================================
+     NARROW MODAL variant
+     ============================================================ */
+  .pulse-modal-narrow .modal-body {
+    flex-direction: column;
+  }
+
+  .pulse-modal-narrow .modal-right {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Entity bars (narrow/legacy mode) */
+  .narrow-entity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .narrow-entity-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ne-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    width: 110px;
+    flex-shrink: 0;
+  }
+
+  .ne-bar-bg {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .ne-bar {
+    height: 100%;
+    border-radius: var(--radius-sm);
+    transition: width 0.3s;
+  }
+
+  .ne-bar.healthy { background: var(--brand-primary); }
+  .ne-bar.attention { background: var(--accent); }
+  .ne-bar.missing { background: var(--border-strong); }
+
+  .ne-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 36px;
+    text-align: right;
+    font-family: 'SF Mono', monospace;
+  }
+
+  .ne-status {
+    font-size: 10px;
+    font-weight: 600;
+    min-width: 56px;
+  }
+
+  .ne-status.healthy { color: var(--brand-primary); }
+  .ne-status.attention { color: var(--accent); }
+  .ne-status.missing { color: var(--text-placeholder); }
+
+  .narrow-gates {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .narrow-gate {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .gate-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  .gate-icon.pass { background: var(--status-healthy-bg); color: var(--brand-primary); }
+  .gate-icon.fail { background: var(--surface-subtle); color: var(--text-placeholder); }
+</style>
+</head>
+<body>
+
+<!-- ── Controls ── -->
+<div class="controls">
+  <div>
+    <h1><span>Pulse</span> Redesign</h1>
+    <p style="font-size:11px; color: var(--text-muted); margin-top:4px;">Brand-accurate design exploration</p>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Presets</label>
+    <div class="preset-row" id="presets">
+      <button onclick="applyPreset('redesigned')" class="active">Redesigned</button>
+      <button onclick="applyPreset('current')">Current</button>
+      <button onclick="applyPreset('compact')">Compact</button>
+      <button onclick="applyPreset('narrative')">Narrative</button>
+    </div>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Modal Layout</label>
+    <div class="seg" id="seg-layout">
+      <button class="active" onclick="setState('layout','wide')">Wide</button>
+      <button onclick="setState('layout','narrow')">Narrow</button>
+    </div>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Modal Width</label>
+    <div class="range-row">
+      <input type="range" min="400" max="960" step="10" value="860" oninput="setState('width', +this.value)" id="slider-width">
+      <span id="val-width">860</span>
+    </div>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Score</label>
+    <div class="range-row">
+      <input type="range" min="0" max="100" step="1" value="55" oninput="setState('score', +this.value)" id="slider-score">
+      <span id="val-score">55</span>
+    </div>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Stage</label>
+    <div class="seg" id="seg-stage">
+      <button onclick="setState('stage','getting_started')">Start</button>
+      <button class="active" onclick="setState('stage','discovery')">Discovery</button>
+      <button onclick="setState('stage','prototype')">Prototype</button>
+      <button onclick="setState('stage','spec')">Spec</button>
+    </div>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Narrative Brief</label>
+    <div class="seg" id="seg-brief">
+      <button class="active" onclick="setState('briefStyle','narrative')">Narrative</button>
+      <button onclick="setState('briefStyle','bullets')">Bullets</button>
+      <button onclick="setState('briefStyle','hidden')">Hidden</button>
+    </div>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Health Display</label>
+    <div class="seg" id="seg-health">
+      <button class="active" onclick="setState('healthDisplay','clusters')">Clusters</button>
+      <button onclick="setState('healthDisplay','bars')">Bars</button>
+    </div>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Action Types</label>
+    <div class="seg" id="seg-actions">
+      <button class="active" onclick="setState('actionStyle','varied')">Varied</button>
+      <button onclick="setState('actionStyle','signal')">All Signal</button>
+    </div>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Stage Journey</label>
+    <div class="seg" id="seg-journey">
+      <button class="active" onclick="setState('showJourney',true)">Show</button>
+      <button onclick="setState('showJourney',false)">Hide</button>
+    </div>
+  </div>
+
+  <div class="ctrl-group">
+    <label>Metric Pills</label>
+    <div class="seg" id="seg-pills">
+      <button class="active" onclick="setState('showPills',true)">Show</button>
+      <button onclick="setState('showPills',false)">Hide</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main ── -->
+<div class="main">
+  <div class="preview-area" id="preview-area">
+    <div class="overview-bg" id="overview-bg">
+      <div class="overview-header">
+        <h2>Business Onboarding & RevOps Platform</h2>
+        <div class="phase-nav">
+          <span class="active">Overview</span>
+          <span>Discovery</span>
+          <span>Build</span>
+          <span>Live</span>
+        </div>
+      </div>
+      <div class="overview-grid">
+        <div class="overview-card pulse-card-overview" onclick="openModal()">
+          <h3><span class="icon">⚡</span> Project Pulse</h3>
+          <div class="pulse-mini" id="pulse-mini"></div>
+        </div>
+        <div class="overview-card" id="nba-overview-card">
+          <h3><span class="icon">✦</span> Next Best Actions</h3>
+          <div id="nba-overview-content"></div>
+        </div>
+        <div class="overview-card">
+          <h3><span class="icon">☰</span> Tasks</h3>
+          <div class="placeholder-content">
+            <div class="placeholder-bar w60"></div>
+            <div class="placeholder-bar w80"></div>
+            <div class="placeholder-bar w40"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="pulse-modal" id="pulse-modal"></div>
+    </div>
+  </div>
+
+  <div class="prompt-area">
+    <pre id="prompt-output"></pre>
+    <button onclick="copyPrompt()">Copy</button>
+  </div>
+</div>
+
+<script>
+const DEFAULTS = {
+  layout: 'wide', width: 860, score: 55, stage: 'discovery',
+  briefStyle: 'narrative', healthDisplay: 'clusters',
+  actionStyle: 'varied', showJourney: true, showPills: true,
+};
+
+const state = { ...DEFAULTS };
+
+const PRESETS = {
+  redesigned: { layout: 'wide', width: 860, briefStyle: 'narrative', healthDisplay: 'clusters', actionStyle: 'varied', showJourney: true, showPills: true },
+  current: { layout: 'narrow', width: 440, briefStyle: 'hidden', healthDisplay: 'bars', actionStyle: 'signal', showJourney: false, showPills: false },
+  compact: { layout: 'wide', width: 720, briefStyle: 'hidden', healthDisplay: 'clusters', actionStyle: 'varied', showJourney: false, showPills: true },
+  narrative: { layout: 'wide', width: 860, briefStyle: 'narrative', healthDisplay: 'clusters', actionStyle: 'varied', showJourney: true, showPills: false },
+};
+
+const STAGES = ['getting_started', 'discovery', 'prototype', 'spec'];
+const STAGE_LABELS = { getting_started: 'Getting Started', discovery: 'Discovery', prototype: 'Prototype', spec: 'Spec' };
+
+function setState(key, val) {
+  state[key] = val;
+  syncControls();
+  updateAll();
+}
+
+function applyPreset(name) {
+  Object.assign(state, PRESETS[name]);
+  syncControls();
+  updateAll();
+  document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase() === name));
+}
+
+function syncControls() {
+  document.getElementById('slider-width').value = state.width;
+  document.getElementById('val-width').textContent = state.width;
+  document.getElementById('slider-score').value = state.score;
+  document.getElementById('val-score').textContent = state.score;
+  syncSeg('seg-layout', state.layout === 'wide' ? 0 : 1);
+  syncSeg('seg-stage', STAGES.indexOf(state.stage));
+  syncSeg('seg-brief', state.briefStyle === 'narrative' ? 0 : state.briefStyle === 'bullets' ? 1 : 2);
+  syncSeg('seg-health', state.healthDisplay === 'clusters' ? 0 : 1);
+  syncSeg('seg-actions', state.actionStyle === 'varied' ? 0 : 1);
+  syncSeg('seg-journey', state.showJourney ? 0 : 1);
+  syncSeg('seg-pills', state.showPills ? 0 : 1);
+}
+
+function syncSeg(id, idx) {
+  document.querySelectorAll(`#${id} button`).forEach((b, i) => b.classList.toggle('active', i === idx));
+}
+
+function scoreColor() {
+  if (state.score >= 70) return 'var(--brand-primary)';
+  if (state.score >= 40) return 'var(--accent)';
+  return 'var(--text-muted)';
+}
+
+function scoreLabel() {
+  if (state.score >= 80) return 'Excellent';
+  if (state.score >= 70) return 'Good';
+  if (state.score >= 50) return 'Fair';
+  if (state.score >= 30) return 'Developing';
+  return 'Early';
+}
+
+function ringSVG(size, stroke, pct, color) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - pct / 100);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${stroke}"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round"
+      stroke-dasharray="${c}" stroke-dashoffset="${offset}" style="transition: stroke-dashoffset 0.4s ease"/>
+  </svg>`;
+}
+
+function renderPulseMini() {
+  document.getElementById('pulse-mini').innerHTML = `
+    <div class="pulse-mini-ring">
+      ${ringSVG(52, 5, state.score, scoreColor())}
+      <div class="score-text">${state.score}</div>
+    </div>
+    <div class="pulse-mini-info">
+      <div class="stage-label">${STAGE_LABELS[state.stage]}</div>
+      <div class="summary">3 personas, 4 workflows, 7 features captured.</div>
+      <div class="view-link">View Pulse →</div>
+    </div>`;
+}
+
+function renderNBAOverview() {
+  const actions = state.actionStyle === 'varied' ? [
+    { badge: 'interview', label: 'Interview', desc: 'Schedule stakeholder discovery call with VP of Sales' },
+    { badge: 'research', label: 'Research', desc: 'Upload competitive analysis to fill landscape gap' },
+    { badge: 'review', label: 'Review', desc: 'Confirm 4 pending workflow steps from last session' },
+  ] : [
+    { badge: 'signal', label: 'Signal', desc: "Get Valerie's discovery call template from her manual process" },
+    { badge: 'signal', label: 'Signal', desc: 'Get the market sizing methodology or spreadsheet template' },
+    { badge: 'signal', label: 'Signal', desc: 'Get the GTM strategy framework for positioning and channels' },
+  ];
+  document.getElementById('nba-overview-content').innerHTML = `<div class="nba-overview-list">
+    ${actions.map((a, i) => `<div class="nba-overview-item">
+      <div class="nba-overview-num">${i+1}</div>
+      <div class="nba-overview-content">
+        <div class="nba-overview-badge ${a.badge}">${a.label}</div>
+        <div class="nba-overview-desc">${a.desc}</div>
+      </div>
+      <div class="nba-overview-arrow">→</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function narrativeBrief() {
+  if (state.briefStyle === 'hidden') return '';
+  if (state.briefStyle === 'bullets') {
+    return `<div class="narrative-brief" style="font-size:13px;">
+      <div style="margin-bottom:6px; font-weight:600; color:var(--text-primary); font-size:11px; text-transform:uppercase; letter-spacing:0.04em;">Key Findings</div>
+      <div style="color:var(--text-secondary); line-height:1.6;">
+        • 3 personas mapped — strong user coverage<br>
+        • Only 1 stakeholder identified — need executive voices<br>
+        • Zero competitive intel — risks building in a vacuum<br>
+        • 37 business drivers show deep domain understanding
+      </div>
+    </div>`;
+  }
+  return `<div class="narrative-brief">
+    Strong persona coverage with 3 key users mapped across the onboarding journey. Missing stakeholder voices — only 1 identified so far. Rich business driver data shows deep domain understanding, but the competitive landscape is completely blank. <strong>Get stakeholder interviews and competitive research to unlock prototype.</strong>
+  </div>`;
+}
+
+function stageJourney() {
+  if (!state.showJourney) return '';
+  const currentIdx = STAGES.indexOf(state.stage);
+  let html = '<div class="stage-journey">';
+  STAGES.forEach((s, i) => {
+    if (i > 0) html += `<div class="sj-line ${i <= currentIdx ? 'done' : ''}"></div>`;
+    const cls = i < currentIdx ? 'completed' : i === currentIdx ? 'current' : 'upcoming';
+    const icon = i < currentIdx ? '✓' : (i + 1);
+    html += `<div class="sj-step">
+      <div class="sj-dot ${cls}">${icon}</div>
+      <span class="sj-label ${i === currentIdx ? 'active' : ''}">${STAGE_LABELS[s]}</span>
+    </div>`;
+  });
+  return html + '</div>';
+}
+
+function metricPills() {
+  if (!state.showPills) return '';
+  return `<div class="metric-pills">
+    <div class="pill">Coverage <strong>70%</strong></div>
+    <div class="pill">Confidence <strong>85%</strong></div>
+    <div class="pill">Link Density <strong>64%</strong></div>
+    <div class="pill">Spec Complete <strong>79%</strong></div>
+  </div>`;
+}
+
+function healthClusters() {
+  return `<div class="health-clusters">
+    <div class="health-cluster">
+      <div class="hc-label">People</div>
+      <div class="hc-items">
+        <div class="hc-item"><div class="dot healthy"></div><span>Personas <strong>3/4</strong></span></div>
+        <div class="hc-item"><div class="dot attention"></div><span>Stakeholders <strong>1/4</strong></span></div>
+      </div>
+    </div>
+    <div class="health-cluster">
+      <div class="hc-label">Solution</div>
+      <div class="hc-items">
+        <div class="hc-item"><div class="dot healthy"></div><span>Features <strong>7</strong></span></div>
+        <div class="hc-item"><div class="dot healthy"></div><span>Workflows <strong>4</strong></span></div>
+        <div class="hc-item"><div class="dot healthy"></div><span>Steps <strong>36</strong></span></div>
+      </div>
+    </div>
+    <div class="health-cluster">
+      <div class="hc-label">Context</div>
+      <div class="hc-items">
+        <div class="hc-item"><div class="dot healthy"></div><span>Drivers <strong>37</strong></span></div>
+        <div class="hc-item"><div class="dot attention"></div><span>Constraints <strong>3/5</strong></span></div>
+        <div class="hc-item"><div class="dot missing"></div><span>Competitors <strong>0</strong></span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function healthBars() {
+  const entities = [
+    { name: 'Personas', count: '3/4', pct: 75, cls: 'healthy', status: 'Healthy', sCls: 'healthy' },
+    { name: 'Stakeholders', count: '1/4', pct: 25, cls: 'attention', status: 'Needs more', sCls: 'attention' },
+    { name: 'Business Drivers', count: '37/10', pct: 100, cls: 'healthy', status: 'Strong', sCls: 'healthy' },
+    { name: 'Features', count: '7/10', pct: 70, cls: 'healthy', status: 'Healthy', sCls: 'healthy' },
+    { name: 'Workflows', count: '4/4', pct: 100, cls: 'healthy', status: 'Strong', sCls: 'healthy' },
+    { name: 'Steps', count: '36/14', pct: 100, cls: 'healthy', status: 'Strong', sCls: 'healthy' },
+    { name: 'Data Entities', count: '8/5', pct: 100, cls: 'healthy', status: 'Strong', sCls: 'healthy' },
+    { name: 'Constraints', count: '3/5', pct: 60, cls: 'attention', status: 'Needs more', sCls: 'attention' },
+    { name: 'Competitors', count: '0/4', pct: 0, cls: 'missing', status: 'Missing', sCls: 'missing' },
+  ];
+  return `<div class="narrow-entity-list">${entities.map(e =>
+    `<div class="narrow-entity-row">
+      <span class="ne-label">${e.name}</span>
+      <div class="ne-bar-bg"><div class="ne-bar ${e.cls}" style="width:${Math.min(100,e.pct)}%"></div></div>
+      <span class="ne-count">${e.count}</span>
+      <span class="ne-status ${e.sCls}">${e.status}</span>
+    </div>`).join('')}</div>`;
+}
+
+function actionsHTML(style) {
+  const varied = [
+    { badge: 'interview', label: 'Interview', desc: 'Schedule a stakeholder discovery call with the VP of Sales' },
+    { badge: 'research', label: 'Research', desc: 'Upload competitive analysis to fill the landscape gap' },
+    { badge: 'review', label: 'Review', desc: 'Confirm 4 pending workflow steps from last session' },
+  ];
+  const signal = [
+    { badge: 'signal', label: 'Signal', desc: "Get Valerie's current discovery call template or framework from her manual process." },
+    { badge: 'signal', label: 'Signal', desc: 'Get the market sizing calculation methodology or spreadsheet template.' },
+    { badge: 'signal', label: 'Signal', desc: 'Get the GTM strategy framework for positioning, channels, and segments.' },
+  ];
+  const items = style === 'varied' ? varied : signal;
+  return `<div class="next-actions">${items.map((a, i) =>
+    `<div class="action-item">
+      <div class="action-num">${i+1}</div>
+      <div class="action-content">
+        <div class="action-badge ${a.badge}">${a.label}</div>
+        <div class="action-desc">${a.desc}</div>
+      </div>
+      <div class="action-arrow">→</div>
+    </div>`).join('')}</div>`;
+}
+
+function renderModal() {
+  const modal = document.getElementById('pulse-modal');
+  const color = scoreColor();
+  const isWide = state.layout === 'wide';
+  const gatesMet = state.stage === 'getting_started' ? '2/5' : state.stage === 'discovery' ? '4/5' : '5/5';
+
+  modal.style.width = state.width + 'px';
+
+  if (isWide) {
+    modal.className = 'pulse-modal';
+    const leftW = Math.round(state.width * 0.55);
+    modal.innerHTML = `
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-body">
+        <div class="modal-left" style="width:${leftW}px; min-width:${leftW}px;">
+          <div class="score-header">
+            <div class="score-ring">
+              ${ringSVG(80, 6, state.score, color)}
+              <div class="score-num"><strong>${state.score}</strong><small>/ 100</small></div>
+            </div>
+            <div class="score-meta">
+              <div class="stage-badge">⚡ ${STAGE_LABELS[state.stage]}</div>
+              <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+                <span class="gates-text">${gatesMet} gates met</span>
+                <span class="gates-text" style="color:var(--border-strong)">·</span>
+                <span class="gates-text">${scoreLabel()}</span>
+              </div>
+            </div>
+          </div>
+          ${narrativeBrief()}
+          ${stageJourney()}
+          ${metricPills()}
+        </div>
+        <div class="modal-right" style="flex:1;">
+          <div>
+            <div class="section-title">Health</div>
+            ${state.healthDisplay === 'clusters' ? healthClusters() : healthBars()}
+          </div>
+          <div>
+            <div class="section-title">Next Actions</div>
+            ${actionsHTML(state.actionStyle)}
+          </div>
+        </div>
+      </div>
+      <div class="modal-cta">
+        <button class="got-it-btn" onclick="closeModal()">Got it →</button>
+      </div>`;
+  } else {
+    modal.className = 'pulse-modal pulse-modal-narrow';
+    modal.innerHTML = `
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-body">
+        <div class="modal-left" style="width:100%;">
+          <div style="font-size:16px; font-weight:600; color:var(--text-primary); display:flex; align-items:center; gap:8px;">⚡ Project Health</div>
+          <div class="score-header">
+            <div class="score-ring">
+              ${ringSVG(80, 6, state.score, color)}
+              <div class="score-num"><strong>${state.score}</strong><small>/ 100</small></div>
+            </div>
+            <div class="score-meta">
+              <div class="stage-badge">⚡ ${STAGE_LABELS[state.stage]}</div>
+              <div class="gates-text" style="margin-top:6px">${gatesMet} gates met</div>
+            </div>
+          </div>
+          ${narrativeBrief()}
+          <div>
+            <div class="section-title">Stage Gates</div>
+            <div class="narrow-gates">
+              <div class="narrow-gate"><div class="gate-icon pass">✓</div> At least 3 workflows mapped (4/3.0)</div>
+              <div class="narrow-gate"><div class="gate-icon fail">○</div> Workflows have actors/pain linked (0.0/0.5)</div>
+              <div class="narrow-gate"><div class="gate-icon pass">✓</div> At least 2 personas identified (3/2.0)</div>
+              <div class="narrow-gate"><div class="gate-icon pass">✓</div> Features connecting to workflows (0.429/0.3)</div>
+              <div class="narrow-gate"><div class="gate-icon pass">✓</div> At least 3 business drivers (37/3.0)</div>
+            </div>
+          </div>
+          <div>
+            <div class="section-title">Entity Health</div>
+            ${state.healthDisplay === 'clusters' ? healthClusters() : healthBars()}
+          </div>
+          <div>
+            <div class="section-title">What to Focus On</div>
+            ${actionsHTML(state.actionStyle)}
+          </div>
+        </div>
+      </div>
+      <div class="modal-cta">
+        <button class="got-it-btn" onclick="closeModal()">Got it →</button>
+      </div>`;
+  }
+}
+
+function openModal() {
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('overview-bg').classList.add('dimmed');
+  renderModal();
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.getElementById('overview-bg').classList.remove('dimmed');
+}
+
+function updatePrompt() {
+  const parts = [];
+  parts.push(`Redesign the Pulse modal as a ${state.layout === 'wide' ? 'wide landscape' : 'narrow centered'} layout at ${state.width}px.`);
+  if (state.layout === 'wide') parts.push('2-column: left (55%) score + narrative + journey, right (45%) health clusters + next actions.');
+  if (state.briefStyle === 'narrative') parts.push('Narrative brief: 2-3 sentences, green left-border accent, bold CTA at end.');
+  else if (state.briefStyle === 'bullets') parts.push('Bullet summary of key findings.');
+  else parts.push('No brief — score and metrics only.');
+  if (state.healthDisplay === 'clusters') parts.push('Health: 3 clusters (People, Solution, Context) with green/navy/gray dot indicators.');
+  else parts.push('Health: individual bars with count ratios.');
+  if (state.actionStyle === 'varied') parts.push('Next actions: varied types (Interview, Research, Review, Signal) with on-brand badges.');
+  else parts.push('Next actions: all Signal type.');
+  if (state.showJourney) parts.push('Stage journey: horizontal dot stepper.');
+  if (state.showPills) parts.push('Metric pills: Coverage, Confidence, Link Density, Spec Complete.');
+  parts.push(`\nColors: Brand Green #3FAF7A, Navy Accent #044159, Text #1D1D1F/#333/#7B7B7B, Surfaces #FFF/#FAFAFA/#F5F5F5, Borders #E5E5E5.`);
+  parts.push('Score ring: green ≥70, navy accent ≥40, muted gray <40. No amber/yellow/purple/orange.');
+  document.getElementById('prompt-output').textContent = parts.join('\n');
+}
+
+function copyPrompt() {
+  navigator.clipboard.writeText(document.getElementById('prompt-output').textContent).then(() => {
+    const btn = document.querySelector('.prompt-area button');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+function updateAll() {
+  renderPulseMini();
+  renderNBAOverview();
+  if (document.getElementById('modal-overlay').classList.contains('open')) renderModal();
+  updatePrompt();
+}
+
+updateAll();
+setTimeout(openModal, 300);
+</script>
+</body>
+</html>

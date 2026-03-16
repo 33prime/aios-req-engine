@@ -139,8 +139,10 @@ export function useChat({
 
         // Prepare assistant message placeholder
         const assistantMessageId = Date.now()
-        let assistantContent = ''
+        let assistantContent = ''       // What's committed to display
+        let pendingTurnText = ''        // Text from current turn (retracted if tool_start follows)
         let currentToolCalls: ChatMessage['toolCalls'] = []
+        let hasHadAnyTools = false
 
         setMessages((prev) => [
           ...prev,
@@ -224,29 +226,80 @@ export function useChat({
                 // Capture real conversation ID from backend
                 setConversationId(event.conversation_id)
               } else if (event.type === 'text') {
-                // Append text to assistant message
-                assistantContent += event.content
+                // Accumulate text for this turn
+                pendingTurnText += event.content
 
+                // Show text as it streams (will be retracted if tool_start follows)
+                const displayContent = assistantContent + pendingTurnText
                 setMessages((prev) => {
                   const newMessages = [...prev]
                   const lastMessage = newMessages[newMessages.length - 1]
 
                   if (lastMessage && lastMessage.role === 'assistant') {
-                    lastMessage.content = assistantContent
+                    lastMessage.content = displayContent
                     lastMessage.isStreaming = true
                   }
 
                   return newMessages
                 })
-              } else if (event.type === 'tool_result') {
-                // Track tool execution
-                const toolCall = {
-                  tool_name: event.tool_name,
-                  status: 'complete' as const,
-                  result: event.result,
+              } else if (event.type === 'tool_start') {
+                // Retract intermediate narration — this text preceded a tool call
+                // so it's "Let me check..." narration, not the final answer
+                if (hasHadAnyTools) {
+                  // Not the first tool call: discard the pending text entirely
+                  pendingTurnText = ''
+                } else {
+                  // First tool call: commit any pre-tool text (user's first response chunk)
+                  // but only if it looks like a real intro, not pure narration
+                  assistantContent += pendingTurnText
+                  pendingTurnText = ''
                 }
+                hasHadAnyTools = true
 
-                currentToolCalls.push(toolCall)
+                // Revert display to committed content only
+                setMessages((prev) => {
+                  const newMessages = [...prev]
+                  const lastMessage = newMessages[newMessages.length - 1]
+                  if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.content = assistantContent
+                  }
+                  return newMessages
+                })
+
+                // Mark tool as running so UI can show activity indicator
+                const runningCall = {
+                  tool_name: event.tool_name,
+                  status: 'running' as const,
+                  args: event.tool_input,
+                }
+                currentToolCalls.push(runningCall)
+
+                setMessages((prev) => {
+                  const newMessages = [...prev]
+                  const lastMessage = newMessages[newMessages.length - 1]
+                  if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.toolCalls = [...currentToolCalls]
+                  }
+                  return newMessages
+                })
+              } else if (event.type === 'tool_result') {
+                // Find matching running entry and update to complete
+                const runningIdx = currentToolCalls.findIndex(
+                  (tc) => tc.tool_name === event.tool_name && tc.status === 'running'
+                )
+                if (runningIdx !== -1) {
+                  currentToolCalls[runningIdx] = {
+                    ...currentToolCalls[runningIdx],
+                    status: 'complete' as const,
+                    result: event.result,
+                  }
+                } else {
+                  currentToolCalls.push({
+                    tool_name: event.tool_name,
+                    status: 'complete' as const,
+                    result: event.result,
+                  })
+                }
 
                 // Revalidate UI data after mutating tools
                 if (MUTATING_TOOLS.has(event.tool_name) && !event.result?.error) {
@@ -264,12 +317,19 @@ export function useChat({
                   return newMessages
                 })
               } else if (event.type === 'done') {
+                // Commit any remaining pending text (this is the final answer)
+                if (pendingTurnText) {
+                  assistantContent += pendingTurnText
+                  pendingTurnText = ''
+                }
+
                 // Finalize assistant message
                 setMessages((prev) => {
                   const newMessages = [...prev]
                   const lastMessage = newMessages[newMessages.length - 1]
 
                   if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.content = assistantContent
                     lastMessage.isStreaming = false
                   }
 
@@ -325,6 +385,8 @@ export function useChat({
 
         // Add assistant message placeholder
         let assistantContent = ''
+        let pendingTurnText = ''
+        let hasHadAnyTools = false
         setMessages((prev) => [
           ...prev,
           {
@@ -377,6 +439,7 @@ export function useChat({
         const decoder = new TextDecoder()
         let currentToolCalls: ChatMessage['toolCalls'] = []
         let sseBuffer = ''
+        let hadToolsSinceLastText = false
 
         while (true) {
           const { done, value } = await reader.read()
@@ -398,22 +461,63 @@ export function useChat({
               if (event.type === 'conversation_id') {
                 setConversationId(event.conversation_id)
               } else if (event.type === 'text') {
-                assistantContent += event.content
+                pendingTurnText += event.content
+                const displayContent = assistantContent + pendingTurnText
+                setMessages((prev) => {
+                  const newMessages = [...prev]
+                  const lastMessage = newMessages[newMessages.length - 1]
+                  if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.content = displayContent
+                    lastMessage.isStreaming = true
+                  }
+                  return newMessages
+                })
+              } else if (event.type === 'tool_start') {
+                if (hasHadAnyTools) {
+                  pendingTurnText = ''
+                } else {
+                  assistantContent += pendingTurnText
+                  pendingTurnText = ''
+                }
+                hasHadAnyTools = true
                 setMessages((prev) => {
                   const newMessages = [...prev]
                   const lastMessage = newMessages[newMessages.length - 1]
                   if (lastMessage && lastMessage.role === 'assistant') {
                     lastMessage.content = assistantContent
-                    lastMessage.isStreaming = true
+                  }
+                  return newMessages
+                })
+                currentToolCalls.push({
+                  tool_name: event.tool_name,
+                  status: 'running' as const,
+                  args: event.tool_input,
+                })
+                setMessages((prev) => {
+                  const newMessages = [...prev]
+                  const lastMessage = newMessages[newMessages.length - 1]
+                  if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.toolCalls = [...currentToolCalls]
                   }
                   return newMessages
                 })
               } else if (event.type === 'tool_result') {
-                currentToolCalls.push({
-                  tool_name: event.tool_name,
-                  status: 'complete' as const,
-                  result: event.result,
-                })
+                const runningIdx = currentToolCalls.findIndex(
+                  (tc) => tc.tool_name === event.tool_name && tc.status === 'running'
+                )
+                if (runningIdx !== -1) {
+                  currentToolCalls[runningIdx] = {
+                    ...currentToolCalls[runningIdx],
+                    status: 'complete' as const,
+                    result: event.result,
+                  }
+                } else {
+                  currentToolCalls.push({
+                    tool_name: event.tool_name,
+                    status: 'complete' as const,
+                    result: event.result,
+                  })
+                }
                 // Revalidate UI data after mutating tools
                 if (MUTATING_TOOLS.has(event.tool_name) && !event.result?.error) {
                   onDataMutatedRef.current?.()
@@ -427,10 +531,15 @@ export function useChat({
                   return newMessages
                 })
               } else if (event.type === 'done') {
+                if (pendingTurnText) {
+                  assistantContent += pendingTurnText
+                  pendingTurnText = ''
+                }
                 setMessages((prev) => {
                   const newMessages = [...prev]
                   const lastMessage = newMessages[newMessages.length - 1]
                   if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.content = assistantContent
                     lastMessage.isStreaming = false
                   }
                   return newMessages

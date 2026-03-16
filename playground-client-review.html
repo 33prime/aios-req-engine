@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Client Portal Review — AIOS Experience Playground</title>
+<style>
+  :root {
+    --green: #3FAF7A;
+    --green-light: #E8F5EE;
+    --green-dark: #25785A;
+    --navy: #0A1E2F;
+    --navy-light: #1a3450;
+    --amber: #F59E0B;
+    --amber-light: #FEF3C7;
+    --amber-bg: #FFFBEB;
+    --blue: #3B82F6;
+    --blue-light: #EFF6FF;
+    --rose: #F43F5E;
+    --text: #37352f;
+    --text-light: #666666;
+    --text-placeholder: #999999;
+    --bg: #FFFFFF;
+    --bg-muted: #FAFAFA;
+    --border: #E5E5E5;
+    --border-light: #F0F0F0;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 6px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f0;
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ===== Layout ===== */
+  .playground {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    height: 100vh;
+  }
+
+  /* ===== Controls Panel ===== */
+  .controls {
+    background: var(--navy);
+    color: #ccc;
+    padding: 20px 16px;
+    overflow-y: auto;
+    border-right: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .controls h1 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+
+  .controls .subtitle {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 20px;
+  }
+
+  .control-group {
+    margin-bottom: 16px;
+  }
+
+  .control-group label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .control-group select,
+  .control-group input[type="text"],
+  .control-group textarea {
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #eee;
+    padding: 7px 10px;
+    border-radius: var(--radius-xs);
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+  }
+
+  .control-group textarea {
+    resize: vertical;
+    min-height: 50px;
+  }
+
+  .control-group select:focus,
+  .control-group input:focus,
+  .control-group textarea:focus {
+    border-color: var(--green);
+  }
+
+  .preset-btn {
+    display: block;
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #ccc;
+    padding: 8px 10px;
+    border-radius: var(--radius-xs);
+    font-size: 11px;
+    cursor: pointer;
+    margin-bottom: 6px;
+    text-align: left;
+    transition: all 0.15s;
+  }
+
+  .preset-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+  }
+
+  .preset-btn.active {
+    background: rgba(63,175,122,0.2);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .divider {
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin: 16px 0;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .toggle-row span {
+    font-size: 11px;
+    color: #bbb;
+  }
+
+  .toggle {
+    width: 36px;
+    height: 20px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+  }
+
+  .toggle.on {
+    background: var(--green);
+  }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+  }
+
+  .toggle.on::after {
+    transform: translateX(16px);
+  }
+
+  /* ===== Preview Area ===== */
+  .preview-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: #f0efe8;
+    overflow-y: auto;
+  }
+
+  .device-frame {
+    width: 100%;
+    max-width: 900px;
+    height: calc(100vh - 48px);
+    background: var(--bg);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ===== Screen: Welcome ===== */
+  .screen { display: none; flex-direction: column; height: 100%; }
+  .screen.active { display: flex; }
+
+  .welcome-screen {
+    padding: 60px 40px;
+    text-align: center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #fafafa 0%, #fff 40%);
+  }
+
+  .welcome-logo {
+    width: 64px;
+    height: 64px;
+    background: var(--green);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    font-size: 28px;
+    color: white;
+    box-shadow: 0 4px 16px rgba(63,175,122,0.3);
+  }
+
+  .welcome-screen h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+
+  .welcome-screen .welcome-sub {
+    font-size: 15px;
+    color: var(--text-light);
+    margin-bottom: 8px;
+    max-width: 400px;
+    line-height: 1.5;
+  }
+
+  .welcome-screen .consultant-msg {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-bottom: 32px;
+    max-width: 420px;
+    line-height: 1.6;
+    font-style: italic;
+    background: var(--bg-muted);
+    padding: 14px 20px;
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--green);
+  }
+
+  .tour-choice {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  .tour-choice-btn {
+    flex: 1;
+    max-width: 220px;
+    padding: 20px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .tour-choice-btn:hover {
+    border-color: var(--green);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .tour-choice-btn .choice-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+
+  .tour-choice-btn .choice-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+
+  .tour-choice-btn .choice-desc {
+    font-size: 11px;
+    color: var(--text-light);
+    line-height: 1.4;
+  }
+
+  /* ===== Screen: Epic Tour ===== */
+  .tour-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    display: flex;
+    gap: 3px;
+    padding: 12px 16px 8px;
+    background: white;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .progress-dot {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+
+  .progress-dot.done { background: var(--green); }
+  .progress-dot.current { background: var(--navy); }
+  .progress-dot.nailed { background: var(--green); }
+  .progress-dot.almost { background: var(--amber); }
+  .progress-dot.discuss { background: var(--blue); }
+
+  /* Mock prototype area */
+  .prototype-area {
+    flex: 1;
+    background: #f8f8f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mock-prototype {
+    width: 90%;
+    height: 90%;
+    background: white;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .mock-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-light);
+    background: #fafafa;
+  }
+
+  .mock-nav-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .mock-nav-bar {
+    flex: 1;
+    height: 24px;
+    background: #f0f0f0;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 10px;
+    color: #999;
+  }
+
+  .mock-content {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mock-header-block {
+    height: 28px;
+    width: 60%;
+    background: #f0f0f0;
+    border-radius: 4px;
+  }
+
+  .mock-text-block {
+    height: 12px;
+    background: #f5f5f5;
+    border-radius: 3px;
+  }
+
+  .mock-card-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .mock-card {
+    flex: 1;
+    height: 80px;
+    background: #f8f8f8;
+    border: 1px solid #eee;
+    border-radius: 8px;
+  }
+
+  .mock-sidebar {
+    width: 180px;
+    border-left: 1px solid var(--border-light);
+    background: #fafafa;
+    padding: 16px;
+  }
+
+  .mock-sidebar-item {
+    height: 10px;
+    background: #ebebeb;
+    border-radius: 3px;
+    margin-bottom: 10px;
+  }
+
+  /* Annotation pin overlay hint */
+  .pin-mode-hint {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--navy);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    display: none;
+    z-index: 5;
+    box-shadow: var(--shadow-md);
+  }
+
+  .pin-mode-hint.visible { display: block; }
+
+  /* Bottom panel */
+  .bottom-panel {
+    background: white;
+    border-top: 1px solid var(--border);
+    transition: max-height 0.3s ease;
+    overflow: hidden;
+  }
+
+  .panel-content {
+    padding: 16px 20px;
+  }
+
+  .epic-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .epic-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .epic-counter {
+    font-size: 11px;
+    color: var(--text-placeholder);
+    white-space: nowrap;
+  }
+
+  .epic-narrative {
+    font-size: 13px;
+    color: var(--text-light);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+
+  .epic-bullets {
+    list-style: none;
+    margin-bottom: 10px;
+  }
+
+  .epic-bullets li {
+    font-size: 12px;
+    color: var(--text);
+    padding: 3px 0 3px 18px;
+    position: relative;
+    line-height: 1.4;
+  }
+
+  .epic-bullets li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    opacity: 0.5;
+  }
+
+  .consultant-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--green-dark);
+    background: var(--green-light);
+    padding: 8px 12px;
+    border-radius: var(--radius-xs);
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+
+  .consultant-note .note-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* Tab switcher: React / New Idea */
+  .tab-switcher {
+    display: flex;
+    gap: 2px;
+    background: var(--bg-muted);
+    border-radius: var(--radius-xs);
+    padding: 2px;
+    margin-bottom: 12px;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 7px 12px;
+    border: none;
+    background: none;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-light);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tab-btn.active {
+    background: white;
+    color: var(--navy);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Sentiment buttons */
+  .sentiment-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .sentiment-btn {
+    flex: 1;
+    padding: 10px 8px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: white;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .sentiment-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .sentiment-btn .sent-emoji {
+    font-size: 22px;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .sentiment-btn .sent-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-light);
+  }
+
+  .sentiment-btn.selected-nailed {
+    border-color: var(--green);
+    background: var(--green-light);
+  }
+
+  .sentiment-btn.selected-nailed .sent-label { color: var(--green-dark); }
+
+  .sentiment-btn.selected-almost {
+    border-color: var(--amber);
+    background: var(--amber-light);
+  }
+
+  .sentiment-btn.selected-almost .sent-label { color: #92400E; }
+
+  .sentiment-btn.selected-discuss {
+    border-color: var(--blue);
+    background: var(--blue-light);
+  }
+
+  .sentiment-btn.selected-discuss .sent-label { color: #1E40AF; }
+
+  /* Note area (expandable) */
+  .note-area {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease, opacity 0.2s;
+    opacity: 0;
+  }
+
+  .note-area.open {
+    max-height: 200px;
+    opacity: 1;
+  }
+
+  .note-area textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    font-size: 12px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    color: var(--text);
+    height: 56px;
+    transition: border-color 0.2s;
+  }
+
+  .note-area textarea:focus {
+    border-color: var(--green);
+  }
+
+  .note-area .note-prompt {
+    font-size: 11px;
+    color: var(--text-placeholder);
+    margin-bottom: 6px;
+    font-style: italic;
+  }
+
+  /* New Idea panel */
+  .idea-panel {
+    display: none;
+  }
+
+  .idea-panel.visible {
+    display: block;
+  }
+
+  .idea-prompt {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+
+  .idea-sub {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-bottom: 10px;
+    font-style: italic;
+  }
+
+  .idea-panel textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--amber-light);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    height: 70px;
+    color: var(--text);
+    background: var(--amber-bg);
+    transition: border-color 0.2s;
+  }
+
+  .idea-panel textarea:focus {
+    border-color: var(--amber);
+  }
+
+  .idea-panel textarea::placeholder {
+    color: #c4a35a;
+  }
+
+  .idea-save-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  .idea-save-btn {
+    padding: 7px 18px;
+    background: var(--amber);
+    color: white;
+    border: none;
+    border-radius: var(--radius-xs);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .idea-save-btn:hover { background: #d97706; }
+
+  .idea-count {
+    font-size: 11px;
+    color: var(--text-placeholder);
+  }
+
+  /* Navigation row */
+  .nav-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .nav-btn {
+    padding: 8px 20px;
+    border-radius: var(--radius-xs);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+  }
+
+  .nav-prev {
+    background: none;
+    color: var(--text-light);
+  }
+
+  .nav-prev:hover { color: var(--text); }
+
+  .nav-next {
+    background: var(--green);
+    color: white;
+  }
+
+  .nav-next:hover { background: var(--green-dark); }
+
+  .nav-next:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* ===== Screen: Summary ===== */
+  .summary-screen {
+    padding: 40px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+  }
+
+  .summary-screen h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  .summary-sub {
+    font-size: 14px;
+    color: var(--text-light);
+    margin-bottom: 24px;
+    text-align: center;
+  }
+
+  .summary-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    text-align: center;
+    padding: 16px 24px;
+    border-radius: var(--radius);
+    min-width: 100px;
+  }
+
+  .stat-card.nailed { background: var(--green-light); }
+  .stat-card.almost { background: var(--amber-light); }
+  .stat-card.discuss { background: var(--blue-light); }
+  .stat-card.ideas { background: #FFF7ED; }
+
+  .stat-emoji { font-size: 24px; margin-bottom: 4px; }
+
+  .stat-num {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-top: 2px;
+  }
+
+  .summary-list {
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 24px;
+  }
+
+  .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 13px;
+  }
+
+  .summary-item .si-emoji { font-size: 16px; }
+  .summary-item .si-title { flex: 1; color: var(--text); }
+  .summary-item .si-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .si-badge.nailed { background: var(--green-light); color: var(--green-dark); }
+  .si-badge.almost { background: var(--amber-light); color: #92400E; }
+  .si-badge.discuss { background: var(--blue-light); color: #1E40AF; }
+
+  .ideas-section {
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 24px;
+  }
+
+  .ideas-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .idea-item {
+    background: var(--amber-bg);
+    border: 1px solid #FDE68A;
+    border-radius: var(--radius-xs);
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .final-thoughts {
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 24px;
+  }
+
+  .final-thoughts label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navy);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .final-thoughts textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    resize: none;
+    height: 72px;
+    outline: none;
+    color: var(--text);
+  }
+
+  .final-thoughts textarea:focus {
+    border-color: var(--green);
+  }
+
+  .submit-btn {
+    padding: 12px 40px;
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(63,175,122,0.3);
+  }
+
+  .submit-btn:hover {
+    background: var(--green-dark);
+    transform: translateY(-1px);
+  }
+
+  /* ===== Annotation pins ===== */
+  .pin {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: var(--amber);
+    border: 2px solid white;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.15s;
+  }
+
+  .pin:hover {
+    transform: rotate(-45deg) scale(1.2);
+  }
+
+  .pin-number {
+    transform: rotate(45deg);
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+  }
+
+  /* React panel (shown by default in react tab) */
+  .react-panel { display: block; }
+  .react-panel.hidden { display: none; }
+
+  /* Annotation mode border */
+  .prototype-area.annotating {
+    outline: 3px solid var(--amber);
+    outline-offset: -3px;
+  }
+</style>
+</head>
+<body>
+
+<div class="playground">
+  <!-- Controls -->
+  <div class="controls">
+    <h1>Client Review Portal</h1>
+    <p class="subtitle">Experience playground</p>
+
+    <div class="control-group">
+      <label>Screen</label>
+      <div class="preset-btn active" onclick="showScreen('welcome')" id="btn-welcome">Welcome</div>
+      <div class="preset-btn" onclick="showScreen('tour')" id="btn-tour">Guided Tour</div>
+      <div class="preset-btn" onclick="showScreen('summary')" id="btn-summary">Summary</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <label>Project Name</label>
+      <input type="text" id="projectName" value="PersonaPulse" oninput="updateAll()">
+    </div>
+
+    <div class="control-group">
+      <label>Client Name</label>
+      <input type="text" id="clientName" value="David" oninput="updateAll()">
+    </div>
+
+    <div class="control-group">
+      <label>Consultant Name</label>
+      <input type="text" id="consultantName" value="Sarah" oninput="updateAll()">
+    </div>
+
+    <div class="control-group">
+      <label>Welcome Message</label>
+      <textarea id="welcomeMsg" oninput="updateAll()">We've been building out your vision and we're excited to share it. Walk through each area and tell us how it feels.</textarea>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <label>Tour Options</label>
+      <div class="toggle-row">
+        <span>Consultant notes</span>
+        <div class="toggle on" id="toggleNotes" onclick="toggleControl(this, 'showNotes')"></div>
+      </div>
+      <div class="toggle-row">
+        <span>Allow annotations</span>
+        <div class="toggle on" id="togglePins" onclick="toggleControl(this, 'allowPins')"></div>
+      </div>
+      <div class="toggle-row">
+        <span>New Ideas tab</span>
+        <div class="toggle on" id="toggleIdeas" onclick="toggleControl(this, 'allowIdeas')"></div>
+      </div>
+      <div class="toggle-row">
+        <span>Free explore option</span>
+        <div class="toggle on" id="toggleFree" onclick="toggleControl(this, 'showFreeOption')"></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <label>Sentiment Labels</label>
+      <input type="text" id="labelNailed" value="Nailed it" oninput="updateAll()" style="margin-bottom:4px">
+      <input type="text" id="labelAlmost" value="Almost" oninput="updateAll()" style="margin-bottom:4px">
+      <input type="text" id="labelDiscuss" value="Let's discuss" oninput="updateAll()">
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <label>Presets</label>
+      <div class="preset-btn" onclick="applyPreset('warm')">Warm & Conversational</div>
+      <div class="preset-btn" onclick="applyPreset('minimal')">Minimal & Clean</div>
+      <div class="preset-btn" onclick="applyPreset('professional')">Professional & Structured</div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-area">
+    <div class="device-frame">
+
+      <!-- Screen: Welcome -->
+      <div class="screen active" id="screen-welcome">
+        <div class="welcome-screen">
+          <div class="welcome-logo">✦</div>
+          <h2 id="welcomeTitle">Welcome to PersonaPulse</h2>
+          <p class="welcome-sub" id="welcomeSubtext">Sarah from RTG has prepared a walkthrough of your new platform.</p>
+          <div class="consultant-msg" id="welcomeMessage">
+            We've been building out your vision and we're excited to share it. Walk through each area and tell us how it feels.
+          </div>
+          <div class="tour-choice">
+            <div class="tour-choice-btn" onclick="showScreen('tour')">
+              <div class="choice-icon">🎯</div>
+              <div class="choice-title">Take the Guided Tour</div>
+              <div class="choice-desc">Walk through 7 key moments<br>~10 minutes</div>
+            </div>
+            <div class="tour-choice-btn" id="freeChoiceBtn" onclick="showScreen('tour')">
+              <div class="choice-icon">🔍</div>
+              <div class="choice-title">Explore on Your Own</div>
+              <div class="choice-desc">Click around freely<br>React when inspired</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen: Tour -->
+      <div class="screen" id="screen-tour">
+        <div class="tour-screen">
+          <!-- Progress -->
+          <div class="progress-bar" id="progressBar"></div>
+
+          <!-- Prototype mock -->
+          <div class="prototype-area" id="protoArea">
+            <div class="pin-mode-hint" id="pinHint">Click anywhere to drop a pin</div>
+            <div class="mock-prototype" id="mockProto">
+              <div class="mock-nav">
+                <div class="mock-nav-dot" style="background:#FF5F57"></div>
+                <div class="mock-nav-dot" style="background:#FFBD2E"></div>
+                <div class="mock-nav-dot" style="background:#27C93F"></div>
+                <div class="mock-nav-bar" id="mockUrl">personapulse.app/brand-setup</div>
+              </div>
+              <div style="display:flex;flex:1;">
+                <div class="mock-content" id="mockContent">
+                  <div class="mock-header-block"></div>
+                  <div class="mock-text-block" style="width:90%"></div>
+                  <div class="mock-text-block" style="width:75%"></div>
+                  <div class="mock-text-block" style="width:85%"></div>
+                  <div class="mock-card-row">
+                    <div class="mock-card"></div>
+                    <div class="mock-card"></div>
+                    <div class="mock-card"></div>
+                  </div>
+                  <div class="mock-text-block" style="width:65%;margin-top:12px"></div>
+                  <div class="mock-text-block" style="width:80%"></div>
+                </div>
+                <div class="mock-sidebar">
+                  <div class="mock-sidebar-item" style="width:80%"></div>
+                  <div class="mock-sidebar-item" style="width:60%"></div>
+                  <div class="mock-sidebar-item" style="width:90%"></div>
+                  <div class="mock-sidebar-item" style="width:50%"></div>
+                  <div class="mock-sidebar-item" style="width:70%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom panel -->
+          <div class="bottom-panel">
+            <div class="panel-content">
+              <div class="epic-header">
+                <div class="epic-title" id="epicTitle">Brand Identity Setup</div>
+                <div class="epic-counter" id="epicCounter">2 of 7</div>
+              </div>
+              <div class="epic-narrative" id="epicNarrative">
+                Set up your visual identity and connect the platforms where your audience lives.
+              </div>
+              <ul class="epic-bullets" id="epicBullets">
+                <li>Define colors, fonts, and logo that carry through every piece of content</li>
+                <li>Connect Instagram, LinkedIn, TikTok, and Substack in one place</li>
+                <li>Your Voice DNA shapes how AI writes for each platform differently</li>
+              </ul>
+              <div class="consultant-note" id="consultantNoteEl">
+                <span class="note-icon">✏️</span>
+                <span id="consultantNoteText">Pay attention to the Substack integration — this was a key ask from your team.</span>
+              </div>
+
+              <!-- Tab switcher -->
+              <div class="tab-switcher" id="tabSwitcher">
+                <button class="tab-btn active" onclick="switchTab('react')">💭 React</button>
+                <button class="tab-btn" onclick="switchTab('idea')" id="ideaTabBtn">💡 New Idea</button>
+              </div>
+
+              <!-- React panel -->
+              <div class="react-panel" id="reactPanel">
+                <div class="sentiment-row">
+                  <div class="sentiment-btn" onclick="selectSentiment('nailed', this)" id="sentNailed">
+                    <span class="sent-emoji">😍</span>
+                    <span class="sent-label" id="sentNailedLabel">Nailed it</span>
+                  </div>
+                  <div class="sentiment-btn" onclick="selectSentiment('almost', this)" id="sentAlmost">
+                    <span class="sent-emoji">🤔</span>
+                    <span class="sent-label" id="sentAlmostLabel">Almost</span>
+                  </div>
+                  <div class="sentiment-btn" onclick="selectSentiment('discuss', this)" id="sentDiscuss">
+                    <span class="sent-emoji">💬</span>
+                    <span class="sent-label" id="sentDiscussLabel">Let's discuss</span>
+                  </div>
+                </div>
+
+                <div class="note-area" id="noteArea">
+                  <div class="note-prompt" id="notePrompt">What would make this feel right?</div>
+                  <textarea placeholder="Share your thoughts..." id="noteInput"></textarea>
+                </div>
+              </div>
+
+              <!-- Idea panel -->
+              <div class="idea-panel" id="ideaPanel">
+                <div class="idea-prompt">💡 What just came to mind?</div>
+                <div class="idea-sub">Seeing this made me think of...</div>
+                <textarea placeholder="A new capability, something missing, a connection you see..." id="ideaInput"></textarea>
+                <div class="idea-save-row">
+                  <span class="idea-count" id="ideaCount">0 ideas saved</span>
+                  <button class="idea-save-btn" onclick="saveIdea()">Save Idea</button>
+                </div>
+              </div>
+
+              <!-- Navigation -->
+              <div class="nav-row">
+                <button class="nav-btn nav-prev" onclick="prevEpic()">← Previous</button>
+                <button class="nav-btn nav-next" id="nextBtn" onclick="nextEpic()">Next →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen: Summary -->
+      <div class="screen" id="screen-summary">
+        <div class="summary-screen">
+          <h2 id="summaryTitle">Thanks for walking through PersonaPulse!</h2>
+          <p class="summary-sub">Your feedback helps us make this truly yours.</p>
+
+          <div class="summary-stats">
+            <div class="stat-card nailed">
+              <div class="stat-emoji">😍</div>
+              <div class="stat-num" id="statNailed">5</div>
+              <div class="stat-label" id="statNailedLabel">Nailed it</div>
+            </div>
+            <div class="stat-card almost">
+              <div class="stat-emoji">🤔</div>
+              <div class="stat-num" id="statAlmost">1</div>
+              <div class="stat-label" id="statAlmostLabel">Almost</div>
+            </div>
+            <div class="stat-card discuss">
+              <div class="stat-emoji">💬</div>
+              <div class="stat-num" id="statDiscuss">1</div>
+              <div class="stat-label" id="statDiscussLabel">Let's discuss</div>
+            </div>
+            <div class="stat-card ideas">
+              <div class="stat-emoji">💡</div>
+              <div class="stat-num" id="statIdeas">2</div>
+              <div class="stat-label">New Ideas</div>
+            </div>
+          </div>
+
+          <div class="summary-list" id="summaryList">
+            <div class="summary-item"><span class="si-emoji">😍</span><span class="si-title">Voice DNA Setup</span><span class="si-badge nailed">Nailed it</span></div>
+            <div class="summary-item"><span class="si-emoji">🤔</span><span class="si-title">Brand Identity</span><span class="si-badge almost">Almost</span></div>
+            <div class="summary-item"><span class="si-emoji">😍</span><span class="si-title">Content Command Center</span><span class="si-badge nailed">Nailed it</span></div>
+            <div class="summary-item"><span class="si-emoji">😍</span><span class="si-title">AI Image Selection</span><span class="si-badge nailed">Nailed it</span></div>
+            <div class="summary-item"><span class="si-emoji">💬</span><span class="si-title">Publishing Flow</span><span class="si-badge discuss">Let's discuss</span></div>
+            <div class="summary-item"><span class="si-emoji">😍</span><span class="si-title">Analytics Dashboard</span><span class="si-badge nailed">Nailed it</span></div>
+            <div class="summary-item"><span class="si-emoji">😍</span><span class="si-title">Content Calendar</span><span class="si-badge nailed">Nailed it</span></div>
+          </div>
+
+          <div class="ideas-section" id="ideasSection">
+            <h3>💡 Your New Ideas</h3>
+            <div class="idea-item">"What if we had a client approval workflow before posts go live?"</div>
+            <div class="idea-item">"The voice matching could also apply to our email newsletters"</div>
+          </div>
+
+          <div class="final-thoughts">
+            <label>Any final thoughts?</label>
+            <textarea placeholder="Anything else you'd like us to know..."></textarea>
+          </div>
+
+          <button class="submit-btn" style="margin-top: 8px">Submit Review</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== State =====
+  const state = {
+    screen: 'welcome',
+    currentEpic: 0,
+    showNotes: true,
+    allowPins: true,
+    allowIdeas: true,
+    showFreeOption: true,
+    currentTab: 'react',
+    selectedSentiment: null,
+    ideas: [],
+    pins: [],
+    verdicts: {},
+  };
+
+  const epics = [
+    {
+      title: 'Voice DNA Setup',
+      route: 'personapulse.app/voice-setup',
+      narrative: 'Establish your unique voice by answering a few questions and sharing sample content. The AI learns how you communicate.',
+      bullets: [
+        'Quick personality questionnaire captures your tone and style',
+        'Paste sample posts so the AI learns your natural voice',
+        'Voice DNA adapts per platform — professional on LinkedIn, casual on Instagram',
+      ],
+      note: '',
+    },
+    {
+      title: 'Brand Identity Setup',
+      route: 'personapulse.app/brand-setup',
+      narrative: 'Set up your visual identity and connect the platforms where your audience lives.',
+      bullets: [
+        'Define colors, fonts, and logo that carry through every piece of content',
+        'Connect Instagram, LinkedIn, TikTok, and Substack in one place',
+        'Your Voice DNA shapes how AI writes for each platform differently',
+      ],
+      note: 'Pay attention to the Substack integration — this was a key ask from your team.',
+    },
+    {
+      title: 'Content Command Center',
+      route: 'personapulse.app/command-center',
+      narrative: 'Your home base for creating content. Submit an idea and watch the AI turn it into platform-ready posts.',
+      bullets: [
+        'Drop in a seed idea, article URL, or rough draft',
+        'AI generates tailored versions for each connected platform',
+        'Side-by-side preview shows how it looks everywhere',
+      ],
+      note: '',
+    },
+    {
+      title: 'AI Image Selection',
+      route: 'personapulse.app/images',
+      narrative: 'Choose the perfect visual to accompany your content from AI-generated options matched to your brand.',
+      bullets: [
+        'AI generates 4 image options that match your brand palette',
+        'One-click selection with automatic resizing per platform',
+        'Custom style presets save your visual preferences',
+      ],
+      note: '',
+    },
+    {
+      title: 'Publishing Flow',
+      route: 'personapulse.app/publish',
+      narrative: 'Review, approve, and launch your content across all platforms in one smooth flow.',
+      bullets: [
+        'Final preview with platform-specific formatting',
+        'Schedule for optimal times or publish immediately',
+        'One button sends to all connected platforms simultaneously',
+      ],
+      note: 'The scheduling feature here ties into the content calendar — they work together.',
+    },
+    {
+      title: 'Analytics Dashboard',
+      route: 'personapulse.app/analytics',
+      narrative: 'See how your content performs across every platform in one unified view.',
+      bullets: [
+        'Cross-platform engagement metrics in real time',
+        'AI insights explain what\'s working and why',
+        'Track voice consistency score over time',
+      ],
+      note: '',
+    },
+    {
+      title: 'Content Calendar',
+      route: 'personapulse.app/calendar',
+      narrative: 'Plan your content strategy visually with a calendar that spans all your platforms.',
+      bullets: [
+        'Drag-and-drop scheduling across platforms',
+        'AI suggests optimal posting times based on audience data',
+        'See gaps in your content rhythm at a glance',
+      ],
+      note: '',
+    },
+  ];
+
+  // ===== Screen Management =====
+  function showScreen(name) {
+    state.screen = name;
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(`screen-${name}`).classList.add('active');
+
+    document.querySelectorAll('.controls .preset-btn').forEach(b => b.classList.remove('active'));
+    const btnId = `btn-${name}`;
+    const btn = document.getElementById(btnId);
+    if (btn) btn.classList.add('active');
+
+    if (name === 'tour') renderEpic();
+    updateAll();
+  }
+
+  // ===== Toggle Controls =====
+  function toggleControl(el, key) {
+    state[key] = !state[key];
+    el.classList.toggle('on', state[key]);
+    updateAll();
+  }
+
+  // ===== Tab Switching =====
+  function switchTab(tab) {
+    state.currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    if (tab === 'react') {
+      document.querySelectorAll('.tab-btn')[0].classList.add('active');
+    } else {
+      document.querySelectorAll('.tab-btn')[1].classList.add('active');
+    }
+    document.getElementById('reactPanel').classList.toggle('hidden', tab !== 'react');
+    document.getElementById('ideaPanel').classList.toggle('visible', tab === 'idea');
+
+    // Pin hint for annotating
+    const area = document.getElementById('protoArea');
+    const hint = document.getElementById('pinHint');
+    if (tab === 'react' && state.selectedSentiment && state.selectedSentiment !== 'nailed' && state.allowPins) {
+      area.classList.add('annotating');
+      hint.classList.add('visible');
+    } else {
+      area.classList.remove('annotating');
+      hint.classList.remove('visible');
+    }
+  }
+
+  // ===== Sentiment Selection =====
+  function selectSentiment(type, el) {
+    state.selectedSentiment = type;
+    state.verdicts[state.currentEpic] = type;
+
+    document.querySelectorAll('.sentiment-btn').forEach(b => {
+      b.className = 'sentiment-btn';
+    });
+    el.classList.add(`selected-${type}`);
+
+    const noteArea = document.getElementById('noteArea');
+    const notePrompt = document.getElementById('notePrompt');
+    const protoArea = document.getElementById('protoArea');
+    const pinHint = document.getElementById('pinHint');
+
+    if (type === 'nailed') {
+      noteArea.classList.remove('open');
+      protoArea.classList.remove('annotating');
+      pinHint.classList.remove('visible');
+    } else {
+      noteArea.classList.add('open');
+      if (type === 'almost') {
+        notePrompt.textContent = 'What would make this feel right?';
+      } else {
+        notePrompt.textContent = 'What would you like to discuss?';
+      }
+      if (state.allowPins) {
+        protoArea.classList.add('annotating');
+        pinHint.classList.add('visible');
+        setTimeout(() => pinHint.classList.remove('visible'), 3000);
+      }
+    }
+
+    renderProgressBar();
+  }
+
+  // ===== Epic Navigation =====
+  function renderEpic() {
+    const epic = epics[state.currentEpic];
+    document.getElementById('epicTitle').textContent = epic.title;
+    document.getElementById('epicCounter').textContent = `${state.currentEpic + 1} of ${epics.length}`;
+    document.getElementById('epicNarrative').textContent = epic.narrative;
+    document.getElementById('mockUrl').textContent = epic.route;
+
+    const bulletsEl = document.getElementById('epicBullets');
+    bulletsEl.innerHTML = epic.bullets.map(b => `<li>${b}</li>`).join('');
+
+    const noteEl = document.getElementById('consultantNoteEl');
+    if (epic.note && state.showNotes) {
+      noteEl.style.display = 'flex';
+      document.getElementById('consultantNoteText').textContent = epic.note;
+    } else {
+      noteEl.style.display = 'none';
+    }
+
+    // Reset sentiment state for this epic
+    const verdict = state.verdicts[state.currentEpic];
+    document.querySelectorAll('.sentiment-btn').forEach(b => b.className = 'sentiment-btn');
+    document.getElementById('noteArea').classList.remove('open');
+    document.getElementById('protoArea').classList.remove('annotating');
+    document.getElementById('pinHint').classList.remove('visible');
+    state.selectedSentiment = verdict || null;
+
+    if (verdict) {
+      const btnMap = { nailed: 'sentNailed', almost: 'sentAlmost', discuss: 'sentDiscuss' };
+      document.getElementById(btnMap[verdict]).classList.add(`selected-${verdict}`);
+      if (verdict !== 'nailed') {
+        document.getElementById('noteArea').classList.add('open');
+      }
+    }
+
+    // Tab visibility
+    document.getElementById('ideaTabBtn').style.display = state.allowIdeas ? '' : 'none';
+    switchTab('react');
+
+    // Remove old pins from view
+    document.querySelectorAll('.pin').forEach(p => p.remove());
+
+    renderProgressBar();
+
+    // Update nav buttons
+    document.getElementById('nextBtn').textContent =
+      state.currentEpic === epics.length - 1 ? 'Finish Review →' : 'Next →';
+  }
+
+  function renderProgressBar() {
+    const bar = document.getElementById('progressBar');
+    bar.innerHTML = epics.map((_, i) => {
+      let cls = 'progress-dot';
+      if (i === state.currentEpic) cls += ' current';
+      const v = state.verdicts[i];
+      if (v === 'nailed') cls += ' nailed';
+      else if (v === 'almost') cls += ' almost';
+      else if (v === 'discuss') cls += ' discuss';
+      else if (v) cls += ' done';
+      return `<div class="${cls}"></div>`;
+    }).join('');
+  }
+
+  function nextEpic() {
+    if (state.currentEpic < epics.length - 1) {
+      state.currentEpic++;
+      renderEpic();
+    } else {
+      showScreen('summary');
+    }
+  }
+
+  function prevEpic() {
+    if (state.currentEpic > 0) {
+      state.currentEpic--;
+      renderEpic();
+    }
+  }
+
+  // ===== Ideas =====
+  function saveIdea() {
+    const input = document.getElementById('ideaInput');
+    if (input.value.trim()) {
+      state.ideas.push(input.value.trim());
+      input.value = '';
+      document.getElementById('ideaCount').textContent = `${state.ideas.length} idea${state.ideas.length !== 1 ? 's' : ''} saved`;
+    }
+  }
+
+  // ===== Pin dropping =====
+  document.addEventListener('click', (e) => {
+    const area = document.getElementById('protoArea');
+    if (!area.classList.contains('annotating')) return;
+
+    const mockProto = document.getElementById('mockProto');
+    const rect = mockProto.getBoundingClientRect();
+
+    if (e.clientX >= rect.left && e.clientX <= rect.right &&
+        e.clientY >= rect.top && e.clientY <= rect.bottom) {
+
+      // Count existing pins for this epic
+      const epicPins = document.querySelectorAll('.pin');
+      if (epicPins.length >= 3) return;
+
+      const pin = document.createElement('div');
+      pin.className = 'pin';
+      pin.style.left = (e.clientX - area.getBoundingClientRect().left - 12) + 'px';
+      pin.style.top = (e.clientY - area.getBoundingClientRect().top - 24) + 'px';
+      pin.innerHTML = `<div class="pin-number">${epicPins.length + 1}</div>`;
+      area.appendChild(pin);
+    }
+  });
+
+  // ===== Presets =====
+  function applyPreset(preset) {
+    if (preset === 'warm') {
+      document.getElementById('labelNailed').value = 'Nailed it';
+      document.getElementById('labelAlmost').value = 'Almost';
+      document.getElementById('labelDiscuss').value = "Let's discuss";
+      document.getElementById('welcomeMsg').value = "We've been building out your vision and we're excited to share it. Walk through each area and tell us how it feels.";
+    } else if (preset === 'minimal') {
+      document.getElementById('labelNailed').value = 'Perfect';
+      document.getElementById('labelAlmost').value = 'Close';
+      document.getElementById('labelDiscuss').value = 'Talk about this';
+      document.getElementById('welcomeMsg').value = 'Your prototype is ready. Take a look and share your reactions.';
+    } else if (preset === 'professional') {
+      document.getElementById('labelNailed').value = 'Approved';
+      document.getElementById('labelAlmost').value = 'Needs refinement';
+      document.getElementById('labelDiscuss').value = 'Requires discussion';
+      document.getElementById('welcomeMsg').value = 'Please review each section of the prototype and provide your assessment. Your feedback will guide the next iteration.';
+    }
+    updateAll();
+  }
+
+  // ===== Update All =====
+  function updateAll() {
+    const project = document.getElementById('projectName').value;
+    const client = document.getElementById('clientName').value;
+    const consultant = document.getElementById('consultantName').value;
+    const msg = document.getElementById('welcomeMsg').value;
+    const lblNailed = document.getElementById('labelNailed').value;
+    const lblAlmost = document.getElementById('labelAlmost').value;
+    const lblDiscuss = document.getElementById('labelDiscuss').value;
+
+    // Welcome screen
+    document.getElementById('welcomeTitle').textContent = `Welcome to ${project}`;
+    document.getElementById('welcomeSubtext').textContent = `${consultant} from RTG has prepared a walkthrough of your new platform.`;
+    document.getElementById('welcomeMessage').textContent = msg;
+
+    // Free explore option
+    document.getElementById('freeChoiceBtn').style.display = state.showFreeOption ? '' : 'none';
+
+    // Sentiment labels
+    document.getElementById('sentNailedLabel').textContent = lblNailed;
+    document.getElementById('sentAlmostLabel').textContent = lblAlmost;
+    document.getElementById('sentDiscussLabel').textContent = lblDiscuss;
+
+    // Summary labels
+    document.getElementById('statNailedLabel').textContent = lblNailed;
+    document.getElementById('statAlmostLabel').textContent = lblAlmost;
+    document.getElementById('statDiscussLabel').textContent = lblDiscuss;
+    document.getElementById('summaryTitle').textContent = `Thanks for walking through ${project}!`;
+
+    // Tour options
+    if (state.screen === 'tour') {
+      document.getElementById('consultantNoteEl').style.display =
+        (epics[state.currentEpic].note && state.showNotes) ? 'flex' : 'none';
+      document.getElementById('ideaTabBtn').style.display = state.allowIdeas ? '' : 'none';
+    }
+
+    // Update summary badges
+    document.querySelectorAll('.si-badge.nailed').forEach(b => b.textContent = lblNailed);
+    document.querySelectorAll('.si-badge.almost').forEach(b => b.textContent = lblAlmost);
+    document.querySelectorAll('.si-badge.discuss').forEach(b => b.textContent = lblDiscuss);
+  }
+
+  // Init
+  renderProgressBar();
+  updateAll();
+</script>
+
+</body>
+</html>

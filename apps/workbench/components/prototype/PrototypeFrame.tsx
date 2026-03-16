@@ -89,6 +89,8 @@ const PrototypeFrame = forwardRef<PrototypeFrameHandle, PrototypeFrameProps>(fun
       className="w-full h-full border-0"
       title="Prototype Preview"
       sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      onLoad={() => console.log('[proto-debug] iframe loaded', deployUrl)}
+      onError={(e) => console.log('[proto-debug] iframe error', e)}
     />
   )
 })

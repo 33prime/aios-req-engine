@@ -1,6 +1,6 @@
 'use client'
 
-import { FileText, RefreshCw } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import { BusinessContextSection } from './sections/BusinessContextSection'
 import { ActorsSection } from './sections/ActorsSection'
 import { WorkflowsSection } from './sections/WorkflowsSection'
@@ -28,14 +28,12 @@ import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import { ConfirmationClusters } from './components/ConfirmationClusters'
 import { inferConstraints } from '@/lib/api'
 import type { NextAction } from '@/lib/api'
-import { CompletenessRing } from './components/CompletenessRing'
 import type { BRDWorkspaceData, SectionScore } from '@/types/workspace'
 
 import { useBRDDataLoading } from './hooks/useBRDDataLoading'
 import { useBRDDrawerManager } from './hooks/useBRDDrawerManager'
 import { useBRDEntityActions } from './hooks/useBRDEntityActions'
 import { useBRDWorkflowCRUD } from './hooks/useBRDWorkflowCRUD'
-import { countEntities, countConfirmed, countStale } from './hooks/brd-canvas-utils'
 
 interface BRDCanvasProps {
   projectId: string
@@ -47,9 +45,10 @@ interface BRDCanvasProps {
   onPendingActionConsumed?: () => void
   onActiveSectionChange?: (sectionId: string) => void
   onNavigateToCollaborate?: () => void
+  onActionClick?: (action: import('@/lib/api/workspace').SynthesizedAction) => void
 }
 
-export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh, onSendToChat, pendingAction, onPendingActionConsumed, onActiveSectionChange, onNavigateToCollaborate }: BRDCanvasProps) {
+export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh, onSendToChat, pendingAction, onPendingActionConsumed, onActiveSectionChange, onNavigateToCollaborate, onActionClick }: BRDCanvasProps) {
   // Hook 1: Data loading, health, questions, clusters
   const dataState = useBRDDataLoading(projectId, initialData, initialNextActions, onActiveSectionChange)
   const { data, setData, isLoading, error, loadData, scrollContainerRef } = dataState
@@ -104,10 +103,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   }
 
   // Computed values
-  const totalEntities = countEntities(data)
-  const confirmedEntities = countConfirmed(data)
-  const readinessPercent = totalEntities > 0 ? Math.round((confirmedEntities / totalEntities) * 100) : 0
-  const staleCount = countStale(data)
   const isStepEdit = !!workflows.stepEditorState.stepId
 
   const sectionScoreMap: Record<string, SectionScore> = {}
@@ -124,45 +119,13 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
         <div className="max-w-4xl mx-auto py-8 px-6">
           {/* Document header */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <FileText className="w-6 h-6 text-text-placeholder" />
-                <h1 className="text-[28px] font-bold text-[#37352f]">Business Requirements Document</h1>
-                {data.completeness && (
-                  <CompletenessRing score={data.completeness.overall_score} size="md" />
-                )}
-              </div>
-              <button
-                onClick={() => { loadData(); onRefresh?.() }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-gray-500 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Refresh
-              </button>
-            </div>
-
-            {/* Readiness bar */}
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-brand-primary rounded-full transition-all duration-300"
-                  style={{ width: `${readinessPercent}%` }}
-                />
-              </div>
-              <span className="text-[12px] font-medium text-[#666666] whitespace-nowrap">
-                {confirmedEntities}/{totalEntities} confirmed ({readinessPercent}%)
-              </span>
+              <FileText className="w-6 h-6 text-text-placeholder" />
+              <h1 className="text-[28px] font-bold text-[#37352f]">Business Requirements Document</h1>
             </div>
-            {data.pending_count > 0 && (
-              <p className="mt-2 text-[12px] text-yellow-600">
-                {data.pending_count} items pending review
-              </p>
-            )}
-            {staleCount > 0 && (
-              <p className="mt-1 text-[12px] text-orange-600">
-                {staleCount} {staleCount === 1 ? 'item' : 'items'} may be outdated
-              </p>
-            )}
+            <p className="mt-2 text-[13px] text-[#666666] leading-relaxed">
+              The living foundation of your project — every requirement, decision, and insight traced back to its source.
+            </p>
           </div>
 
           {/* 1. Deal Pulse — score ring, stage, narrative, next actions */}
@@ -173,6 +136,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
             onRefreshAll={dataState.handleRefreshHealth}
             isRefreshing={dataState.isRefreshingHealth}
             projectId={projectId}
+            onActionClick={onActionClick}
           />
 
           {/* 2. Solution Flow */}

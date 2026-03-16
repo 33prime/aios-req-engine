@@ -114,6 +114,9 @@ async def _write_dispatch(project_id: UUID, params: dict[str, Any]) -> dict[str,
         from .tools_entity_crud import _create_entity
 
         legacy_params = {"entity_type": entity_type, **data}
+        # Pass top-level driver_type into fields so business_driver gets the right type
+        if entity_type == "business_driver" and "driver_type" in params and "driver_type" not in data:
+            legacy_params["driver_type"] = params["driver_type"]
         return await _create_entity(project_id, legacy_params)
 
     elif action == "update":
@@ -319,9 +322,15 @@ async def execute_tool(
         # Invalidate context frame cache after mutating tools
         if tool_name in _MUTATING_TOOLS:
             try:
-                from app.core.action_engine import invalidate_context_frame
+                from app.chains.synthesize_intelligence import invalidate_intelligence_cache
 
-                invalidate_context_frame(project_id)
+                invalidate_intelligence_cache(str(project_id))
+            except Exception:
+                pass  # Best-effort
+            try:
+                from app.api.workspace_intelligence import _pulse_cache
+
+                _pulse_cache.pop(str(project_id), None)
             except Exception:
                 pass  # Best-effort
             try:

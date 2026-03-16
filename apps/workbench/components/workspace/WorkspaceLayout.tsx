@@ -15,6 +15,8 @@ import { PhaseSwitcher, WorkspacePhase } from './PhaseSwitcher'
 // CollaborationPanel deprecated — unified into ReviewBubble
 import { CanvasView } from './canvas/CanvasView'
 import { BRDCanvas } from './brd/BRDCanvas'
+import { FlowBlueprintView } from './flow/FlowBlueprintView'
+import { AIAgentsView } from './ai/AIAgentsView'
 import { BuildPhaseView } from './BuildPhaseView'
 import { OverviewPanel } from './OverviewPanel'
 import { BottomDock } from './BottomDock'
@@ -26,7 +28,6 @@ import {
   updatePrototypeUrl,
   mapFeatureToStep,
   getPrototypeForProject,
-  generatePrototype,
   endConsultantReview,
   synthesizePrototypeFeedback,
   triggerPrototypeCodeUpdate,
@@ -42,8 +43,9 @@ import { useBRDData, useContextFrame, useWorkspaceData, useEpicPlan, useEpicVerd
 import { useRealtimeBRD } from '@/lib/realtime'
 import type { CanvasData } from '@/types/workspace'
 import type { NextAction } from '@/lib/api'
+import { buildActionChatContext } from '@/lib/action-constants'
 import type { VpStep } from '@/types/api'
-import type { DesignSelection, FeatureOverlay, PrototypeSession } from '@/types/prototype'
+import type { FeatureOverlay, PrototypeSession } from '@/types/prototype'
 import type { EpicTourPhase, EpicVerdict, ReviewSummary, ReviewState } from '@/types/epic-overlay'
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
@@ -85,9 +87,9 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | 'calls' | null>(null)
-  const [discoveryViewMode, setDiscoveryViewMode] = useState<'brd' | 'canvas'>(() => {
+  const [discoveryViewMode, setDiscoveryViewMode] = useState<'brd' | 'canvas' | 'flow' | 'ai'>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('discovery-view-mode') as 'brd' | 'canvas') || 'brd'
+      return (localStorage.getItem('discovery-view-mode') as 'brd' | 'canvas' | 'flow' | 'ai') || 'brd'
     }
     return 'brd'
   })
@@ -103,6 +105,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     if (phase === 'build') return 'prototype'
     if (phase === 'discovery') {
       if (discoveryViewMode === 'canvas') return 'canvas'
+      if (discoveryViewMode === 'flow') return 'brd:solution-flow'
+      if (discoveryViewMode === 'ai') return 'brd:ai-agent'
       // BRD mode — map section to page_context
       if (activeBrdSection) {
         const sectionMap: Record<string, string> = {
@@ -299,11 +303,15 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     await loadData()
   }
 
-  const handleGeneratePrototype = async (selection: DesignSelection) => {
-    await generatePrototype(projectId, selection)
-    // Refresh workspace to pick up any changes (prompt stored on prototype)
+  const handlePrototypeBuilt = useCallback(async (deployUrl: string) => {
+    setResolvedProtoUrl(deployUrl)
+    // Re-fetch prototype record to get the new prototypeId
+    try {
+      const proto = await getPrototypeForProject(projectId)
+      if (proto?.id) setPrototypeId(proto.id)
+    } catch {}
     await loadData()
-  }
+  }, [projectId, loadData])
 
   // Review mode handlers
   const handleStartReview = useCallback(() => {
@@ -501,6 +509,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     const message = msgFn ? msgFn(action) : `Help me with: ${action.title}`
     sendMessage(message)
   }, [sendMessage])
+
+  // Intelligence action click → open chat with context pre-loaded
+  const handleIntelligenceAction = useCallback((action: import('@/lib/api/workspace').SynthesizedAction) => {
+    setConversationContext(action.chat_context)
+    sendMessage(action.sentence)
+  }, [setConversationContext, sendMessage])
 
   // Calculate sidebar widths
   const sidebarWidth = sidebarCollapsed ? 64 : 224
@@ -716,6 +730,11 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 isLoadingActions={isContextFrameLoading}
                 onNavigateToPhase={(p) => setPhase(p)}
                 onActionExecute={handleActionExecuteFromOverview}
+                onActionChat={(action) => {
+                  setConversationContext(buildActionChatContext(action))
+                  setPanelOpen(true)
+                  sendMessage(action.sentence)
+                }}
                 onOpenHealth={() => setShowHealthOverlay(true)}
               />
             )}
@@ -725,30 +744,26 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 {/* View mode toggle */}
                 <div className="flex items-center justify-end mb-2 flex-shrink-0">
                   <div className="inline-flex items-center bg-gray-100 rounded-md p-0.5 text-[12px]">
-                    <button
-                      onClick={() => { setDiscoveryViewMode('brd'); localStorage.setItem('discovery-view-mode', 'brd') }}
-                      className={`px-3 py-1 rounded-[5px] font-medium transition-colors ${
-                        discoveryViewMode === 'brd'
-                          ? 'bg-white text-[#37352f] shadow-sm'
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      BRD View
-                    </button>
-                    <button
-                      onClick={() => { setDiscoveryViewMode('canvas'); localStorage.setItem('discovery-view-mode', 'canvas') }}
-                      className={`px-3 py-1 rounded-[5px] font-medium transition-colors ${
-                        discoveryViewMode === 'canvas'
-                          ? 'bg-white text-[#37352f] shadow-sm'
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Canvas View
-                    </button>
+                    {(['brd', 'canvas', 'flow', 'ai'] as const).map((mode) => {
+                      const labels = { brd: 'BRD View', canvas: 'Canvas', flow: 'Flow', ai: 'AI' }
+                      return (
+                        <button
+                          key={mode}
+                          onClick={() => { setDiscoveryViewMode(mode); localStorage.setItem('discovery-view-mode', mode) }}
+                          className={`px-3 py-1 rounded-[5px] font-medium transition-colors ${
+                            discoveryViewMode === mode
+                              ? 'bg-white text-[#37352f] shadow-sm'
+                              : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          {labels[mode]}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
 
-                {discoveryViewMode === 'brd' ? (
+                {discoveryViewMode === 'brd' && (
                   <div className="flex-1 min-h-0 rounded-2xl border border-border bg-white shadow-md overflow-hidden">
                     <BRDCanvas
                       projectId={projectId}
@@ -760,10 +775,27 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                       onPendingActionConsumed={() => setPendingAction(null)}
                       onActiveSectionChange={setActiveBrdSection}
                       onNavigateToCollaborate={() => setPhase('collaborate')}
+                      onActionClick={handleIntelligenceAction}
                     />
                   </div>
-                ) : (
+                )}
+                {discoveryViewMode === 'canvas' && (
                   <CanvasView projectId={projectId} onRefresh={loadData} />
+                )}
+                {discoveryViewMode === 'flow' && (
+                  <FlowBlueprintView
+                    projectId={projectId}
+                    flow={brdData?.solution_flow ?? null}
+                    personas={canvasData.personas}
+                    onGenerateFlow={loadData}
+                  />
+                )}
+                {discoveryViewMode === 'ai' && (
+                  <AIAgentsView
+                    projectId={projectId}
+                    flow={brdData?.solution_flow ?? null}
+                    personas={canvasData.personas}
+                  />
                 )}
               </div>
             )}
@@ -785,7 +817,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   prototypeUpdatedAt={canvasData.prototype_updated_at}
                   readinessScore={brdData?.completeness?.overall_score ?? canvasData.readiness_score}
                   onUpdatePrototypeUrl={handleUpdatePrototypeUrl}
-                  onGeneratePrototype={handleGeneratePrototype}
+                  onPrototypeBuilt={handlePrototypeBuilt}
                   isReviewActive={isReviewActive}
                   onStartReview={handleStartReview}
                   onEndReview={handleEndReview}

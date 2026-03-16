@@ -226,8 +226,8 @@ async def compute_project_pulse(
     # Load data if not provided
     if project_data is None:
         try:
-            from app.core.action_engine import _load_project_data
-            project_data = await _load_project_data(project_id)
+            from app.core.project_data import load_project_data
+            project_data = await load_project_data(project_id)
         except Exception as e:
             logger.warning(f"Pulse: failed to load project data: {e}")
             project_data = {}

@@ -30,6 +30,7 @@ import type { TerseAction } from '@/lib/api'
 import { GAP_SOURCE_ICONS } from '@/lib/action-constants'
 import { QuickActionCards } from './QuickActionCards'
 import { ProcessingResultsCard } from './chat/ProcessingResultsCard'
+import { ActivityIndicator, ToolChip, isChipTool, groupToolChips, type ActivityState } from './chat/ChatIndicators'
 
 // =============================================================================
 // Types
@@ -380,9 +381,17 @@ export function WorkspaceChat({
     [processFiles]
   )
 
-  // Determine if thinking (loading but no streamed content yet, OR processing documents)
+  // Determine activity state for the indicator
   const lastMessage = externalMessages[externalMessages.length - 1]
-  const isThinking = (externalLoading && (!lastMessage || lastMessage.role === 'user' || !lastMessage.isStreaming)) || processingDocuments
+  const runningTool = lastMessage?.toolCalls?.find((tc) => tc.status === 'running')
+
+  const activityState: ActivityState | null = processingDocuments
+    ? { phase: 'document' }
+    : runningTool
+      ? { phase: 'tool', toolName: runningTool.tool_name, action: (runningTool.args as Record<string, string> | undefined)?.action }
+      : externalLoading && (!lastMessage || lastMessage.role === 'user' || !lastMessage.isStreaming)
+        ? { phase: 'thinking' }
+        : null
 
   // Build conversational starters — NOT the same as action cards
   // These are chat prompts that help the user start a conversation
@@ -513,8 +522,8 @@ export function WorkspaceChat({
               />
             ))}
 
-            {/* Thinking indicator */}
-            {isThinking && <ThinkingIndicator />}
+            {/* Activity indicator */}
+            {activityState && <ActivityIndicator state={activityState} />}
 
             <div ref={messagesEndRef} />
           </>
@@ -575,20 +584,6 @@ export function WorkspaceChat({
 // =============================================================================
 // Sub-components
 // =============================================================================
-
-function ThinkingIndicator() {
-  return (
-    <div className="flex justify-start">
-      <div className="flex items-center gap-2 px-4 py-3 bg-white border border-border rounded-2xl rounded-bl-md shadow-sm">
-        <div className="flex gap-[3px] items-center">
-          <div className="w-[6px] h-[6px] rounded-full bg-brand-primary animate-typing" />
-          <div className="w-[6px] h-[6px] rounded-full bg-brand-primary animate-typing [animation-delay:200ms]" />
-          <div className="w-[6px] h-[6px] rounded-full bg-brand-primary animate-typing [animation-delay:400ms]" />
-        </div>
-      </div>
-    </div>
-  )
-}
 
 /** Compact message bubble for sidebar */
 function SidebarMessageBubble({
@@ -719,8 +714,20 @@ function SidebarMessageBubble({
           <QuickActionCards cards={meetingCards} onAction={(command) => onSendMessage?.(command)} />
         )}
 
-        {/* Timestamp */}
-        {message.timestamp && (
+        {/* Tool chips for completed non-card tools (grouped to collapse duplicates) */}
+        {message.toolCalls && (() => {
+          const grouped = groupToolChips(message.toolCalls)
+          return grouped.length > 0 ? (
+            <div className="flex flex-wrap mt-1.5">
+              {grouped.map((g, i) => (
+                <ToolChip key={`chip-${i}`} toolName={g.tool_name} result={g.result} count={g.count} />
+              ))}
+            </div>
+          ) : null
+        })()}
+
+        {/* Timestamp — hide for empty streaming messages (ghost prevention) */}
+        {message.timestamp && (message.content || !message.isStreaming) && (
           <p className="text-[10px] text-text-placeholder mt-0.5">
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>

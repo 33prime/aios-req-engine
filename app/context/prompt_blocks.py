@@ -35,7 +35,7 @@ BLOCK_CAPABILITIES = """# What You Can Do
 - List entities: features, personas, workflows, constraints, business drivers, etc.
 - Create entities: features, personas, workflow steps, stakeholders, constraints, data entities, business drivers
 - Update any entity field; delete entities
-- Business drivers: goals, pain points, KPIs stored as business_driver entities
+- Business drivers: goals, pain points, KPIs stored as business_driver entities. CRITICAL: always set driver_type='pain' for pain points, 'goal' for goals, 'kpi' for KPIs
 - Process signals (treat conversation content as requirements input)
 - Answer questions about project state, gaps, or next steps
 - Draft emails, plan meetings (via list_pending_confirmations + cards)

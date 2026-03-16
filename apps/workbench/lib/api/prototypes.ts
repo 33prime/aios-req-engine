@@ -232,14 +232,18 @@ export const runPhase0 = (projectId: string) =>
     { method: 'POST' }
   )
 
-export const startBuild = (projectId: string, skipPhase0 = false, skipDeploy = false) =>
+export const startBuild = (
+  projectId: string,
+  options?: { skipPhase0?: boolean; skipDeploy?: boolean; designSelection?: DesignSelection }
+) =>
   apiRequest<{ build_id: string; status: string }>(
     `/projects/${projectId}/prototype-builder/build`,
     {
       method: 'POST',
       body: JSON.stringify({
-        skip_phase0: skipPhase0,
-        skip_deploy: skipDeploy,
+        skip_phase0: options?.skipPhase0 ?? false,
+        skip_deploy: options?.skipDeploy ?? false,
+        design_selection: options?.designSelection ?? null,
       }),
     }
   )

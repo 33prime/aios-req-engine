@@ -18,6 +18,7 @@ export interface PortalChatConfig {
   title: string
   greeting: string
   children?: React.ReactNode
+  customPanel?: boolean
 }
 
 const DEFAULT_CHAT_CONFIG: PortalChatConfig = {
@@ -198,8 +199,8 @@ export default function PortalShell({ projectId, children }: PortalShellProps) {
         {children}
       </main>
 
-      {/* Page-aware chat side panel */}
-      {chatOpen && (() => {
+      {/* Page-aware chat side panel — skipped when page owns its own panel */}
+      {chatOpen && !(chatConfigRef.current?.customPanel) && (() => {
         const cfg = chatConfigRef.current ?? DEFAULT_CHAT_CONFIG
         return (
           <StationPanel

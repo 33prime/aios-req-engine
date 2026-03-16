@@ -76,9 +76,9 @@ export const ACTION_ICONS: Record<string, LucideIcon> = {
 }
 
 export const URGENCY_COLORS: Record<string, string> = {
-  critical: '#EF4444',
-  high: '#F97316',
-  normal: '#3FAF7A',
+  critical: '#0A1E2F',
+  high: '#044159',
+  normal: '#666666',
   low: '#999999',
 }
 
@@ -296,4 +296,54 @@ export const HYPOTHESIS_STATUS_COLORS: Record<string, string> = {
   testing: '#0A1E2F',
   graduated: '#3FAF7A',
   rejected: '#999999',
+}
+
+// =============================================================================
+// Action Chat Context Builder
+// =============================================================================
+
+import type { TerseAction } from '@/lib/api/workspace'
+
+const GAP_CHAT_INSTRUCTIONS: Record<string, (a: TerseAction) => string> = {
+  step_no_actor: (a) => `This workflow step needs a persona assigned. Help identify who performs "${a.entity_name}" and why.`,
+  step_no_pain: (a) => `This workflow step lacks a pain description. Help articulate the current friction in "${a.entity_name}".`,
+  step_no_time: (a) => `This workflow step has no time estimate. Help estimate how long "${a.entity_name}" takes today.`,
+  step_no_benefit: (a) => `This workflow step needs a benefit. Help describe the value the solution brings to "${a.entity_name}".`,
+  workflow_no_future_state: (a) => `This workflow has no future-state vision. Help envision what "${a.entity_name}" looks like after the solution.`,
+  workflow_no_drivers: (a) => `This workflow isn't linked to business drivers. Help connect "${a.entity_name}" to business value.`,
+  pain_no_workflow: (a) => `This pain point isn't connected to a workflow. Help map "${a.entity_name}" to the affected process.`,
+  goal_no_feature: (a) => `This goal has no features mapped. Help identify capabilities that address "${a.entity_name}".`,
+  kpi_no_numbers: (a) => `This KPI needs concrete targets. Help define measurable thresholds for "${a.entity_name}".`,
+  driver_single_source: (a) => `This driver only has one evidence source. Help identify additional validation for "${a.entity_name}".`,
+  persona_no_workflow: (a) => `This persona isn't linked to any workflows. Help identify what processes "${a.entity_name}" participates in.`,
+  persona_pains_not_drivers: (a) => `This persona's pains aren't connected to business drivers. Help link "${a.entity_name}" to business impact.`,
+  open_question: (a) => `There are open questions blocking progress. Help answer: "${a.sentence}"`,
+  critical_questions: (a) => `Critical questions are blocking progress. Help address: "${a.sentence}"`,
+}
+
+/** Build rich conversation context for a Next Action click — primes the LLM with gap-specific instructions and card usage directives. */
+export function buildActionChatContext(action: TerseAction): string {
+  const parts: string[] = []
+
+  // Gap-type-specific instruction
+  const gapFn = GAP_CHAT_INSTRUCTIONS[action.gap_type]
+  if (gapFn) {
+    parts.push(gapFn(action))
+  } else {
+    parts.push(`The consultant clicked a Next Action card: "${action.sentence}".`)
+  }
+
+  // Entity context
+  if (action.entity_type && action.entity_name) {
+    parts.push(`Entity: ${action.entity_type} "${action.entity_name}"${action.entity_id ? ` (ID: ${action.entity_id})` : ''}.`)
+  }
+
+  // Behavioral directive — use cards, don't narrate
+  parts.push(
+    'Search silently for relevant context, then present findings as structured cards (gap_closer, choice, or smart_summary). ' +
+    'Your text should be 1-2 sentences of insight max. Do NOT narrate your search process. ' +
+    'Be warm — this is a teammate asking for help knocking out a priority.'
+  )
+
+  return parts.join(' ')
 }

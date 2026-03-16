@@ -22,7 +22,10 @@ async def _create_entity(project_id: UUID, params: dict[str, Any]) -> dict[str, 
     """
     entity_type = params.get("entity_type")
     name = params.get("name")
-    fields = params.get("fields", {})
+    # "fields" may be explicit or the dispatcher may spread data flat into params
+    fields = params.get("fields") or {
+        k: v for k, v in params.items() if k not in ("entity_type", "name", "entity_id")
+    }
 
     if not entity_type or not name:
         return {

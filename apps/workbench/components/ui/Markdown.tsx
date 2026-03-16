@@ -27,19 +27,19 @@ export function Markdown({ content, className = '' }: MarkdownProps) {
         h3: ({ node, ...props }) => <h3 className="text-sm font-semibold mt-2 mb-1" {...props} />,
 
         // Paragraphs
-        p: ({ node, ...props }) => <p className="mb-1.5 last:mb-0" {...props} />,
+        p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
 
-        // Lists - tighter spacing
-        ul: ({ node, ...props }) => <ul className="list-disc list-inside mb-1.5 space-y-0.5" {...props} />,
-        ol: ({ node, ...props }) => <ol className="list-decimal list-inside mb-1.5 space-y-0.5" {...props} />,
-        li: ({ node, ...props }) => <li className="ml-2" {...props} />,
+        // Lists - tighter spacing, outside positioning avoids orphaned dots
+        ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-5 mb-1.5 space-y-0.5" {...props} />,
+        ol: ({ node, ...props }) => <ol className="list-decimal list-outside ml-5 mb-1.5 space-y-0.5" {...props} />,
+        li: ({ node, ...props }) => <li className="" {...props} />,
 
         // Code
         code: ({ node, inline, ...props }: any) =>
           inline ? (
-            <code className="bg-gray-100 text-red-600 px-1 py-0.5 rounded text-xs font-mono" {...props} />
+            <code className="bg-[#F0F1F3] text-[#0A1E2F] px-1 py-0.5 rounded text-xs font-mono" {...props} />
           ) : (
-            <code className="block bg-gray-100 text-gray-800 p-2.5 rounded text-xs font-mono overflow-x-auto mb-1.5" {...props} />
+            <code className="block bg-[#F0F1F3] text-gray-800 p-2.5 rounded text-xs font-mono overflow-x-auto mb-1.5 border border-border" {...props} />
           ),
         pre: ({ node, ...props }) => <pre className="mb-1.5" {...props} />,
 
@@ -55,7 +55,7 @@ export function Markdown({ content, className = '' }: MarkdownProps) {
 
         // Blockquotes
         blockquote: ({ node, ...props }) => (
-          <blockquote className="border-l-2 border-gray-300 pl-3 italic my-1.5 text-gray-600" {...props} />
+          <blockquote className="border-l-2 border-brand-primary/30 pl-3 italic my-1.5 text-gray-600" {...props} />
         ),
 
         // Tables - lighter styling for chat
@@ -72,7 +72,7 @@ export function Markdown({ content, className = '' }: MarkdownProps) {
         hr: ({ node, ...props }) => <hr className="my-3 border-gray-200" {...props} />,
 
         // Strong/Em
-        strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
+        strong: ({ node, ...props }) => <strong className="font-semibold text-text-body" {...props} />,
         em: ({ node, ...props }) => <em className="italic" {...props} />,
       }}
       >

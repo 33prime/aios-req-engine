@@ -17,6 +17,7 @@ import {
 import { Markdown } from '@/components/ui/Markdown'
 import { useChat, type ChatMessage } from '@/lib/useChat'
 import { uploadDocument, processDocument, getDocumentStatus } from '@/lib/api'
+import { ActivityIndicator, ToolChip, isChipTool, groupToolChips, type ActivityState } from '@/components/workspace/chat/ChatIndicators'
 import type { FlowOpenQuestion } from '@/types/workspace'
 
 // Tools that mutate solution flow data — trigger cascade on completion
@@ -316,21 +317,17 @@ export function FlowStepChat({
           )
         })}
 
-        {/* Typing dots — shown while waiting for first text from assistant */}
-        {isLoading && (() => {
+        {/* Activity indicator — spinner + contextual label */}
+        {(() => {
           const last = messages[messages.length - 1]
-          return !last || last.role === 'user' || (last.role === 'assistant' && !last.content)
-        })() && (
-          <div className="flex justify-start">
-            <div className="flex items-center gap-2 px-4 py-3 bg-white border border-border rounded-2xl">
-              <div className="flex gap-[3px] items-end h-[10px]">
-                <div className="w-[5px] h-[5px] rounded-full bg-text-placeholder animate-typing" />
-                <div className="w-[5px] h-[5px] rounded-full bg-text-placeholder animate-typing [animation-delay:200ms]" />
-                <div className="w-[5px] h-[5px] rounded-full bg-text-placeholder animate-typing [animation-delay:400ms]" />
-              </div>
-            </div>
-          </div>
-        )}
+          const runningTool = last?.toolCalls?.find((tc) => tc.status === 'running')
+          const state: ActivityState | null = runningTool
+            ? { phase: 'tool', toolName: runningTool.tool_name, action: (runningTool.args as Record<string, string> | undefined)?.action }
+            : isLoading && (!last || last.role === 'user' || (last.role === 'assistant' && !last.content))
+              ? { phase: 'thinking' }
+              : null
+          return state ? <ActivityIndicator state={state} /> : null
+        })()}
 
         <div ref={messagesEndRef} />
       </div>
@@ -450,6 +447,18 @@ function MessageBubble({ message, isStreaming }: { message: ChatMessage; isStrea
         {completedTools.map((tc, i) => (
           <ToolResultCard key={`card-${i}`} toolName={tc.tool_name} result={tc.result} />
         ))}
+
+        {/* Tool chips for non-card tools (grouped) */}
+        {(() => {
+          const grouped = groupToolChips(completedTools)
+          return grouped.length > 0 ? (
+            <div className="flex flex-wrap mt-1.5">
+              {grouped.map((g, i) => (
+                <ToolChip key={`chip-${i}`} toolName={g.tool_name} result={g.result} count={g.count} />
+              ))}
+            </div>
+          ) : null
+        })()}
       </div>
     </div>
   )

@@ -21,17 +21,35 @@ logger = logging.getLogger(__name__)
 _MODEL = "claude-haiku-4-5-20251001"
 _MAX_TOKENS = 500
 
-_SYSTEM_VISION = """You are a requirements engineering consultant writing a vision statement.
-The vision describes the FUTURE STATE — what success looks like once the solution addresses
-the identified problems, goals, and pain points. It should inspire and clarify direction.
-Be concise (2-4 sentences), specific, and grounded in the evidence provided.
-Return ONLY the vision text — no preamble, no explanation, no quotes."""
+_SYSTEM_VISION = """\
+You are a requirements engineering consultant writing a concise vision statement.
+The vision describes the FUTURE STATE — what success looks like once the solution is built.
 
-_SYSTEM_BACKGROUND = """You are a requirements engineering consultant writing a project background.
-The background is PROBLEM PROVENANCE — the past that led to the present. It tells the story
-of what drove the need for this solution: what pain exists, what was tried, why now.
-Be concise (3-5 sentences), specific, and grounded in the evidence provided.
-Return ONLY the background text — no preamble, no explanation, no quotes."""
+Format rules:
+- 1-2 sentence opening paragraph (the core transformation)
+- 3-4 bullet points, each ONE sentence max, bold the key term:
+  "- **Automated intake** — clients self-qualify through a guided flow"
+- No blank lines between bullets — keep them as a tight list
+- Optional: one closing *italic* sentence on broader impact
+- Total length: under 150 words
+
+Be specific. Reference actual features, personas, goals from the evidence.
+Return ONLY the markdown — no preamble."""
+
+_SYSTEM_BACKGROUND = """\
+You are a requirements engineering consultant writing a concise project background.
+The background is PROBLEM PROVENANCE — what pain exists and why now.
+
+Format rules:
+- 1-2 sentence opening paragraph (the core problem)
+- 3-4 bullet points, each ONE sentence max, bold the key pain:
+  "- **Manual modeling** — consultants rebuild spreadsheets from scratch each time"
+- No blank lines between bullets — keep them as a tight list
+- Optional: one closing *italic* sentence on why now is the moment
+- Total length: under 150 words
+
+Be specific. Reference actual stakeholders, pain points from the evidence.
+Return ONLY the markdown — no preamble."""
 
 
 def enhance_narrative(
@@ -73,7 +91,7 @@ def enhance_narrative(
     # Load background from company_info
     company_info = (
         client.table("company_info")
-        .select("description, company_name, industry")
+        .select("description, name, industry")
         .eq("project_id", project_id)
         .maybe_single()
         .execute()
@@ -84,7 +102,7 @@ def enhance_narrative(
     industry = ""
     if company_info and company_info.data:
         current_background = company_info.data.get("description") or ""
-        company_name = company_info.data.get("company_name") or ""
+        company_name = company_info.data.get("name") or ""
         industry = company_info.data.get("industry") or ""
 
     current_value = current_vision if field == "vision" else current_background

@@ -118,14 +118,23 @@ def get_tool_definitions() -> list[dict[str, Any]]:
                         "type": "string",
                         "description": "Entity UUID (required for update and delete)",
                     },
+                    "driver_type": {
+                        "type": "string",
+                        "enum": ["goal", "pain", "kpi"],
+                        "description": (
+                            "REQUIRED when entity_type is business_driver. "
+                            "Use 'pain' for pain points/problems/frustrations, "
+                            "'goal' for goals/objectives/desired outcomes, "
+                            "'kpi' for metrics/KPIs/measurements."
+                        ),
+                    },
                     "data": {
                         "type": "object",
                         "description": (
                             "Entity fields. "
                             "features: {name, description, category, is_mvp}. "
                             "personas: {name, role, goals, pain_points}. "
-                            "business_driver: {description, "
-                            "driver_type: goal|pain|kpi}. "
+                            "business_driver: {description}. "
                             "task: {title, description, "
                             "task_type: reminder|action_item|"
                             "review_request|book_meeting|deliverable}. "

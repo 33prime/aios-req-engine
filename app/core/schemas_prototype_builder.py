@@ -294,6 +294,7 @@ class BuildRequest(BaseModel):
     config: OrchestrationConfig = Field(default_factory=OrchestrationConfig)
     skip_phase0: bool = Field(False, description="Skip Phase 0 intelligence if already run")
     skip_deploy: bool = Field(False, description="Skip GitHub/Netlify deployment")
+    design_selection: dict | None = Field(None, description="Design tokens + style selection")
 
 
 # =============================================================================

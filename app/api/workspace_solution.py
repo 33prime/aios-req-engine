@@ -172,11 +172,19 @@ async def generate_solution_flow_endpoint(
     project_id: UUID,
     background_tasks: BackgroundTasks,
     force: bool = False,
+    pipeline: str = Query(
+        "v4",
+        description="Pipeline version: v3 or v4 (multi-phase)",
+    ),
 ):
-    """Generate solution flow steps from project data using LLM."""
+    """Generate solution flow steps from project data using LLM.
+
+    pipeline=v4 (default): Multi-phase intelligence pipeline with insight synthesis,
+        parallel builders, and coherence QA. ~22s, ~$0.30.
+    pipeline=v3: Legacy single Sonnet call. ~20s, ~$0.12.
+    """
     from fastapi import HTTPException
 
-    from app.chains.generate_solution_flow import generate_solution_flow
     from app.core.solution_flow_readiness import check_readiness
     from app.db.solution_flow import get_or_create_flow
 
@@ -194,7 +202,16 @@ async def generate_solution_flow_endpoint(
             )
 
     flow = get_or_create_flow(project_id)
-    result = await generate_solution_flow(project_id, flow["id"])
+
+    if pipeline == "v3":
+        from app.chains.generate_solution_flow import generate_solution_flow
+
+        result = await generate_solution_flow(project_id, UUID(flow["id"]))
+    else:
+        from app.chains.solution_flow_v4 import generate_solution_flow_v4
+
+        result = await generate_solution_flow_v4(project_id, UUID(flow["id"]))
+
     return result
 
 
@@ -216,10 +233,33 @@ async def create_solution_flow_step_endpoint(project_id: UUID, body: dict):
 
     flow = get_or_create_flow(project_id)
     step_data = SolutionFlowStepCreate(**body)
-    result = create_flow_step(
-        UUID(flow["id"]), project_id, step_data.model_dump()
-    )
+    result = create_flow_step(UUID(flow["id"]), project_id, step_data.model_dump())
     return result
+
+
+@router.get("/solution-flow/steps/batch")
+async def batch_get_solution_flow_steps(
+    project_id: UUID,
+    ids: str = Query(..., description="Comma-separated step IDs"),
+):
+    """Fetch multiple step details in one call (for present mode prefetch)."""
+    from app.db.solution_flow import get_flow_step
+
+    step_ids = [s.strip() for s in ids.split(",") if s.strip()]
+    if not step_ids:
+        raise HTTPException(status_code=400, detail="ids parameter required")
+    if len(step_ids) > 30:
+        raise HTTPException(status_code=400, detail="Max 30 steps per batch")
+
+    results = {}
+    for sid in step_ids:
+        try:
+            step = get_flow_step(UUID(sid))
+            if step:
+                results[sid] = step
+        except Exception:
+            pass
+    return {"steps": results}
 
 
 @router.get("/solution-flow/steps/{step_id}")
@@ -243,9 +283,7 @@ async def get_step_revisions(project_id: UUID, step_id: UUID):
 
 
 @router.patch("/solution-flow/steps/{step_id}")
-async def update_solution_flow_step_endpoint(
-    project_id: UUID, step_id: UUID, body: dict
-):
+async def update_solution_flow_step_endpoint(project_id: UUID, step_id: UUID, body: dict):
     """Update a solution flow step."""
     from app.db.solution_flow import update_flow_step
 

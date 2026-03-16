@@ -239,44 +239,48 @@ def build_smart_chat_prompt(
     # ── Dynamic block: changes per request ─────────────────────────────
     dynamic_sections = []
 
-    # 2. Current state (from state_snapshot — already ~500 tokens)
-    if context_frame.state_snapshot:
-        dynamic_sections.append(f"# Current Project State\n{context_frame.state_snapshot}")
+    if context_frame is None:
+        # Minimal fallback when context frame is unavailable
+        dynamic_sections.append("# Phase\nDiscovery")
+    else:
+        # 2. Current state (from state_snapshot — already ~500 tokens)
+        if context_frame.state_snapshot:
+            dynamic_sections.append(f"# Current Project State\n{context_frame.state_snapshot}")
 
-    # 3. Phase + progress
-    phase_label = {
-        "empty": "Getting Started — project needs initial context",
-        "seeding": "Seeding — gathering core requirements and artifacts",
-        "building": "Building — filling in structural details",
-        "refining": "Refining — confirming and polishing for handoff",
-    }.get(context_frame.phase.value, context_frame.phase.value)
+        # 3. Phase + progress
+        phase_label = {
+            "empty": "Getting Started — project needs initial context",
+            "seeding": "Seeding — gathering core requirements and artifacts",
+            "building": "Building — filling in structural details",
+            "refining": "Refining — confirming and polishing for handoff",
+        }.get(context_frame.phase.value, context_frame.phase.value)
 
-    dynamic_sections.append(
-        f"# Phase\n{phase_label} ({int(context_frame.phase_progress * 100)}% complete)"
-    )
-
-    # 4. Active gaps (top 5, terse)
-    gap_lines = []
-    for action in context_frame.actions[:5]:
-        source_tag = {"structural": "GAP", "signal": "NEED", "knowledge": "UNKNOWN"}.get(
-            action.gap_source, "GAP"
-        )
-        gap_lines.append(f"- [{source_tag}] {action.sentence}")
-
-    if gap_lines:
         dynamic_sections.append(
-            f"# Active Gaps ({context_frame.total_gap_count} total)\n"
-            + "\n".join(gap_lines)
+            f"# Phase\n{phase_label} ({int(context_frame.phase_progress * 100)}% complete)"
         )
 
-    # 5. Workflow context (for domain reasoning)
-    if context_frame.workflow_context and context_frame.workflow_context != "No workflows defined yet.":
-        dynamic_sections.append(f"# Workflows\n{context_frame.workflow_context}")
+        # 4. Active gaps (top 5, terse)
+        gap_lines = []
+        for action in context_frame.actions[:5]:
+            source_tag = {"structural": "GAP", "signal": "NEED", "knowledge": "UNKNOWN"}.get(
+                action.gap_source, "GAP"
+            )
+            gap_lines.append(f"- [{source_tag}] {action.sentence}")
 
-    # 6. Memory hints (low-confidence beliefs, contradictions)
-    if context_frame.memory_hints:
-        hints = "\n".join(f"- {h}" for h in context_frame.memory_hints[:3])
-        dynamic_sections.append(f"# Memory (low confidence — verify before citing)\n{hints}")
+        if gap_lines:
+            dynamic_sections.append(
+                f"# Active Gaps ({context_frame.total_gap_count} total)\n"
+                + "\n".join(gap_lines)
+            )
+
+        # 5. Workflow context (for domain reasoning)
+        if context_frame.workflow_context and context_frame.workflow_context != "No workflows defined yet.":
+            dynamic_sections.append(f"# Workflows\n{context_frame.workflow_context}")
+
+        # 6. Memory hints (low-confidence beliefs, contradictions)
+        if context_frame.memory_hints:
+            hints = "\n".join(f"- {h}" for h in context_frame.memory_hints[:3])
+            dynamic_sections.append(f"# Memory (low confidence — verify before citing)\n{hints}")
 
     # 7. Page awareness
     if page_context:

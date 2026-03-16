@@ -690,14 +690,21 @@ async def _trigger_narrative_regeneration(state: V2ProcessorState) -> None:
     import asyncio
 
     try:
-        from app.chains.generate_deal_pulse import generate_deal_pulse
+        from app.chains.synthesize_intelligence import invalidate_intelligence_cache
+        from app.context.project_awareness import invalidate_awareness
 
-        # Regenerate deal pulse (always — it's a status summary)
-        asyncio.get_event_loop().create_task(
-            asyncio.to_thread(generate_deal_pulse, str(state.project_id))
-        )
+        # Invalidate caches so next page load triggers fresh intelligence
+        pid = str(state.project_id)
+        invalidate_intelligence_cache(pid)
+        invalidate_awareness(state.project_id)
+        try:
+            from app.api.workspace_intelligence import _pulse_cache
+
+            _pulse_cache.pop(pid, None)
+        except Exception:
+            pass
     except Exception as e:
-        logger.debug("[v2] Deal pulse regeneration trigger failed: %s", e)
+        logger.debug("[v2] Intelligence cache invalidation failed: %s", e)
 
     try:
         # Auto-rewrite background if it hasn't been manually edited

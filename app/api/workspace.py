@@ -14,6 +14,7 @@ from app.api.workspace_core import router as core_router
 from app.api.workspace_data_entities import router as data_entities_router
 from app.api.workspace_drivers import router as drivers_router
 from app.api.workspace_features import router as features_router
+from app.api.workspace_intelligence import router as intelligence_router
 from app.api.workspace_solution import router as solution_router
 from app.api.workspace_vision import router as vision_router
 from app.api.workspace_workflows import router as workflows_router
@@ -32,3 +33,4 @@ router.include_router(canvas_router)
 router.include_router(solution_router)
 router.include_router(confirm_router)
 router.include_router(features_router)
+router.include_router(intelligence_router)

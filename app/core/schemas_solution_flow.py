@@ -51,12 +51,25 @@ class PainPoint(BaseModel):
     persona: str | None = None
 
 
+class AIDataRequirement(BaseModel):
+    source: str
+    volume: str | None = None
+    quality_needed: str | None = None
+
+
 class AIConfig(BaseModel):
     role: str | None = None
+    ai_role: str | None = None  # alias used in some contexts
     behaviors: list[str] = Field(default_factory=list)
     guardrails: list[str] = Field(default_factory=list)
     confidence_display: str | None = None
     fallback: str | None = None
+    agent_name: str | None = None
+    agent_type: str | None = None  # classifier, matcher, predictor, watcher, generator, processor
+    data_requirements: list[AIDataRequirement] = Field(default_factory=list)
+    automation_estimate: int | None = None  # 0-100
+    learning_trajectory: str | None = None
+    human_touchpoints: list[str] = Field(default_factory=list)
 
 
 class SolutionFlowStepUpdate(BaseModel):

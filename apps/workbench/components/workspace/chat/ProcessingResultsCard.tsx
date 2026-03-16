@@ -137,7 +137,7 @@ export function ProcessingResultsCard({
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
         <div className="flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          <CheckCircle2 className="w-4 h-4 text-brand-primary" />
           <span className="text-sm font-semibold text-text-body truncate">{filename}</span>
         </div>
         <p className="text-xs text-text-placeholder mt-0.5">Processing complete</p>
@@ -156,8 +156,8 @@ export function ProcessingResultsCard({
               ) : (
                 <ChevronRight className="w-3 h-3 text-text-placeholder" />
               )}
-              <Sparkles className="w-3 h-3 text-emerald-500" />
-              <span className="text-xs font-semibold text-emerald-700">
+              <Sparkles className="w-3 h-3 text-brand-primary" />
+              <span className="text-xs font-semibold text-[#25785A]">
                 Created ({created.length})
               </span>
             </button>
@@ -172,7 +172,7 @@ export function ProcessingResultsCard({
                       {items.slice(0, MAX_ENTITIES_PER_TYPE).map((item) => (
                         <span
                           key={item.entity_id}
-                          className="px-1.5 py-0.5 text-[11px] rounded bg-emerald-50 text-emerald-700"
+                          className="px-1.5 py-0.5 text-[11px] rounded bg-[rgba(63,175,122,0.1)] text-[#25785A]"
                         >
                           {item.entity_label}
                         </span>
@@ -202,8 +202,8 @@ export function ProcessingResultsCard({
               ) : (
                 <ChevronRight className="w-3 h-3 text-text-placeholder" />
               )}
-              <ArrowRight className="w-3 h-3 text-indigo-500" />
-              <span className="text-xs font-semibold text-indigo-600">
+              <ArrowRight className="w-3 h-3 text-[#044159]" />
+              <span className="text-xs font-semibold text-[#044159]">
                 Updated ({updated.length})
               </span>
             </button>
@@ -269,7 +269,7 @@ export function ProcessingResultsCard({
             <button
               onClick={() => handleConfirm('new')}
               disabled={confirming !== null}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-primary text-white hover:bg-[#25785A] disabled:opacity-50 transition-colors"
             >
               {confirming === 'new' ? 'Confirming...' : `Accept New (${created.length})`}
             </button>
@@ -278,7 +278,7 @@ export function ProcessingResultsCard({
             <button
               onClick={() => handleConfirm('updates')}
               disabled={confirming !== null}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-50 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[#044159] text-[#044159] hover:bg-[rgba(4,65,89,0.08)] disabled:opacity-50 transition-colors"
             >
               {confirming === 'updates' ? 'Confirming...' : `Accept Updates (${updated.length})`}
             </button>
@@ -304,8 +304,8 @@ export function ProcessingResultsCard({
         </div>
       ) : (
         <div className="px-4 py-2 border-t border-gray-100 flex items-center gap-2">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-          <span className="text-xs text-emerald-700 font-medium">
+          <CheckCircle2 className="w-3.5 h-3.5 text-brand-primary" />
+          <span className="text-xs text-[#25785A] font-medium">
             {confirmed.has('defer') ? 'Review tasks created' : 'Entities confirmed'}
           </span>
           {onViewEvidence && (

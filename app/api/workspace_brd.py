@@ -870,20 +870,16 @@ async def get_brd_health(project_id: UUID) -> BRDHealthResponse:
 
 @router.get("/brd/next-actions")
 async def get_next_actions(project_id: UUID) -> dict:
-    """Compute top 3 next best actions from BRD state."""
-    from app.core.next_actions import compute_next_actions
+    """Deprecated — use GET /intelligence for unified actions.
+
+    Proxies to the intelligence endpoint for backward compat.
+    """
+    from app.api.workspace_intelligence import get_intelligence
 
     try:
-        # Load BRD data (reuse existing endpoint logic)
-        brd_data = await get_brd_workspace_data(project_id)
-        brd_dict = brd_data.model_dump() if hasattr(brd_data, 'model_dump') else brd_data
-
-        stakeholders = brd_dict.get("stakeholders", [])
-        completeness = brd_dict.get("completeness")
-
-        actions = compute_next_actions(brd_dict, stakeholders, completeness)
+        result = await get_intelligence(project_id)
+        actions = result.get("actions", [])
         return {"actions": actions}
-
     except Exception as e:
         logger.exception(f"Failed to compute next actions for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -893,39 +889,16 @@ async def get_next_actions(project_id: UUID) -> dict:
 async def get_unified_actions(
     project_id: UUID,
     max_actions: int = Query(5, ge=1, le=10, description="Maximum actions to return"),
-    version: str = Query("v3", description="Engine version: v2 (legacy) or v3 (context frame)"),
+    version: str = Query("v3", description="Deprecated — use GET /intelligence instead"),
 ) -> dict:
-    """Action engine — returns terse, stage-aware actions.
+    """Deprecated — use GET /intelligence for unified pulse + narrative + actions.
 
-    v3 (default): ProjectContextFrame with structural/signal/knowledge gaps.
-    v2 (legacy): ActionEngineResult with Haiku narratives + questions.
+    Kept for backward compat; proxies to the intelligence endpoint.
     """
-    if version == "v2":
-        from app.core.action_engine import compute_actions
+    from app.api.workspace_intelligence import get_intelligence
 
-        try:
-            result = await compute_actions(
-                project_id,
-                max_skeletons=max_actions,
-                include_narratives=True,
-            )
-            return result.model_dump(mode="json")
-        except Exception as e:
-            logger.exception(f"Failed to compute v2 actions for project {project_id}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-    # v3: ProjectContextFrame
-    from app.core.action_engine import compute_context_frame
-
-    try:
-        frame = await compute_context_frame(
-            project_id,
-            max_actions=max_actions,
-        )
-        return frame.model_dump(mode="json")
-    except Exception as e:
-        logger.exception(f"Failed to compute context frame for project {project_id}")
-        raise HTTPException(status_code=500, detail=str(e))
+    result = await get_intelligence(project_id)
+    return result
 
 
 @router.post("/actions/answer")
@@ -942,8 +915,6 @@ async def answer_action_question(
     """
     from app.chains.parse_question_answer import apply_extractions, parse_answer
 
-    action_id = body.get("action_id", "")
-    question_index = body.get("question_index", 0)
     answer_text = body.get("answer_text", "")
 
     if not answer_text:
@@ -956,28 +927,10 @@ async def answer_action_question(
     entity_name = body.get("entity_name", "")
     question_text = body.get("question_text", "")
 
-    # v2 fallback: lookup action by ID
+    # v2 fallback: action_id without entity info — use answer_text as question
     if not entity_type:
-        from app.core.action_engine import compute_actions
-
-        current = await compute_actions(project_id, max_skeletons=5, include_narratives=False)
-        target_action = None
-        for a in current.actions:
-            if a.action_id == action_id:
-                target_action = a
-                break
-
-        if not target_action:
-            raise HTTPException(status_code=404, detail=f"Action {action_id} not found")
-
-        gap_type = target_action.gap_type
-        entity_type = target_action.primary_entity_type
-        entity_id = target_action.primary_entity_id
-        entity_name = target_action.primary_entity_name
-        if target_action.questions and question_index < len(target_action.questions):
-            question_text = target_action.questions[question_index].question
-        elif target_action.narrative:
-            question_text = target_action.narrative
+        if not question_text:
+            question_text = answer_text
 
     # Parse the answer
     parse_result = await parse_answer(
@@ -1013,14 +966,40 @@ async def update_brd_background(project_id: UUID, data: BackgroundUpdate) -> dic
     client = get_client()
 
     try:
-        # Upsert: insert or update in a single call (avoids 204 race conditions)
-        client.table("company_info").upsert(
-            {
-                "project_id": str(project_id),
-                "description": data.background,
-            },
-            on_conflict="project_id",
-        ).execute()
+        pid = str(project_id)
+
+        # Check if row exists first — avoids 204 errors from update-on-nothing
+        existing = (
+            client.table("company_info")
+            .select("id")
+            .eq("project_id", pid)
+            .maybe_single()
+            .execute()
+        )
+
+        if existing and existing.data:
+            # Row exists — update it
+            client.table("company_info").update(
+                {"description": data.background}
+            ).eq("project_id", pid).execute()
+        else:
+            # Row doesn't exist — get project name for required `name` column
+            proj = (
+                client.table("projects")
+                .select("name")
+                .eq("id", pid)
+                .maybe_single()
+                .execute()
+            )
+            name = proj.data.get("name", "Unknown") if proj and proj.data else "Unknown"
+
+            client.table("company_info").insert(
+                {
+                    "project_id": pid,
+                    "name": name,
+                    "description": data.background,
+                }
+            ).execute()
 
         return {"success": True, "background": data.background}
 
@@ -1036,25 +1015,16 @@ async def update_brd_background(project_id: UUID, data: BackgroundUpdate) -> dic
 
 @router.get("/brd/pulse-text")
 async def get_deal_pulse(project_id: UUID, regenerate: bool = Query(False)) -> dict:
-    """Get the deal pulse — a sales-ready 2-3 sentence project status.
+    """Deprecated — use GET /intelligence for unified pulse + narrative + actions.
 
-    Cached per project. Pass regenerate=true to force refresh.
+    Kept for backward compat; proxies to the intelligence endpoint.
     """
-    from app.chains.generate_deal_pulse import generate_deal_pulse, get_cached_deal_pulse
+    from app.api.workspace_intelligence import get_intelligence
 
     try:
-        if not regenerate:
-            cached = get_cached_deal_pulse(str(project_id))
-            if cached:
-                return {"pulse_text": cached, "cached": True}
-
-        # Generate fresh
-        pulse = await asyncio.to_thread(generate_deal_pulse, str(project_id))
-        if pulse:
-            return {"pulse_text": pulse, "cached": False}
-
-        return {"pulse_text": None, "cached": False}
-
+        result = await get_intelligence(project_id)
+        pulse_text = result.get("deal_pulse_text")
+        return {"pulse_text": pulse_text, "cached": not regenerate}
     except Exception as e:
         logger.exception(f"Failed to get deal pulse for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))

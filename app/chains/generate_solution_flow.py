@@ -127,18 +127,52 @@ SOLUTION_FLOW_TOOL = {
                         "ai_config": {
                             "type": "object",
                             "properties": {
-                                "role": {"type": "string", "description": "What the AI does in this step"},
-                                "behaviors": {"type": "array", "items": {"type": "string"}, "description": "Specific AI behaviors"},
+                                "role": {"type": "string", "description": "What the AI does in this step — the intelligence layer"},
+                                "agent_name": {"type": "string", "description": "Short human-friendly name for the AI agent, e.g. 'Market Sizer', 'Revenue Forecaster'"},
+                                "agent_type": {
+                                    "type": "string",
+                                    "enum": ["classifier", "matcher", "predictor", "watcher", "generator", "processor"],
+                                    "description": "Primary behavior pattern: classifier (sorts/labels), matcher (connects/recommends), predictor (forecasts/estimates), watcher (monitors/alerts), generator (creates/compiles), processor (transforms/validates)",
+                                },
+                                "behaviors": {"type": "array", "items": {"type": "string"}, "description": "Specific AI behaviors (3-5 actions the agent performs)"},
                                 "guardrails": {"type": "array", "items": {"type": "string"}, "description": "Constraints/limits on AI behavior"},
                                 "confidence_display": {"type": "string", "enum": ["hidden", "subtle", "prominent"]},
-                                "fallback": {"type": "string", "description": "What happens when AI fails"},
+                                "fallback": {"type": "string", "description": "What happens when AI is unavailable or uncertain"},
+                                "data_requirements": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "source": {"type": "string", "description": "Data source name"},
+                                            "volume": {"type": "string", "description": "Expected data volume/frequency"},
+                                            "quality_needed": {"type": "string", "enum": ["minimal", "good", "high", "critical"]},
+                                        },
+                                        "required": ["source"],
+                                    },
+                                    "description": "What data this agent needs to function well",
+                                },
+                                "automation_estimate": {
+                                    "type": "integer",
+                                    "description": "Estimated % of this step that can be automated (0-100). Higher for data processing, lower for creative/judgment tasks",
+                                },
+                                "learning_trajectory": {
+                                    "type": "string",
+                                    "description": "How this agent improves over time — what it learns from and how it gets smarter",
+                                },
+                                "human_touchpoints": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Moments where human judgment/approval is essential",
+                                },
                             },
+                            "required": ["role", "agent_name", "agent_type", "behaviors", "automation_estimate"],
+                            "description": "REQUIRED for every step. Every step has an AI intelligence layer — even simple steps have data validation, smart defaults, or pattern recognition.",
                         },
                     },
                     "required": [
                         "title", "goal", "phase", "actors",
                         "information_fields", "mock_data_narrative",
-                        "implied_pattern", "success_criteria",
+                        "implied_pattern", "success_criteria", "ai_config",
                     ],
                 },
                 "minItems": 3,
@@ -190,6 +224,7 @@ Steps belong to one of four phases, and MUST be ordered in this sequence:
 7. The mock_data_narrative should read like a user story: "Sarah opens her booth management screen and sees..."
 8. Focus on FUTURE-STATE workflows — those define what the solution should deliver
 9. Each future-state workflow should typically map to 1-3 solution flow steps
+10. EVERY step must include ai_config with a named agent. Modern platforms have AI throughout — even data entry steps have smart defaults, validation agents, or suggestion engines. Name each agent distinctly.
 
 ## Example Steps
 
@@ -210,6 +245,22 @@ Steps belong to one of four phases, and MUST be ordered in this sequence:
   "success_criteria": ["Voice model confidence reaches 75%+ after onboarding", "User confirms 'this sounds like me' on 3 test generations", "Onboarding completes in under 10 minutes"],
   "linked_workflow_ids": ["wf-onboarding-id"],
   "linked_feature_ids": ["feat-voice-model-id", "feat-style-analysis-id"],
+  "ai_config": {
+    "role": "Analyze writing samples to detect voice patterns and build a personalized style model",
+    "agent_name": "Voice Profiler",
+    "agent_type": "classifier",
+    "behaviors": ["Detect tone and vocabulary patterns from samples", "Classify writing style across dimensions", "Score confidence of voice model accuracy"],
+    "guardrails": ["Require minimum 3 samples before generating profile", "Never store raw content — only derived patterns"],
+    "confidence_display": "prominent",
+    "fallback": "Use default template-based voice profiles until enough samples are collected",
+    "data_requirements": [
+      {"source": "User writing samples", "volume": "3-10 posts", "quality_needed": "high"},
+      {"source": "Interview responses", "volume": "5 questions", "quality_needed": "good"}
+    ],
+    "automation_estimate": 70,
+    "learning_trajectory": "Improves as more samples are added — reaches 90%+ accuracy after 10 samples and 2 weeks of edit feedback",
+    "human_touchpoints": ["User confirms 'this sounds like me' on test generations", "User selects which samples best represent their voice"]
+  },
   "open_questions": [{"question": "Should voice profiles support multiple brand personas (e.g. professional vs casual)?", "context": "Some creators post differently on LinkedIn vs Twitter"}]
 }
 </example_step>
@@ -232,7 +283,23 @@ Steps belong to one of four phases, and MUST be ordered in this sequence:
   "success_criteria": ["Average time from draft to approval under 3 minutes", "Voice match score improves by 5% over first month of edits", "User makes fewer than 3 edits per post on average after 2 weeks"],
   "linked_workflow_ids": ["wf-review-editing-id"],
   "linked_feature_ids": ["feat-editor-id", "feat-preview-id", "feat-voice-learning-id"],
-  "ai_config": {"role": "Generate draft, learn from edits, predict engagement", "behaviors": ["Generate voice-matched drafts", "Learn from inline edits", "Predict engagement scores"], "guardrails": ["Never publish without user approval", "Flag low-confidence predictions"], "confidence_display": "subtle", "fallback": "Show raw draft without predictions if AI unavailable"},
+  "ai_config": {
+    "role": "Generate voice-matched drafts, learn from edits, predict engagement",
+    "agent_name": "Content Composer",
+    "agent_type": "generator",
+    "behaviors": ["Generate voice-matched drafts from topics", "Learn editing preferences from inline changes", "Predict engagement scores based on historical data", "Suggest optimal posting times"],
+    "guardrails": ["Never publish without user approval", "Flag low-confidence predictions", "Preserve user's authentic voice — enhance, don't replace"],
+    "confidence_display": "subtle",
+    "fallback": "Show raw draft without predictions if AI unavailable",
+    "data_requirements": [
+      {"source": "Voice profile model", "volume": "Continuous", "quality_needed": "high"},
+      {"source": "Historical engagement data", "volume": "30+ posts", "quality_needed": "good"},
+      {"source": "Platform API metrics", "volume": "Real-time", "quality_needed": "minimal"}
+    ],
+    "automation_estimate": 85,
+    "learning_trajectory": "Learns editing preferences after ~20 corrections. Engagement predictions calibrate after 30 published posts with outcome data.",
+    "human_touchpoints": ["Approve or edit every draft before publishing", "Confirm engagement prediction accuracy monthly"]
+  },
   "open_questions": [{"question": "Should edit suggestions be proactive (AI suggests changes) or reactive (AI only learns from user edits)?"}]
 }
 </example_step>
@@ -258,7 +325,7 @@ Generate {target_min}-{target_max} steps total. Each future-state workflow shoul
 - Use specific names, numbers, dates from the project data in mock values
 - Each step needs 2-4 success criteria (user-observable, not system metrics)
 - Map pain points and goals that each step addresses
-- For AI-powered steps, specify ai_config with role, confidence display, and fallback
+- EVERY step MUST have ai_config — every step has an AI intelligence layer. Even simple steps have smart defaults, data validation, pattern recognition, or predictive assistance. Give each agent a memorable name (e.g. 'Market Sizer', 'Pipeline Watcher') and classify its type (classifier/matcher/predictor/watcher/generator/processor). Include automation_estimate (0-100%) — pure data steps are 80-95%, judgment-heavy steps are 30-60%.
 - Provide a 2-3 sentence summary of the entire flow
 """
 
@@ -804,6 +871,10 @@ def _persist_steps(
 
     all_entries.sort(key=lambda x: x[0])
 
+    # UUID regex for sanitizing linked IDs (LLM sometimes generates names)
+    import re
+    _UUID_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.I)
+
     # Reindex and persist
     saved_steps: list[dict] = []
     for i, (_, step, is_new) in enumerate(all_entries):
@@ -813,6 +884,10 @@ def _persist_steps(
             for q in step.get("open_questions", []):
                 q.setdefault("status", "open")
             step["generation_version"] = generation_version
+            # Sanitize linked_*_ids — LLM sometimes generates names instead of UUIDs
+            for id_field in ("linked_workflow_ids", "linked_feature_ids", "linked_data_entity_ids"):
+                if id_field in step and isinstance(step[id_field], list):
+                    step[id_field] = [v for v in step[id_field] if isinstance(v, str) and _UUID_RE.match(v)]
             try:
                 saved = create_flow_step(flow_id, project_id, step)
                 saved_steps.append(saved)

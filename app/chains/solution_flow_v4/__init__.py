@@ -346,6 +346,10 @@ def _persist_steps(
         except Exception as e:
             logger.warning(f"Failed to mark preserved step {step['id']}: {e}")
 
+    # UUID regex for sanitizing linked IDs (LLM sometimes generates names)
+    import re
+    _UUID_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.I)
+
     # Build combined list
     all_entries: list[tuple[int, dict, bool]] = []
 
@@ -373,6 +377,11 @@ def _persist_steps(
             step.pop("tension_notes", None)
             step.pop("insight_notes", None)
             step.pop("ai_role", None)
+
+            # Sanitize linked_*_ids — LLM sometimes generates names instead of UUIDs
+            for id_field in ("linked_workflow_ids", "linked_feature_ids", "linked_data_entity_ids"):
+                if id_field in step and isinstance(step[id_field], list):
+                    step[id_field] = [v for v in step[id_field] if isinstance(v, str) and _UUID_RE.match(v)]
 
             try:
                 saved = create_flow_step(flow_id, project_id, step)

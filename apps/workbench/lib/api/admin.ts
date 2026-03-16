@@ -280,6 +280,11 @@ export const getSolutionFlowStep = (projectId: string, stepId: string) =>
     `/projects/${projectId}/workspace/solution-flow/steps/${stepId}`
   )
 
+export const batchGetSolutionFlowSteps = (projectId: string, stepIds: string[]) =>
+  apiRequest<{ steps: Record<string, import('@/types/workspace').SolutionFlowStepDetail> }>(
+    `/projects/${projectId}/workspace/solution-flow/steps/batch?ids=${stepIds.join(',')}`
+  )
+
 export const getSolutionFlowStepRevisions = (projectId: string, stepId: string) =>
   apiRequest<{ revisions: import('@/types/workspace').RevisionEntry[] }>(
     `/projects/${projectId}/workspace/solution-flow/steps/${stepId}/revisions`
