@@ -106,7 +106,9 @@ class V2ProcessingResult(BaseModel):
 # =============================================================================
 
 
-def _update_signal_status(signal_id: UUID, status: str, extra: dict[str, Any] | None = None) -> None:
+def _update_signal_status(
+    signal_id: UUID, status: str, extra: dict[str, Any] | None = None
+) -> None:
     """Update signal processing_status in DB. Logs on failure, never raises."""
     try:
         sb = get_supabase()
@@ -196,13 +198,7 @@ def v2_load_signal(state: V2ProcessorState) -> dict[str, Any]:
     )
 
     sb = get_supabase()
-    response = (
-        sb.table("signals")
-        .select("*")
-        .eq("id", str(state.signal_id))
-        .single()
-        .execute()
-    )
+    response = sb.table("signals").select("*").eq("id", str(state.signal_id)).single().execute()
 
     if not response.data:
         return {"error": f"Signal {state.signal_id} not found", "success": False}
@@ -247,7 +243,9 @@ def v2_triage_signal(state: V2ProcessorState) -> dict[str, Any]:
         }
 
         # Store triage metadata on signal (non-critical)
-        _update_signal_status(state.signal_id, "extracting", extra={"triage_metadata": result.model_dump()})
+        _update_signal_status(
+            state.signal_id, "extracting", extra={"triage_metadata": result.model_dump()}
+        )
 
         return updates
 
@@ -268,6 +266,7 @@ async def v2_load_context(state: V2ProcessorState) -> dict[str, Any]:
 
     try:
         from app.core.context_snapshot import build_context_snapshot
+
         snapshot = await build_context_snapshot(state.project_id)
         return {"context_snapshot": snapshot}
     except Exception as e:
@@ -276,6 +275,7 @@ async def v2_load_context(state: V2ProcessorState) -> dict[str, Any]:
             extra={"project_id": str(state.project_id)},
         )
         from app.core.context_snapshot import ContextSnapshot
+
         return {"context_snapshot": ContextSnapshot()}
 
 
@@ -299,6 +299,7 @@ async def v2_extract_patches(state: V2ProcessorState) -> dict[str, Any]:
         chunks: list[dict] = []
         try:
             from app.db.signals import list_signal_chunks
+
             chunks = list_signal_chunks(state.signal_id)
             state.chunks = chunks
         except Exception as e:
@@ -373,7 +374,11 @@ async def v2_dedup_patches(state: V2ProcessorState) -> dict[str, Any]:
     try:
         from app.core.entity_dedup import dedup_create_patches
 
-        inventory = getattr(state.context_snapshot, "entity_inventory", {}) if state.context_snapshot else {}
+        inventory = (
+            getattr(state.context_snapshot, "entity_inventory", {})
+            if state.context_snapshot
+            else {}
+        )
 
         # Pass pulse health map for dynamic dedup threshold tuning
         pulse_health = None
@@ -387,17 +392,21 @@ async def v2_dedup_patches(state: V2ProcessorState) -> dict[str, Any]:
             pass
 
         deduped = await dedup_create_patches(
-            state.entity_patches.patches, inventory, state.project_id,
+            state.entity_patches.patches,
+            inventory,
+            state.project_id,
             extraction_log=state.extraction_log,
             pulse_health_map=pulse_health,
         )
-        return {"entity_patches": EntityPatchList(
-            patches=deduped,
-            signal_id=state.entity_patches.signal_id,
-            run_id=state.entity_patches.run_id,
-            extraction_model=state.entity_patches.extraction_model,
-            extraction_duration_ms=state.entity_patches.extraction_duration_ms,
-        )}
+        return {
+            "entity_patches": EntityPatchList(
+                patches=deduped,
+                signal_id=state.entity_patches.signal_id,
+                run_id=state.entity_patches.run_id,
+                extraction_model=state.entity_patches.extraction_model,
+                extraction_duration_ms=state.entity_patches.extraction_duration_ms,
+            )
+        }
     except Exception as e:
         logger.warning(
             f"[v2] Dedup failed (continuing with original patches): {e}",
@@ -424,13 +433,15 @@ async def v2_score_patches(state: V2ProcessorState) -> dict[str, Any]:
             context_snapshot=state.context_snapshot,
         )
         # Replace patches with scored versions
-        return {"entity_patches": EntityPatchList(
-            patches=scored,
-            signal_id=state.entity_patches.signal_id,
-            run_id=state.entity_patches.run_id,
-            extraction_model=state.entity_patches.extraction_model,
-            extraction_duration_ms=state.entity_patches.extraction_duration_ms,
-        )}
+        return {
+            "entity_patches": EntityPatchList(
+                patches=scored,
+                signal_id=state.entity_patches.signal_id,
+                run_id=state.entity_patches.run_id,
+                extraction_model=state.entity_patches.extraction_model,
+                extraction_duration_ms=state.entity_patches.extraction_duration_ms,
+            )
+        }
 
     except Exception as e:
         logger.warning(
@@ -463,8 +474,7 @@ async def v2_apply_patches(state: V2ProcessorState) -> dict[str, Any]:
         )
 
         logger.info(
-            f"[v2] Applied {result.total_applied} patches, "
-            f"escalated {result.total_escalated}",
+            f"[v2] Applied {result.total_applied} patches, escalated {result.total_escalated}",
             extra={"signal_id": str(state.signal_id)},
         )
 
@@ -473,7 +483,10 @@ async def v2_apply_patches(state: V2ProcessorState) -> dict[str, Any]:
             import asyncio
 
             from app.core.pulse_observer import record_pulse_snapshot_debounced
-            asyncio.create_task(record_pulse_snapshot_debounced(state.project_id, trigger="signal_processed"))
+
+            asyncio.create_task(
+                record_pulse_snapshot_debounced(state.project_id, trigger="signal_processed")
+            )
         except Exception as e:
             logger.debug(f"Pulse observer failed (non-fatal): {e}")
 
@@ -536,6 +549,7 @@ async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
     # Speaker resolution (non-critical)
     try:
         from app.core.speaker_resolver import resolve_speakers_for_signal
+
         if chunks:
             resolve_speakers_for_signal(state.project_id, state.signal_id, chunks)
     except Exception as e:
@@ -565,6 +579,9 @@ async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
 
     # Trigger Stakeholder Intelligence for affected stakeholders (fire-and-forget)
     await _trigger_stakeholder_intelligence(state)
+
+    # Regenerate narrative fields if signal affected relevant entities (fire-and-forget)
+    await _trigger_narrative_regeneration(state)
 
     # Mark signal processing complete
     patch_summary: dict[str, Any] = {}
@@ -644,6 +661,114 @@ async def _trigger_stakeholder_intelligence(state: V2ProcessorState) -> None:
         )
 
 
+async def _trigger_narrative_regeneration(state: V2ProcessorState) -> None:
+    """Regenerate vision/background/deal-pulse when signal touches relevant entities.
+
+    Fire-and-forget: failures are logged, never fatal.
+    Only auto-regenerates narratives that are still AI-generated.
+    """
+    if not state.application_result or state.application_result.total_applied == 0:
+        return
+
+    # Check if any applied patches touch narrative-relevant entities
+    relevant_types = {"business_driver", "feature", "persona", "vp_step", "vision"}
+    touched_types = {
+        entry.get("entity_type")
+        for entry in state.application_result.applied
+        if entry.get("entity_type")
+    }
+
+    if not touched_types & relevant_types:
+        return
+
+    logger.info(
+        "[v2] Triggering narrative regeneration (touched: %s)",
+        touched_types & relevant_types,
+        extra={"signal_id": str(state.signal_id)},
+    )
+
+    import asyncio
+
+    try:
+        from app.chains.generate_deal_pulse import generate_deal_pulse
+
+        # Regenerate deal pulse (always — it's a status summary)
+        asyncio.get_event_loop().create_task(
+            asyncio.to_thread(generate_deal_pulse, str(state.project_id))
+        )
+    except Exception as e:
+        logger.debug("[v2] Deal pulse regeneration trigger failed: %s", e)
+
+    try:
+        # Auto-rewrite background if it hasn't been manually edited
+        # Only when pain points or goals are touched
+        driver_touched = "business_driver" in touched_types
+        if driver_touched:
+            from app.db.supabase_client import get_supabase
+
+            client = get_supabase()
+            company_info = (
+                client.table("company_info")
+                .select("description, updated_by")
+                .eq("project_id", str(state.project_id))
+                .maybe_single()
+                .execute()
+            )
+
+            # Only auto-rewrite if background was AI-generated (not manually edited)
+            if company_info and company_info.data:
+                updated_by = company_info.data.get("updated_by")
+                if updated_by != "consultant":
+                    asyncio.get_event_loop().create_task(
+                        asyncio.to_thread(
+                            _auto_rewrite_and_save_background,
+                            str(state.project_id),
+                        )
+                    )
+    except Exception as e:
+        logger.debug("[v2] Narrative regeneration trigger failed: %s", e)
+
+
+def _auto_rewrite_and_save_background(project_id: str) -> None:
+    """Auto-rewrite background using evidence and save it."""
+    try:
+        from app.chains.enhance_narrative import enhance_narrative
+        from app.db.supabase_client import get_supabase
+
+        suggestion = enhance_narrative(
+            project_id=project_id,
+            field="background",
+            mode="rewrite",
+        )
+        if suggestion:
+            client = get_supabase()
+            existing = (
+                client.table("company_info")
+                .select("id")
+                .eq("project_id", project_id)
+                .maybe_single()
+                .execute()
+            )
+
+            if existing and existing.data:
+                client.table("company_info").update(
+                    {
+                        "description": suggestion,
+                    }
+                ).eq("project_id", project_id).execute()
+            else:
+                client.table("company_info").insert(
+                    {
+                        "project_id": project_id,
+                        "description": suggestion,
+                    }
+                ).execute()
+
+            logger.info("Auto-rewrote background for project %s", project_id[:8])
+    except Exception:
+        logger.debug("Auto-rewrite background failed for project %s", project_id[:8])
+
+
 # =============================================================================
 # Pipeline Orchestrator
 # =============================================================================
@@ -683,6 +808,7 @@ async def process_signal_v2(
 
     # Create extraction log for audit trail
     from app.core.extraction_logger import ExtractionLog
+
     state.extraction_log = ExtractionLog(run_id=str(run_id), model="")
 
     try:
@@ -745,8 +871,13 @@ async def process_signal_v2(
 
         # Step 9: Auto-resolve open questions from signal content (non-critical, fire-and-forget)
         try:
-            if state.signal_text and state.application_result and state.application_result.total_applied > 0:
+            if (
+                state.signal_text
+                and state.application_result
+                and state.application_result.total_applied > 0
+            ):
                 from app.core.question_auto_resolver import auto_resolve_from_signal
+
                 await auto_resolve_from_signal(
                     project_id=project_id,
                     signal_content=state.signal_text,
@@ -758,7 +889,8 @@ async def process_signal_v2(
 
         # Step 9b: Extract action items from meeting transcripts (non-critical)
         if state.triage_result and getattr(state.triage_result, "strategy", "") in (
-            "meeting_transcript", "meeting_notes"
+            "meeting_transcript",
+            "meeting_notes",
         ):
             try:
                 from app.chains.extract_action_items import extract_action_items

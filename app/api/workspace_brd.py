@@ -1013,25 +1013,48 @@ async def update_brd_background(project_id: UUID, data: BackgroundUpdate) -> dic
     client = get_client()
 
     try:
-        # Check if company_info row exists
-        existing = client.table("company_info").select(
-            "id"
-        ).eq("project_id", str(project_id)).maybe_single().execute()
-
-        if existing and existing.data:
-            # Update existing row
-            client.table("company_info").update({
-                "description": data.background,
-            }).eq("project_id", str(project_id)).execute()
-        else:
-            # Insert new row
-            client.table("company_info").insert({
+        # Upsert: insert or update in a single call (avoids 204 race conditions)
+        client.table("company_info").upsert(
+            {
                 "project_id": str(project_id),
                 "description": data.background,
-            }).execute()
+            },
+            on_conflict="project_id",
+        ).execute()
 
         return {"success": True, "background": data.background}
 
     except Exception as e:
         logger.exception(f"Failed to update background for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from None
+
+
+# ============================================================================
+# Deal Pulse
+# ============================================================================
+
+
+@router.get("/brd/pulse-text")
+async def get_deal_pulse(project_id: UUID, regenerate: bool = Query(False)) -> dict:
+    """Get the deal pulse — a sales-ready 2-3 sentence project status.
+
+    Cached per project. Pass regenerate=true to force refresh.
+    """
+    from app.chains.generate_deal_pulse import generate_deal_pulse, get_cached_deal_pulse
+
+    try:
+        if not regenerate:
+            cached = get_cached_deal_pulse(str(project_id))
+            if cached:
+                return {"pulse_text": cached, "cached": True}
+
+        # Generate fresh
+        pulse = await asyncio.to_thread(generate_deal_pulse, str(project_id))
+        if pulse:
+            return {"pulse_text": pulse, "cached": False}
+
+        return {"pulse_text": None, "cached": False}
+
+    except Exception as e:
+        logger.exception(f"Failed to get deal pulse for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))

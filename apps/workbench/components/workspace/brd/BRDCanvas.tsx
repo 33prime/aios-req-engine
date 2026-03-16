@@ -8,8 +8,6 @@ import { RequirementsSection } from './sections/RequirementsSection'
 import { ConstraintsSection } from './sections/ConstraintsSection'
 // DataEntitiesSection and StakeholdersSection removed from BRD view (data still in DB)
 import { IntelligenceSection } from './sections/IntelligenceSection'
-import { NeedNarrativeSection } from './sections/NeedNarrativeSection'
-import { GapClusterStrip } from './sections/GapClusterStrip'
 import { SolutionFlowSection } from './sections/SolutionFlowSection'
 import { SolutionFlowModal } from './components/SolutionFlowModal'
 import { WorkflowCreateModal } from './components/WorkflowCreateModal'
@@ -18,7 +16,6 @@ import { DataEntityCreateModal } from './components/DataEntityCreateModal'
 import { StakeholderDetailDrawer } from './components/StakeholderDetailDrawer'
 import { WorkflowStepDetailDrawer } from './components/WorkflowStepDetailDrawer'
 import { WorkflowDetailDrawer } from './components/WorkflowDetailDrawer'
-import { VisionDetailDrawer } from './components/VisionDetailDrawer'
 import { ClientIntelligenceDrawer } from './components/ClientIntelligenceDrawer'
 import { DataEntityDetailDrawer } from './components/DataEntityDetailDrawer'
 import { PersonaDrawer } from './components/PersonaDrawer'
@@ -68,7 +65,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     loadData,
     closeAllDrawers: drawers.closeAllDrawers,
     handleOpenConfidence: drawers.handleOpenConfidence,
-    setVisionDrawer: drawers.setVisionDrawer,
     onSendToChat,
     pendingAction,
     onPendingActionConsumed,
@@ -169,7 +165,17 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
             )}
           </div>
 
-          {/* 1. Solution Flow — promoted to top (hero anchor) */}
+          {/* 1. Deal Pulse — score ring, stage, narrative, next actions */}
+          <IntelligenceSection
+            data={data}
+            health={dataState.health}
+            healthLoading={dataState.healthLoading}
+            onRefreshAll={dataState.handleRefreshHealth}
+            isRefreshing={dataState.isRefreshingHealth}
+            projectId={projectId}
+          />
+
+          {/* 2. Solution Flow */}
           <div id="brd-section-solution-flow" className="mb-8">
             <SolutionFlowSection
               flow={data.solution_flow}
@@ -178,15 +184,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
               isGenerating={workflows.isGeneratingSolutionFlow}
             />
           </div>
-
-          {/* 2. Intelligence Dashboard */}
-          <IntelligenceSection
-            data={data}
-            health={dataState.health}
-            healthLoading={dataState.healthLoading}
-            onRefreshAll={dataState.handleRefreshHealth}
-            isRefreshing={dataState.isRefreshingHealth}
-          />
 
           {/* 3. Confirmation Clusters */}
           {dataState.clusters.length > 0 && (
@@ -209,11 +206,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
             />
           </div>
 
-          {/* 5. What Drove the Need narrative */}
-          <div className="mb-8">
-            <NeedNarrativeSection narrative={data.need_narrative} />
-          </div>
-
           {/* BRD Sections */}
           <div className="space-y-10">
 
@@ -229,8 +221,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           onUpdateBackground={actions.handleUpdateBackground}
           onStatusClick={drawers.handleOpenConfidence}
           sectionScore={sectionScoreMap['vision'] || null}
-          onOpenVisionDetail={drawers.handleOpenVisionDetail}
-          onOpenBackgroundDetail={drawers.handleOpenBackgroundDetail}
           stakeholders={data.stakeholders}
         />
         </div>
@@ -317,8 +307,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
         />
         </div>
 
-        {/* 11. Gap Clusters (awareness strip) */}
-        <GapClusterStrip clusters={data.gap_clusters || []} />
+        {/* Gap clusters removed — low value without drill-down */}
       </div>
         </div>{/* end max-w-4xl */}
       </div>{/* end flex-1 overflow-y-auto (BRD content) */}
@@ -409,21 +398,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           onViewStepDetail={(stepId) => {
             drawers.setWorkflowDetailDrawer({ open: false, workflowId: '' })
             drawers.setStepDetailDrawer({ open: true, stepId })
-          }}
-        />
-      )}
-
-      {/* Vision Detail Drawer */}
-      {drawers.visionDrawer && (
-        <VisionDetailDrawer
-          projectId={projectId}
-          initialVision={data.business_context.vision}
-          onClose={() => drawers.setVisionDrawer(false)}
-          onVisionUpdated={(vision) => {
-            setData((prev) => prev ? {
-              ...prev,
-              business_context: { ...prev.business_context, vision },
-            } : prev)
           }}
         />
       )}

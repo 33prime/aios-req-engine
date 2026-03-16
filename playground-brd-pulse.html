@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BRD Deal Pulse + Narratives Playground</title>
+<style>
+  :root {
+    --brand-primary: #3FAF7A;
+    --brand-dark: #25785A;
+    --navy: #0A1E2F;
+    --teal-dark: #044159;
+    --text-body: #37352f;
+    --text-secondary: #666666;
+    --text-placeholder: #999999;
+    --border: #E5E5E5;
+    --surface: #F5F5F5;
+    --bg: #FAFAFA;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Controls Panel ── */
+  .controls {
+    width: 300px;
+    background: #16213e;
+    border-right: 1px solid #333;
+    overflow-y: auto;
+    padding: 20px;
+    flex-shrink: 0;
+  }
+
+  .controls h2 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--brand-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #333;
+  }
+
+  .control-group {
+    margin-bottom: 16px;
+  }
+
+  .control-group label {
+    display: block;
+    font-size: 11px;
+    color: #aaa;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .control-group input[type="range"] {
+    width: 100%;
+    accent-color: var(--brand-primary);
+  }
+
+  .control-group input[type="text"],
+  .control-group textarea,
+  .control-group select {
+    width: 100%;
+    background: #1a1a2e;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+
+  .control-group textarea {
+    resize: vertical;
+    min-height: 60px;
+  }
+
+  .range-value {
+    float: right;
+    font-size: 11px;
+    color: var(--brand-primary);
+    font-weight: 600;
+  }
+
+  .presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .presets button {
+    padding: 4px 10px;
+    font-size: 11px;
+    background: #1a1a2e;
+    border: 1px solid #444;
+    color: #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .presets button:hover {
+    border-color: var(--brand-primary);
+    color: var(--brand-primary);
+  }
+
+  .presets button.active {
+    background: var(--brand-primary);
+    color: white;
+    border-color: var(--brand-primary);
+  }
+
+  /* ── Preview Panel ── */
+  .preview-panel {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg);
+    padding: 32px;
+  }
+
+  .preview-container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* ── Deal Pulse Strip ── */
+  .pulse-strip {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .pulse-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 0;
+  }
+
+  .pulse-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .score-ring-container {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+  }
+
+  .score-ring-container svg {
+    transform: rotate(-90deg);
+  }
+
+  .score-ring-container .score-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform: none;
+  }
+
+  .score-ring-container .score-number {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .score-ring-container .score-label {
+    font-size: 8px;
+    text-transform: lowercase;
+    color: var(--text-placeholder);
+    margin-top: 1px;
+  }
+
+  .pulse-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .stage-journey {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .stage-step {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .stage-step.current {
+    background: var(--brand-primary);
+    color: white;
+    font-weight: 600;
+  }
+
+  .stage-step.past {
+    color: var(--brand-primary);
+    font-weight: 500;
+  }
+
+  .stage-step.future {
+    color: #D4D4D4;
+  }
+
+  .stage-connector {
+    width: 12px;
+    height: 1px;
+    background: #D4D4D4;
+  }
+
+  .stage-connector.done {
+    background: var(--brand-primary);
+  }
+
+  .sub-metrics {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .sub-metric {
+    background: var(--surface);
+    color: #7B7B7B;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
+  .pulse-narrative {
+    padding: 12px 24px 16px;
+  }
+
+  .pulse-narrative p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  .pulse-narrative .empty {
+    font-size: 13px;
+    color: var(--text-placeholder);
+    font-style: italic;
+  }
+
+  /* Next Actions */
+  .next-actions {
+    border-top: 1px solid #F0F0F0;
+    padding: 16px 24px 20px;
+  }
+
+  .next-actions-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-placeholder);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+
+  .actions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .action-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .action-card:hover {
+    border-color: var(--brand-primary);
+    background: white;
+  }
+
+  .action-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .action-number {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--brand-primary);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .action-badge {
+    font-size: 9px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .badge-research { background: #D1FAE5; color: #047857; }
+  .badge-interview { background: rgba(4,65,89,0.06); color: #044159; }
+  .badge-signal { background: rgba(63,175,122,0.08); color: #2a8f5f; }
+  .badge-review { background: rgba(4,65,89,0.08); color: #044159; }
+
+  .action-sentence {
+    font-size: 12px;
+    color: #4B4B4B;
+    line-height: 1.4;
+    flex: 1;
+  }
+
+  .action-arrow {
+    color: #D4D4D4;
+    font-size: 14px;
+    align-self: flex-end;
+    transition: color 0.15s;
+  }
+
+  .action-card:hover .action-arrow {
+    color: var(--brand-primary);
+  }
+
+  /* ── Section Divider ── */
+  .section-gap {
+    height: 32px;
+  }
+
+  /* ── Narrative Cards (Background + Vision) ── */
+  .narrative-section {
+    margin-bottom: 32px;
+  }
+
+  .narrative-section h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-body);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .narrative-section h2 .icon {
+    width: 20px;
+    height: 20px;
+    color: var(--text-placeholder);
+  }
+
+  .narrative-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+  }
+
+  .narrative-card .company-meta {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-body);
+    margin-bottom: 4px;
+  }
+
+  .narrative-card .company-meta .industry {
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+
+  .narrative-card .narrative-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  .narrative-card .empty-text {
+    font-size: 13px;
+    color: var(--text-placeholder);
+    font-style: italic;
+  }
+
+  .narrative-card .hover-actions {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .narrative-card:hover .hover-actions {
+    opacity: 1;
+  }
+
+  .hover-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--text-placeholder);
+    border: none;
+    background: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .hover-btn:hover {
+    color: var(--brand-primary);
+    background: var(--surface);
+  }
+
+  .hover-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* ── Edit Menu (3-option) ── */
+  .edit-menu {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-top: 8px;
+  }
+
+  .edit-menu-option {
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.1s;
+    border-bottom: 1px solid #F0F0F0;
+  }
+
+  .edit-menu-option:last-child {
+    border-bottom: none;
+  }
+
+  .edit-menu-option:hover {
+    background: var(--bg);
+  }
+
+  .edit-menu-option .opt-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .edit-menu-option .opt-icon.ai {
+    color: var(--brand-primary);
+  }
+
+  .edit-menu-option .opt-icon.gray {
+    color: var(--text-secondary);
+  }
+
+  .edit-menu-option .opt-text .opt-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-body);
+  }
+
+  .edit-menu-option .opt-text .opt-desc {
+    font-size: 11px;
+    color: var(--text-placeholder);
+  }
+
+  .cancel-link {
+    font-size: 11px;
+    color: var(--text-placeholder);
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+
+  .cancel-link:hover {
+    color: var(--text-secondary);
+  }
+
+  /* ── State toggles ── */
+  .state-label {
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 4px;
+  }
+
+  /* ── Prompt Output ── */
+  .prompt-output {
+    background: #16213e;
+    border-top: 1px solid #333;
+    padding: 16px 20px;
+    position: fixed;
+    bottom: 0;
+    left: 300px;
+    right: 0;
+    z-index: 10;
+  }
+
+  .prompt-output .prompt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .prompt-output .prompt-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+  }
+
+  .prompt-output .copy-btn {
+    padding: 4px 12px;
+    font-size: 11px;
+    background: var(--brand-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .prompt-output .copy-btn:hover {
+    background: var(--brand-dark);
+  }
+
+  .prompt-output .prompt-text {
+    font-size: 12px;
+    color: #ccc;
+    line-height: 1.5;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    max-height: 80px;
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ CONTROLS ═══════════════════════ -->
+<div class="controls">
+  <h2>Deal Pulse Strip</h2>
+
+  <div class="presets">
+    <button onclick="applyPreset('early')" id="preset-early">Early Stage</button>
+    <button onclick="applyPreset('mid')" id="preset-mid">Mid Build</button>
+    <button onclick="applyPreset('strong')" id="preset-strong">Strong</button>
+    <button onclick="applyPreset('empty')" id="preset-empty">Empty</button>
+  </div>
+
+  <div class="control-group">
+    <label>Health Score <span class="range-value" id="score-val">62</span></label>
+    <input type="range" min="0" max="100" value="62" id="ctrl-score" oninput="state.score=+this.value;updateAll()">
+  </div>
+
+  <div class="control-group">
+    <label>Stage</label>
+    <select id="ctrl-stage" onchange="state.stage=this.value;updateAll()">
+      <option value="discovery">Discovery</option>
+      <option value="validation">Validation</option>
+      <option value="prototype">Prototype</option>
+      <option value="build">Build</option>
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label>Coverage % <span class="range-value" id="cov-val">65</span></label>
+    <input type="range" min="0" max="100" value="65" id="ctrl-coverage" oninput="state.coverage=+this.value;updateAll()">
+  </div>
+
+  <div class="control-group">
+    <label>Confidence % <span class="range-value" id="conf-val">48</span></label>
+    <input type="range" min="0" max="100" value="48" id="ctrl-confidence" oninput="state.confidence=+this.value;updateAll()">
+  </div>
+
+  <div class="control-group">
+    <label>Readiness % <span class="range-value" id="read-val">32</span></label>
+    <input type="range" min="0" max="100" value="32" id="ctrl-readiness" oninput="state.readiness=+this.value;updateAll()">
+  </div>
+
+  <div class="control-group">
+    <label>Pulse Narrative</label>
+    <textarea id="ctrl-pulse-text" oninput="state.pulseText=this.value;updateAll()">We've mapped out the core journey across 3 workflows and identified strong pain points around manual reporting. Two new insights from yesterday's call need your confirmation before we can lock down the KPI targets.</textarea>
+  </div>
+
+  <h2 style="margin-top:20px">Background & Vision</h2>
+
+  <div class="control-group">
+    <label>Background State</label>
+    <select id="ctrl-bg-state" onchange="state.bgState=this.value;updateAll()">
+      <option value="filled">Filled</option>
+      <option value="editing">Edit Menu Open</option>
+      <option value="empty">Empty</option>
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label>Background Text</label>
+    <textarea id="ctrl-bg-text" oninput="state.bgText=this.value;updateAll()">Acme Corp's field sales team has spent the last two years wrestling with manual reporting processes that consume over 7 hours per week per rep. Previous attempts to automate through spreadsheet macros fell short of the real-time visibility executives need for quarterly planning.</textarea>
+  </div>
+
+  <div class="control-group">
+    <label>Vision State</label>
+    <select id="ctrl-vis-state" onchange="state.visState=this.value;updateAll()">
+      <option value="filled">Filled</option>
+      <option value="editing">Edit Menu Open</option>
+      <option value="empty">Empty</option>
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label>Vision Text</label>
+    <textarea id="ctrl-vis-text" oninput="state.visText=this.value;updateAll()">A real-time analytics platform that transforms field sales from reactive reporting to proactive opportunity capture — giving every rep a personal command center and every manager live pipeline visibility.</textarea>
+  </div>
+
+  <div class="control-group">
+    <label>Company Name</label>
+    <input type="text" id="ctrl-company" oninput="state.company=this.value;updateAll()" value="Acme Corp">
+  </div>
+
+  <div class="control-group">
+    <label>Industry</label>
+    <input type="text" id="ctrl-industry" oninput="state.industry=this.value;updateAll()" value="Enterprise SaaS">
+  </div>
+</div>
+
+<!-- ═══════════════════════ PREVIEW ═══════════════════════ -->
+<div class="preview-panel" style="padding-bottom: 140px;">
+  <div class="preview-container" id="preview"></div>
+</div>
+
+<!-- ═══════════════════════ PROMPT OUTPUT ═══════════════════════ -->
+<div class="prompt-output">
+  <div class="prompt-header">
+    <span class="prompt-label">Implementation Prompt</span>
+    <button class="copy-btn" onclick="copyPrompt()">Copy</button>
+  </div>
+  <div class="prompt-text" id="prompt-text"></div>
+</div>
+
+<script>
+// ── SVG icons ──
+const ICONS = {
+  building: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>`,
+  eye: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+  brain: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>`,
+  pencil: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`,
+  sparkles: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>`,
+  filetext: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>`,
+  copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`,
+};
+
+const STAGES = ['discovery', 'validation', 'prototype', 'build'];
+const STAGE_LABELS = { discovery: 'Discovery', validation: 'Validation', prototype: 'Prototype', build: 'Build' };
+
+const MOCK_ACTIONS = [
+  { sentence: "Let's identify some more competitors — we have 0 so far and could use around 5", badge: 'research', unblocks_gate: false },
+  { sentence: "Let's identify some more stakeholders — we have 1 so far and could use around 5", badge: 'interview', unblocks_gate: false },
+  { sentence: "Let's identify some more constraints — we have 3 so far and could use around 6", badge: 'signal', unblocks_gate: false },
+];
+
+// ── State ──
+const state = {
+  score: 62,
+  stage: 'discovery',
+  coverage: 65,
+  confidence: 48,
+  readiness: 32,
+  pulseText: document.getElementById('ctrl-pulse-text').value,
+  bgState: 'filled',
+  bgText: document.getElementById('ctrl-bg-text').value,
+  visState: 'filled',
+  visText: document.getElementById('ctrl-vis-text').value,
+  company: 'Acme Corp',
+  industry: 'Enterprise SaaS',
+};
+
+// ── Presets ──
+const PRESETS = {
+  early: { score: 28, stage: 'discovery', coverage: 22, confidence: 15, readiness: 8, pulseText: "We're just getting started — a few pain points have surfaced around manual reporting but we need more stakeholder input to understand the full picture. The next call with the sales VP should clarify priorities.", bgState: 'filled', visState: 'empty' },
+  mid: { score: 62, stage: 'discovery', coverage: 65, confidence: 48, readiness: 32, pulseText: "We've mapped out the core journey across 3 workflows and identified strong pain points around manual reporting. Two new insights from yesterday's call need your confirmation before we can lock down the KPI targets.", bgState: 'filled', visState: 'filled' },
+  strong: { score: 84, stage: 'validation', coverage: 88, confidence: 76, readiness: 65, pulseText: "The requirements picture is coming together nicely. All critical workflows are confirmed, pain points are well-documented with KPI targets, and the solution flow has been reviewed with the client. We're ready to start validating the prototype direction.", bgState: 'filled', visState: 'filled' },
+  empty: { score: 0, stage: 'discovery', coverage: 0, confidence: 0, readiness: 0, pulseText: '', bgState: 'empty', visState: 'empty', bgText: '', visText: '' },
+};
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  Object.assign(state, p);
+
+  document.getElementById('ctrl-score').value = state.score;
+  document.getElementById('ctrl-stage').value = state.stage;
+  document.getElementById('ctrl-coverage').value = state.coverage;
+  document.getElementById('ctrl-confidence').value = state.confidence;
+  document.getElementById('ctrl-readiness').value = state.readiness;
+  document.getElementById('ctrl-pulse-text').value = state.pulseText;
+  document.getElementById('ctrl-bg-state').value = state.bgState;
+  document.getElementById('ctrl-vis-state').value = state.visState;
+
+  document.querySelectorAll('.presets button').forEach(b => b.classList.remove('active'));
+  document.getElementById('preset-' + name)?.classList.add('active');
+
+  updateAll();
+}
+
+// ── Render ──
+function getScoreColor(score) {
+  if (score >= 70) return '#3FAF7A';
+  if (score >= 40) return '#044159';
+  return '#D4D4D4';
+}
+
+function renderScoreRing(score) {
+  const r = 24;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference - (score / 100) * circumference;
+  const color = getScoreColor(score);
+
+  return `
+    <div class="score-ring-container">
+      <svg width="60" height="60" viewBox="0 0 60 60">
+        <circle cx="30" cy="30" r="${r}" fill="none" stroke="#F0F0F0" stroke-width="4"/>
+        <circle cx="30" cy="30" r="${r}" fill="none" stroke="${color}" stroke-width="4"
+          stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+          stroke-linecap="round" style="transition: stroke-dashoffset 0.8s ease-out"/>
+      </svg>
+      <div class="score-text">
+        <span class="score-number" style="color:${color}">${Math.round(score)}</span>
+        <span class="score-label">%</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderStageJourney() {
+  const idx = STAGES.indexOf(state.stage);
+  return `<div class="stage-journey">
+    ${STAGES.map((s, i) => {
+      const cls = i < idx ? 'past' : i === idx ? 'current' : 'future';
+      const connector = i > 0 ? `<div class="stage-connector ${i <= idx ? 'done' : ''}"></div>` : '';
+      return `${connector}<span class="stage-step ${cls}">${STAGE_LABELS[s]}</span>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderActions() {
+  return `
+    <div class="next-actions">
+      <div class="next-actions-header">Next Actions</div>
+      <div class="actions-grid">
+        ${MOCK_ACTIONS.map((a, i) => `
+          <div class="action-card">
+            <div class="action-card-header">
+              <span class="action-number">${i + 1}</span>
+              <span class="action-badge badge-${a.badge}">${a.badge}</span>
+            </div>
+            <p class="action-sentence">${a.sentence}</p>
+            <span class="action-arrow">→</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderEditMenu() {
+  return `
+    <div class="edit-menu">
+      <button class="edit-menu-option">
+        <span class="opt-icon gray">${ICONS.pencil}</span>
+        <div class="opt-text">
+          <div class="opt-title">Edit manually</div>
+          <div class="opt-desc">Open a text field to edit directly</div>
+        </div>
+      </button>
+      <button class="edit-menu-option">
+        <span class="opt-icon ai">${ICONS.sparkles}</span>
+        <div class="opt-text">
+          <div class="opt-title">Rewrite with evidence</div>
+          <div class="opt-desc">AI rewrites using all provenance</div>
+        </div>
+      </button>
+      <button class="edit-menu-option">
+        <span class="opt-icon gray">${ICONS.filetext}</span>
+        <div class="opt-text">
+          <div class="opt-title">Add notes & rewrite</div>
+          <div class="opt-desc">Give direction, AI incorporates it</div>
+        </div>
+      </button>
+    </div>
+    <button class="cancel-link">Cancel</button>
+  `;
+}
+
+function renderNarrativeCard(field, icon, title, text, cardState, companyMeta) {
+  const isEmpty = cardState === 'empty' || !text;
+  const showMenu = cardState === 'editing';
+
+  let content = '';
+  const emptyMessages = {
+    background: 'As signals come in — meeting notes, emails, research — this section will tell the story of what led to this initiative and why now is the right time.',
+    vision: 'As goals and pain points take shape, this section will paint the picture of what success looks like once the solution is in place.',
+  };
+
+  if (showMenu) {
+    content = renderEditMenu();
+  } else if (isEmpty) {
+    content = `<p class="empty-text">${emptyMessages[field] || 'Not yet available.'}</p>
+      <div class="hover-actions" style="opacity:1">
+        <button class="hover-btn"><span>${ICONS.pencil}</span> Edit</button>
+      </div>`;
+  } else {
+    const meta = companyMeta && field === 'background' && companyMeta.name
+      ? `<p class="company-meta">${companyMeta.name}${companyMeta.industry ? ` <span class="industry">— ${companyMeta.industry}</span>` : ''}</p>`
+      : '';
+    content = `
+      ${meta}
+      <p class="narrative-text">${text}</p>
+      <div class="hover-actions">
+        <button class="hover-btn"><span>${ICONS.pencil}</span> Edit</button>
+        <button class="hover-btn"><span>${ICONS.copy}</span> Copy</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="narrative-section">
+      <h2><span class="icon">${icon}</span>${title}</h2>
+      <div class="narrative-card">${content}</div>
+    </div>
+  `;
+}
+
+function renderPreview() {
+  const preview = document.getElementById('preview');
+
+  // Deal Pulse Strip
+  const pulseStrip = `
+    <div class="pulse-strip">
+      <div class="pulse-header">
+        <div class="pulse-header-left">
+          ${renderScoreRing(state.score)}
+          <div class="pulse-meta">
+            ${renderStageJourney()}
+            <div class="sub-metrics">
+              <span class="sub-metric">Coverage ${state.coverage}%</span>
+              <span class="sub-metric">Confidence ${state.confidence}%</span>
+              <span class="sub-metric">Readiness ${state.readiness}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pulse-narrative">
+        ${state.pulseText
+          ? `<p>${state.pulseText}</p>`
+          : `<p class="empty">Add more signals and entities to generate a project summary.</p>`
+        }
+      </div>
+      ${renderActions()}
+    </div>
+  `;
+
+  // Background + Vision cards
+  const companyMeta = state.company ? { name: state.company, industry: state.industry } : null;
+  const bgCard = renderNarrativeCard('background', ICONS.building, 'What drove the need for this solution', state.bgText, state.bgState, companyMeta);
+  const visCard = renderNarrativeCard('vision', ICONS.eye, 'Vision', state.visText, state.visState, null);
+
+  preview.innerHTML = pulseStrip + `<div class="section-gap"></div>` + bgCard + visCard;
+}
+
+function updateAll() {
+  // Update range labels
+  document.getElementById('score-val').textContent = state.score;
+  document.getElementById('cov-val').textContent = state.coverage;
+  document.getElementById('conf-val').textContent = state.confidence;
+  document.getElementById('read-val').textContent = state.readiness;
+
+  renderPreview();
+  updatePrompt();
+}
+
+function updatePrompt() {
+  const parts = [];
+  parts.push('The Deal Pulse strip should:');
+  parts.push(`- Show a score ring (${state.score}% health) from getPulseSnapshot, with stage "${state.stage}"`);
+  parts.push('- Display Coverage/Confidence/Readiness sub-metrics from pulse.forecast');
+  parts.push('- Show a Haiku-generated narrative from getDealPulse endpoint (sales-ready, 2-3 sentences)');
+  parts.push('- Render NEXT ACTIONS as a 3-column grid matching ProjectHealthOverlay exactly');
+  parts.push('  (green numbered circles, RESEARCH/INTERVIEW/SIGNAL/REVIEW badges, arrow →)');
+  parts.push('- Use getPulseSnapshot for score/stage/actions and getDealPulse for narrative text');
+  parts.push('');
+  parts.push('Background and Vision cards should:');
+  parts.push('- Use the NarrativeEditor component with 3-option menu (Edit manually / Rewrite with evidence / Add notes & rewrite)');
+  parts.push('- Include a Copy button (plain text clipboard)');
+  parts.push('- Call POST /brd/narrative/enhance for AI rewrites');
+  parts.push('- No side panels or drawers needed');
+
+  document.getElementById('prompt-text').textContent = parts.join('\n');
+}
+
+function copyPrompt() {
+  const text = document.getElementById('prompt-text').textContent;
+  navigator.clipboard.writeText(text);
+  const btn = document.querySelector('.copy-btn');
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.textContent = 'Copy', 1500);
+}
+
+// ── Init ──
+applyPreset('mid');
+</script>
+</body>
+</html>

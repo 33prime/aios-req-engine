@@ -1,5 +1,11 @@
-"""Workspace endpoints for vision CRUD and enhancement."""
+"""Workspace endpoints for vision and background narrative CRUD and enhancement.
 
+Vision = future state (what success looks like based on problems, goals, pain).
+Background = problem provenance (the past that led to the present).
+Together they define a clear problem/solution statement.
+"""
+
+import asyncio
 import logging
 from uuid import UUID
 
@@ -20,12 +26,20 @@ router = APIRouter()
 
 class VisionUpdate(BaseModel):
     """Request body for updating project vision."""
+
     vision: str
 
 
-class VisionEnhanceRequest(BaseModel):
-    """Request body for enhancing vision."""
-    enhancement_type: str  # enhance, simplify, metrics, professional
+class NarrativeEnhanceRequest(BaseModel):
+    """Request body for enhancing vision or background."""
+
+    field: str  # 'vision' or 'background'
+    mode: str  # 'rewrite' or 'notes'
+    user_notes: str | None = None
+
+
+class NarrativeEnhanceResponse(BaseModel):
+    suggestion: str
 
 
 # ============================================================================
@@ -39,10 +53,17 @@ async def update_vision(project_id: UUID, data: VisionUpdate) -> dict:
     client = get_client()
 
     try:
-        result = client.table("projects").update({
-            "vision": data.vision,
-            "vision_updated_at": "now()",
-        }).eq("id", str(project_id)).execute()
+        result = (
+            client.table("projects")
+            .update(
+                {
+                    "vision": data.vision,
+                    "vision_updated_at": "now()",
+                }
+            )
+            .eq("id", str(project_id))
+            .execute()
+        )
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Project not found")
@@ -50,6 +71,7 @@ async def update_vision(project_id: UUID, data: VisionUpdate) -> dict:
         # Track vision change for revision history
         try:
             from app.core.change_tracking import track_entity_change
+
             track_entity_change(
                 project_id=project_id,
                 entity_type="vision",
@@ -63,91 +85,44 @@ async def update_vision(project_id: UUID, data: VisionUpdate) -> dict:
         except Exception:
             logger.debug("Could not track vision change — revision tracking may not be set up")
 
-        # Trigger async vision analysis (fire and forget)
-        import asyncio
-        try:
-            from app.chains.analyze_vision import analyze_vision_clarity
-            asyncio.get_event_loop().create_task(
-                analyze_vision_clarity(project_id, data.vision)
-            )
-        except Exception:
-            logger.debug("Could not trigger async vision analysis")
-
         return {"success": True, "vision": data.vision}
 
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Failed to update vision for project {project_id}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from None
 
 
-@router.post("/vision/enhance")
-async def enhance_vision_endpoint(project_id: UUID, data: VisionEnhanceRequest) -> dict:
-    """Enhance the project vision using AI."""
-    from app.chains.enhance_vision import enhance_vision
+@router.post("/brd/narrative/enhance", response_model=NarrativeEnhanceResponse)
+async def enhance_narrative_endpoint(
+    project_id: UUID,
+    body: NarrativeEnhanceRequest,
+) -> NarrativeEnhanceResponse:
+    """Generate an AI-enhanced version of the vision or background narrative.
+
+    Uses Haiku 4.5 with full BRD context (drivers, features, signals).
+    Modes: 'rewrite' (full AI rewrite from evidence) or 'notes' (consultant direction).
+    """
+    from app.chains.enhance_narrative import enhance_narrative
+
+    if body.field not in ("vision", "background"):
+        raise HTTPException(status_code=400, detail="field must be 'vision' or 'background'")
+    if body.mode not in ("rewrite", "notes"):
+        raise HTTPException(status_code=400, detail="mode must be 'rewrite' or 'notes'")
 
     try:
-        suggestion = await enhance_vision(project_id, data.enhancement_type)
-        return {"suggestion": suggestion}
+        suggestion = await asyncio.to_thread(
+            enhance_narrative,
+            project_id=str(project_id),
+            field=body.field,
+            mode=body.mode,
+            user_notes=body.user_notes,
+        )
+        return NarrativeEnhanceResponse(suggestion=suggestion)
+
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
-        logger.exception(f"Failed to enhance vision for project {project_id}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/vision/detail")
-async def get_vision_detail(project_id: UUID) -> dict:
-    """
-    Get vision detail including analysis scores and revision history.
-    Used by the VisionDetailDrawer.
-    """
-    client = get_client()
-
-    try:
-        project = client.table("projects").select(
-            "vision, vision_analysis, vision_updated_at"
-        ).eq("id", str(project_id)).single().execute()
-
-        if not project.data:
-            raise HTTPException(status_code=404, detail="Project not found")
-
-        # Count features for alignment context
-        features_result = client.table("features").select(
-            "id", count="exact"
-        ).eq("project_id", str(project_id)).execute()
-        total_features = features_result.count or 0
-
-        # Load revision history for vision
-        revisions: list[dict] = []
-        try:
-            from app.db.revisions_enrichment import list_entity_revisions
-            rev_data = list_entity_revisions("vision", project_id, limit=20)
-            revisions = [
-                {
-                    "revision_number": r.get("revision_number", 0),
-                    "revision_type": r.get("revision_type", ""),
-                    "diff_summary": r.get("diff_summary", ""),
-                    "changes": r.get("changes"),
-                    "created_at": r.get("created_at", ""),
-                    "created_by": r.get("created_by"),
-                }
-                for r in (rev_data or [])
-            ]
-        except Exception:
-            logger.debug("Could not load vision revisions")
-
-        return {
-            "vision": project.data.get("vision"),
-            "vision_analysis": project.data.get("vision_analysis"),
-            "vision_updated_at": project.data.get("vision_updated_at"),
-            "total_features": total_features,
-            "revisions": revisions,
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(f"Failed to get vision detail for project {project_id}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Failed to enhance {body.field} for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from None

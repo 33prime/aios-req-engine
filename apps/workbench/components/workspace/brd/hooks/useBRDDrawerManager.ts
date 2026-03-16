@@ -66,8 +66,6 @@ export function useBRDDrawerManager(data: BRDWorkspaceData | null) {
     open: boolean; driverId: string; driverType: 'pain' | 'goal' | 'kpi'; initialData: BusinessDriver | null
   }>({ open: false, driverId: '', driverType: 'pain', initialData: null })
 
-  // Vision Detail Drawer
-  const [visionDrawer, setVisionDrawer] = useState(false)
   const [clientIntelDrawer, setClientIntelDrawer] = useState(false)
 
   // Data Entity Detail Drawer
@@ -86,7 +84,6 @@ export function useBRDDrawerManager(data: BRDWorkspaceData | null) {
     setConstraintDrawer({ open: false, constraint: null })
     setFeatureDrawer({ open: false, feature: null })
     setDriverDrawer({ open: false, driverId: '', driverType: 'pain', initialData: null })
-    setVisionDrawer(false)
     setClientIntelDrawer(false)
     setDataEntityDrawer({ open: false, entityId: '' })
   }, [])
@@ -175,30 +172,11 @@ export function useBRDDrawerManager(data: BRDWorkspaceData | null) {
     setWorkflowDetailDrawer({ open: true, workflowId })
   }, [])
 
-  const handleOpenVisionDetail = useCallback(() => {
-    setStakeholderDrawer({ open: false, stakeholder: null })
-    setConfidenceDrawer((prev) => ({ ...prev, open: false }))
-    setStepDetailDrawer({ open: false, stepId: '' })
-    setWorkflowDetailDrawer({ open: false, workflowId: '' })
-    setClientIntelDrawer(false)
-    setVisionDrawer(true)
-  }, [])
-
-  const handleOpenBackgroundDetail = useCallback(() => {
-    setStakeholderDrawer({ open: false, stakeholder: null })
-    setConfidenceDrawer((prev) => ({ ...prev, open: false }))
-    setStepDetailDrawer({ open: false, stepId: '' })
-    setWorkflowDetailDrawer({ open: false, workflowId: '' })
-    setVisionDrawer(false)
-    setClientIntelDrawer(true)
-  }, [])
-
   const handleOpenDataEntityDetail = useCallback((entityId: string) => {
     setStakeholderDrawer({ open: false, stakeholder: null })
     setConfidenceDrawer((prev) => ({ ...prev, open: false }))
     setStepDetailDrawer({ open: false, stepId: '' })
     setWorkflowDetailDrawer({ open: false, workflowId: '' })
-    setVisionDrawer(false)
     setClientIntelDrawer(false)
     setDataEntityDrawer({ open: true, entityId })
   }, [])
@@ -223,8 +201,6 @@ export function useBRDDrawerManager(data: BRDWorkspaceData | null) {
     setFeatureDrawer,
     driverDrawer,
     setDriverDrawer,
-    visionDrawer,
-    setVisionDrawer,
     clientIntelDrawer,
     setClientIntelDrawer,
     dataEntityDrawer,
@@ -235,8 +211,6 @@ export function useBRDDrawerManager(data: BRDWorkspaceData | null) {
     handleOpenConfidence,
     handleViewStepDetail,
     handleViewWorkflowDetail,
-    handleOpenVisionDetail,
-    handleOpenBackgroundDetail,
     handleOpenDataEntityDetail,
   }
 }

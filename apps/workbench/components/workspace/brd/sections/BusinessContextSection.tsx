@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Building2, AlertTriangle, Target, Eye, BarChart3, Pencil, Sparkles, Loader2, Check, X } from 'lucide-react'
+import { Building2, AlertTriangle, Target, Eye, BarChart3 } from 'lucide-react'
 import { BusinessDriverDetailDrawer } from '../components/BusinessDriverDetailDrawer'
 import { DriverContainer } from '../components/DriverContainer'
 import { DriverItemRow } from '../components/DriverItemRow'
-import { enhanceVision } from '@/lib/api'
+import { NarrativeEditor } from '../components/NarrativeEditor'
 import type { BRDWorkspaceData, BusinessDriver, SectionScore, StakeholderBRDSummary } from '@/types/workspace'
 
 interface BusinessContextSectionProps {
@@ -18,8 +18,6 @@ interface BusinessContextSectionProps {
   onUpdateBackground: (background: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
   sectionScore?: SectionScore | null
-  onOpenVisionDetail?: () => void
-  onOpenBackgroundDetail?: () => void
   stakeholders?: StakeholderBRDSummary[]
 }
 
@@ -40,14 +38,8 @@ export function BusinessContextSection({
   onUpdateBackground,
   onStatusClick,
   sectionScore,
-  onOpenVisionDetail,
-  onOpenBackgroundDetail,
   stakeholders = [],
 }: BusinessContextSectionProps) {
-  const [editingVision, setEditingVision] = useState(false)
-  const [visionDraft, setVisionDraft] = useState(data.vision || '')
-  const [editingBackground, setEditingBackground] = useState(false)
-  const [backgroundDraft, setBackgroundDraft] = useState(data.background || '')
   const [showAllGoals, setShowAllGoals] = useState(false)
   const [showAllPains, setShowAllPains] = useState(false)
   const [showAllMetrics, setShowAllMetrics] = useState(false)
@@ -55,52 +47,6 @@ export function BusinessContextSection({
 
   // Which driver row is expanded inline (only one at a time)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-
-  // Vision AI Enhance state
-  const [showEnhanceMenu, setShowEnhanceMenu] = useState(false)
-  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
-  const [isEnhancing, setIsEnhancing] = useState(false)
-  const [enhancementError, setEnhancementError] = useState<string | null>(null)
-
-  const handleEnhanceVision = async (type: string) => {
-    setShowEnhanceMenu(false)
-    setIsEnhancing(true)
-    setEnhancementError(null)
-    setAiSuggestion(null)
-    try {
-      const result = await enhanceVision(projectId, type)
-      setAiSuggestion(result.suggestion)
-    } catch (err) {
-      setEnhancementError(err instanceof Error ? err.message : 'Enhancement failed')
-    } finally {
-      setIsEnhancing(false)
-    }
-  }
-
-  const handleAcceptSuggestion = () => {
-    if (aiSuggestion) {
-      onUpdateVision(aiSuggestion)
-      setAiSuggestion(null)
-    }
-  }
-
-  const handleEditSuggestion = () => {
-    if (aiSuggestion) {
-      setVisionDraft(aiSuggestion)
-      setEditingVision(true)
-      setAiSuggestion(null)
-    }
-  }
-
-  const handleSaveVision = () => {
-    onUpdateVision(visionDraft)
-    setEditingVision(false)
-  }
-
-  const handleSaveBackground = () => {
-    onUpdateBackground(backgroundDraft)
-    setEditingBackground(false)
-  }
 
   const confirmedPains = data.pain_points.filter(
     (p) => p.confirmation_status === 'confirmed_consultant' || p.confirmation_status === 'confirmed_client'
@@ -131,206 +77,44 @@ export function BusinessContextSection({
   const visiblePains = showAllPains ? sortedPains : sortedPains.slice(0, SHOW_MAX_DRIVERS)
   const visibleMetrics = showAllMetrics ? sortedMetrics : sortedMetrics.slice(0, SHOW_MAX_METRICS)
 
+  const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+
   return (
     <section id="brd-section-business-context" className="space-y-8">
-      {/* Background */}
+      {/* Background — Problem Provenance */}
       <div>
         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
           <Building2 className="w-5 h-5 text-text-placeholder" />
           What drove the need for this solution
         </h2>
         <div className="bg-white rounded-2xl shadow-md border border-border p-5">
-          {editingBackground ? (
-            <div className="space-y-3">
-              <textarea
-                value={backgroundDraft}
-                onChange={(e) => setBackgroundDraft(e.target.value)}
-                className="w-full p-3 text-[14px] text-text-body border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary resize-y min-h-[80px]"
-                placeholder="What drove the need for this solution..."
-                autoFocus
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSaveBackground}
-                  className="px-3 py-1.5 text-[12px] font-medium text-white bg-brand-primary rounded-xl hover:bg-[#25785A] transition-colors"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => { setEditingBackground(false); setBackgroundDraft(data.background || '') }}
-                  className="px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-border rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="group">
-              {data.company_name && (
-                <p className="text-[14px] font-medium text-text-body mb-1">
-                  {data.company_name}
-                  {data.industry && (
-                    <span className="text-[#666666] font-normal"> &mdash; {data.industry}</span>
-                  )}
-                </p>
-              )}
-              {data.background ? (
-                <p className="text-[14px] text-[#666666] leading-relaxed">{data.background}</p>
-              ) : (
-                <p className="text-[13px] text-text-placeholder italic">No background description yet. Click to add one.</p>
-              )}
-              <div className="mt-2 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => { setBackgroundDraft(data.background || ''); setEditingBackground(true) }}
-                  className="inline-flex items-center gap-1 text-[12px] text-text-placeholder hover:text-brand-primary transition-colors"
-                >
-                  <Pencil className="w-3 h-3" />
-                  Edit
-                </button>
-                {onOpenBackgroundDetail && (
-                  <button
-                    onClick={onOpenBackgroundDetail}
-                    className="text-[11px] text-text-placeholder hover:text-brand-primary transition-colors"
-                  >
-                    View Details →
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+          <NarrativeEditor
+            field="background"
+            label="Background"
+            currentValue={data.background}
+            projectId={projectId}
+            onSave={onUpdateBackground}
+            placeholder="As signals come in — meeting notes, emails, research — this section will tell the story of what led to this initiative and why now is the right time."
+            companyMeta={companyMeta}
+          />
         </div>
       </div>
 
-      {/* Vision */}
+      {/* Vision — Future State */}
       <div>
         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
           <Eye className="w-5 h-5 text-text-placeholder" />
           Vision
         </h2>
         <div className="bg-white rounded-2xl shadow-md border border-border p-5">
-          {editingVision ? (
-            <div className="space-y-3">
-              <textarea
-                value={visionDraft}
-                onChange={(e) => setVisionDraft(e.target.value)}
-                className="w-full p-3 text-[14px] text-text-body border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary resize-y min-h-[80px]"
-                placeholder="Describe the product vision..."
-                autoFocus
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSaveVision}
-                  className="px-3 py-1.5 text-[12px] font-medium text-white bg-brand-primary rounded-xl hover:bg-[#25785A] transition-colors"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => { setEditingVision(false); setVisionDraft(data.vision || '') }}
-                  className="px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-border rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="group">
-              {data.vision ? (
-                <p className="text-[14px] text-[#666666] leading-relaxed">{data.vision}</p>
-              ) : (
-                <p className="text-[13px] text-text-placeholder italic">No vision statement yet. Click to add one.</p>
-              )}
-              <div className="mt-2 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => { setVisionDraft(data.vision || ''); setEditingVision(true) }}
-                  className="inline-flex items-center gap-1 text-[12px] text-text-placeholder hover:text-brand-primary transition-colors"
-                >
-                  <Pencil className="w-3 h-3" />
-                  Edit
-                </button>
-                {data.vision && (
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowEnhanceMenu(!showEnhanceMenu)}
-                      className="inline-flex items-center gap-1 text-[12px] text-text-placeholder hover:text-brand-primary transition-colors"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      AI Enhance
-                    </button>
-                    {showEnhanceMenu && (
-                      <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-border rounded-xl shadow-lg z-10 py-1">
-                        {[
-                          { key: 'enhance', label: 'Enhance' },
-                          { key: 'simplify', label: 'Simplify' },
-                          { key: 'metrics', label: 'Add Metrics' },
-                          { key: 'professional', label: 'Make Professional' },
-                        ].map((opt) => (
-                          <button
-                            key={opt.key}
-                            onClick={() => handleEnhanceVision(opt.key)}
-                            className="w-full text-left px-3 py-2 text-[12px] text-text-body hover:bg-[#E8F5E9] transition-colors"
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {onOpenVisionDetail && (
-                  <button
-                    onClick={onOpenVisionDetail}
-                    className="text-[11px] text-text-placeholder hover:text-brand-primary transition-colors"
-                  >
-                    View Details →
-                  </button>
-                )}
-              </div>
-
-              {/* AI Enhancement loading/result */}
-              {isEnhancing && (
-                <div className="mt-3 p-3 border border-border rounded-xl bg-[#F4F4F4]">
-                  <div className="flex items-center gap-2 text-[12px] text-[#666666]">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-primary" />
-                    Generating suggestion...
-                  </div>
-                </div>
-              )}
-              {enhancementError && (
-                <div className="mt-3 p-3 border border-red-200 rounded-xl bg-red-50">
-                  <p className="text-[12px] text-red-600">{enhancementError}</p>
-                </div>
-              )}
-              {aiSuggestion && (
-                <div className="mt-3 p-4 border border-brand-primary/30 rounded-xl bg-[#E8F5E9]/30">
-                  <p className="text-[11px] font-medium text-[#25785A] uppercase tracking-wide mb-2">AI Suggestion</p>
-                  <p className="text-[14px] text-text-body leading-relaxed">{aiSuggestion}</p>
-                  <div className="mt-3 flex items-center gap-2">
-                    <button
-                      onClick={handleAcceptSuggestion}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-white bg-brand-primary rounded-xl hover:bg-[#25785A] transition-colors"
-                    >
-                      <Check className="w-3 h-3" />
-                      Accept
-                    </button>
-                    <button
-                      onClick={handleEditSuggestion}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-border rounded-xl hover:bg-gray-50 transition-colors"
-                    >
-                      <Pencil className="w-3 h-3" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => setAiSuggestion(null)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-text-placeholder hover:text-[#666666] transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          <NarrativeEditor
+            field="vision"
+            label="Vision"
+            currentValue={data.vision}
+            projectId={projectId}
+            onSave={onUpdateVision}
+            placeholder="As goals and pain points take shape, this section will paint the picture of what success looks like once the solution is in place."
+          />
         </div>
       </div>
 

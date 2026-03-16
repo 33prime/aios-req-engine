@@ -40,14 +40,6 @@ export const getBRDWorkspaceData = (projectId: string, includeEvidence = true) =
   apiRequest<BRDWorkspaceData>(`/projects/${projectId}/workspace/brd?include_evidence=${includeEvidence}`)
 
 /**
- * Get vision detail including analysis scores and revision history.
- */
-export const getVisionDetail = (projectId: string) =>
-  apiRequest<import('@/types/workspace').VisionDetailData>(
-    `/projects/${projectId}/workspace/vision/detail`
-  )
-
-/**
  * Get merged client intelligence: company_info + clients + strategic_context + project_memory.
  */
 export const getProjectClientIntelligence = (projectId: string) =>
@@ -65,13 +57,17 @@ export const updateProjectVision = (projectId: string, vision: string) =>
   })
 
 /**
- * Enhance project vision using AI.
+ * Enhance vision or background narrative using AI (Haiku 4.5 with full BRD context).
+ * Modes: 'rewrite' (full AI rewrite from evidence) or 'notes' (consultant direction).
  */
-export const enhanceVision = (projectId: string, enhancementType: string) =>
-  apiRequest<{ suggestion: string }>(`/projects/${projectId}/workspace/vision/enhance`, {
-    method: 'POST',
-    body: JSON.stringify({ enhancement_type: enhancementType }),
-  })
+export const enhanceNarrative = (
+  projectId: string,
+  data: { field: 'vision' | 'background'; mode: 'rewrite' | 'notes'; user_notes?: string }
+) =>
+  apiRequest<{ suggestion: string }>(
+    `/projects/${projectId}/workspace/brd/narrative/enhance`,
+    { method: 'POST', body: JSON.stringify(data) }
+  )
 
 /**
  * Trigger AI constraint inference for a project.
@@ -491,6 +487,14 @@ export const getStakeholderIntelligenceLogs = (
 export const getBRDHealth = (projectId: string) =>
   apiRequest<import('@/types/workspace').BRDHealthData>(
     `/projects/${projectId}/workspace/brd/health`
+  )
+
+/**
+ * Get the deal pulse — a sales-ready 2-3 sentence project status narrative.
+ */
+export const getDealPulse = (projectId: string, regenerate = false) =>
+  apiRequest<{ pulse_text: string | null; cached: boolean }>(
+    `/projects/${projectId}/workspace/brd/pulse-text?regenerate=${regenerate}`
   )
 
 // ============================================

@@ -22,7 +22,6 @@ interface EntityActionsDeps {
   loadData: () => Promise<void>
   closeAllDrawers: () => void
   handleOpenConfidence: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
-  setVisionDrawer: Dispatch<SetStateAction<boolean>>
   onSendToChat?: (action: NextAction) => void
   pendingAction?: NextAction | null
   onPendingActionConsumed?: () => void
@@ -36,7 +35,6 @@ export function useBRDEntityActions({
   loadData,
   closeAllDrawers,
   handleOpenConfidence,
-  setVisionDrawer,
   onSendToChat,
   pendingAction,
   onPendingActionConsumed,
@@ -213,8 +211,7 @@ export function useBRDEntityActions({
       }
 
       case 'missing_vision':
-        closeAllDrawers()
-        setVisionDrawer(true)
+        document.getElementById('brd-section-business-context')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         break
 
       case 'missing_evidence':
@@ -271,7 +268,7 @@ export function useBRDEntityActions({
           onSendToChat?.(action)
         }
     }
-  }, [data, handleConfirmAll, handleOpenConfidence, closeAllDrawers, setVisionDrawer, onSendToChat])
+  }, [data, handleConfirmAll, handleOpenConfidence, closeAllDrawers, onSendToChat])
 
   // Consume pending action from cross-view navigation (Overview -> BRD)
   useEffect(() => {
