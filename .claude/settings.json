@@ -19,5 +19,15 @@
     "Glob",
     "Grep",
     "Task"
-  ]
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|Skill",
+        "command": ".claude/hooks/log-tool-usage.sh",
+        "async": true,
+        "timeout": 5000
+      }
+    ]
+  }
 }
