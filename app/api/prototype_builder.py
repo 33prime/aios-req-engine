@@ -594,9 +594,9 @@ async def _run_build_pipeline(
                 if prebuild_result:
                     epic_plan = prebuild_result.epic_plan or {}
                     epics_data = []
-                    for epic in epic_plan.get("epics", []):
+                    for epic in epic_plan.get("vision_epics", []):
                         epics_data.append({
-                            "name": epic.get("name", ""),
+                            "name": epic.get("title", epic.get("name", "")),
                             "feature_count": len(epic.get("features", [])),
                         })
                     append_build_log(build_id, {
