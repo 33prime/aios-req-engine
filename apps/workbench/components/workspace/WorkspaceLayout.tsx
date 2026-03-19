@@ -16,7 +16,7 @@ import { PhaseSwitcher, WorkspacePhase } from './PhaseSwitcher'
 import { CanvasView } from './canvas/CanvasView'
 import { BRDCanvas } from './brd/BRDCanvas'
 import { FlowBlueprintView } from './flow/FlowBlueprintView'
-import { AIAgentsView } from './ai/AIAgentsView'
+import { IntelligenceWorkbench } from './ai/IntelligenceWorkbench'
 import { BuildPhaseView } from './BuildPhaseView'
 import { OverviewPanel } from './OverviewPanel'
 import { BottomDock } from './BottomDock'
@@ -818,7 +818,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   />
                 )}
                 {discoveryViewMode === 'ai' && (
-                  <AIAgentsView
+                  <IntelligenceWorkbench
                     projectId={projectId}
                     flow={brdData?.solution_flow ?? null}
                     personas={canvasData.personas}
@@ -933,6 +933,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           messages={messages}
           isChatLoading={isChatLoading}
           onSendMessage={sendMessage}
+          onCardAction={(cmd) => sendMessage(cmd, { silent: true })}
           onSendSignal={sendSignal}
           onAddLocalMessage={addLocalMessage}
           onOpenChange={setPanelOpen}

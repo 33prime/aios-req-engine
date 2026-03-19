@@ -58,6 +58,8 @@ interface WorkspaceChatProps {
   messages: ChatMessage[]
   isLoading: boolean
   onSendMessage: (content: string) => Promise<void> | void
+  /** Silent card action — sends command to LLM without showing a user bubble */
+  onCardAction?: (command: string) => Promise<void> | void
   onSendSignal?: (type: string, content: string, source: string) => Promise<void>
   onAddLocalMessage?: (msg: ChatMessage) => void
   /** Dynamic actions from context frame for starter cards */
@@ -73,6 +75,7 @@ export function WorkspaceChat({
   messages: externalMessages,
   isLoading: externalLoading,
   onSendMessage: externalSendMessage,
+  onCardAction,
   onSendSignal,
   onAddLocalMessage,
   contextActions,
@@ -518,6 +521,7 @@ export function WorkspaceChat({
                 key={message.id || `msg-${index}`}
                 message={message}
                 onSendMessage={externalSendMessage}
+                onCardAction={onCardAction}
                 isLast={index === externalMessages.length - 1}
               />
             ))}
@@ -589,10 +593,12 @@ export function WorkspaceChat({
 function SidebarMessageBubble({
   message,
   onSendMessage,
+  onCardAction,
   isLast = false,
 }: {
   message: ChatMessage
   onSendMessage?: (msg: string) => void | Promise<void>
+  onCardAction?: (cmd: string) => void | Promise<void>
   isLast?: boolean
 }) {
   const isUser = message.role === 'user'
@@ -651,12 +657,7 @@ function SidebarMessageBubble({
             {isUser ? (
               <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
             ) : (
-              <>
-                <Markdown content={message.content} className="text-[13px] leading-relaxed" />
-                {message.isStreaming && (
-                  <span className="inline-block w-0.5 h-[18px] ml-0.5 bg-brand-primary rounded-full animate-pulse" />
-                )}
-              </>
+              <Markdown content={message.content} className="text-[13px] leading-relaxed" />
             )}
           </div>
         )}
@@ -693,7 +694,7 @@ function SidebarMessageBubble({
           <QuickActionCards
             key={`actions-${i}`}
             cards={tc.result.cards}
-            onAction={(command) => onSendMessage?.(command)}
+            onAction={(command) => (onCardAction || onSendMessage)?.(command)}
           />
         ))}
 

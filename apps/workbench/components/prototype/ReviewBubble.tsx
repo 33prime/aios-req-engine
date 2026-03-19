@@ -38,6 +38,8 @@ interface ReviewBubbleProps {
   messages: ChatMessage[]
   isChatLoading: boolean
   onSendMessage: (content: string) => Promise<void> | void
+  /** Silent card action — sends command to LLM without showing a user bubble */
+  onCardAction?: (command: string) => Promise<void> | void
   onSendSignal?: (type: string, content: string, source: string) => Promise<void>
   onAddLocalMessage?: (msg: ChatMessage) => void
   onOpenChange: (isOpen: boolean) => void
@@ -77,6 +79,7 @@ export function ReviewBubble({
   messages,
   isChatLoading,
   onSendMessage,
+  onCardAction,
   onSendSignal,
   onAddLocalMessage,
   onOpenChange,
@@ -376,6 +379,7 @@ export function ReviewBubble({
               messages={messages}
               isLoading={isChatLoading}
               onSendMessage={onSendMessage}
+              onCardAction={onCardAction}
               onSendSignal={onSendSignal}
               onAddLocalMessage={onAddLocalMessage}
               contextActions={!isReviewMode ? contextActions : undefined}

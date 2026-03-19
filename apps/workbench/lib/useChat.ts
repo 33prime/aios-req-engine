@@ -55,7 +55,7 @@ interface UseChatReturn {
   messages: ChatMessage[]
   isLoading: boolean
   error: Error | null
-  sendMessage: (message: string) => Promise<void>
+  sendMessage: (message: string, options?: { silent?: boolean }) => Promise<void>
   sendSignal: (type: string, content: string, source: string) => Promise<void>
   clearMessages: () => void
   addLocalMessage: (message: ChatMessage) => void
@@ -117,21 +117,22 @@ export function useChat({
   }, []) // Only on mount
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, options?: { silent?: boolean }) => {
       if (!content.trim() || isLoading) return
 
       try {
         setIsLoading(true)
         setError(null)
 
-        // Add user message immediately
-        const userMessage: ChatMessage = {
-          role: 'user',
-          content,
-          timestamp: new Date(),
+        // Add user message immediately (skip for silent card actions)
+        if (!options?.silent) {
+          const userMessage: ChatMessage = {
+            role: 'user',
+            content,
+            timestamp: new Date(),
+          }
+          setMessages((prev) => [...prev, userMessage])
         }
-
-        setMessages((prev) => [...prev, userMessage])
 
         // Prepare assistant message placeholder
         const assistantMessageId = Date.now()
@@ -139,14 +140,19 @@ export function useChat({
         let pendingTurnText = ''        // Text from current turn (retracted if tool_start follows)
         let currentToolCalls: ChatMessage['toolCalls'] = []
         let hasHadAnyTools = false
+        let textFlushTimer: ReturnType<typeof setTimeout> | null = null
+        let isTextFlushing = false  // True once we start rendering pre-tool text
 
+        // Add placeholder with isStreaming=false so the activity indicator
+        // shows "Thinking..." immediately. We flip to isStreaming=true only
+        // when final text starts rendering.
         setMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
             content: '',
             timestamp: new Date(),
-            isStreaming: true,
+            isStreaming: false,
             toolCalls: [],
           },
         ])
@@ -225,34 +231,47 @@ export function useChat({
                 // Accumulate text for this turn
                 pendingTurnText += event.content
 
-                // Show text as it streams (will be retracted if tool_start follows)
-                const displayContent = assistantContent + pendingTurnText
-                setMessages((prev) => {
-                  const newMessages = [...prev]
-                  const lastMessage = newMessages[newMessages.length - 1]
-
-                  if (lastMessage && lastMessage.role === 'assistant') {
-                    lastMessage.content = displayContent
-                    lastMessage.isStreaming = true
-                  }
-
-                  return newMessages
-                })
-              } else if (event.type === 'tool_start') {
-                // Retract intermediate narration — this text preceded a tool call
-                // so it's "Let me check..." narration, not the final answer
-                if (hasHadAnyTools) {
-                  // Not the first tool call: discard the pending text entirely
-                  pendingTurnText = ''
+                // Post-tool or already flushing: render immediately
+                if (hasHadAnyTools || assistantContent.length > 0 || isTextFlushing) {
+                  const displayContent = assistantContent + pendingTurnText
+                  setMessages((prev) => {
+                    const newMessages = [...prev]
+                    const lastMessage = newMessages[newMessages.length - 1]
+                    if (lastMessage && lastMessage.role === 'assistant') {
+                      lastMessage.content = displayContent
+                      lastMessage.isStreaming = true
+                    }
+                    return newMessages
+                  })
                 } else {
-                  // First tool call: commit any pre-tool text (user's first response chunk)
-                  // but only if it looks like a real intro, not pure narration
-                  assistantContent += pendingTurnText
-                  pendingTurnText = ''
+                  // Pre-tool: suppress text, keep activity indicator visible.
+                  // After 600ms without tool_start, start flushing — it's a
+                  // pure text response, not a tool call.
+                  if (textFlushTimer) clearTimeout(textFlushTimer)
+                  textFlushTimer = setTimeout(() => {
+                    isTextFlushing = true
+                    const displayContent = assistantContent + pendingTurnText
+                    setMessages((prev) => {
+                      const newMessages = [...prev]
+                      const lastMessage = newMessages[newMessages.length - 1]
+                      if (lastMessage && lastMessage.role === 'assistant') {
+                        lastMessage.content = displayContent
+                        lastMessage.isStreaming = true
+                      }
+                      return newMessages
+                    })
+                  }, 2000)
                 }
+              } else if (event.type === 'tool_start') {
+                // Cancel flush timer — tools are coming, suppress narration
+                if (textFlushTimer) { clearTimeout(textFlushTimer); textFlushTimer = null }
+                isTextFlushing = false
+
+                // Discard pre-tool text entirely
+                pendingTurnText = ''
                 hasHadAnyTools = true
 
-                // Revert display to committed content only
+                // Revert display to committed content only (clears streamed narration)
                 setMessages((prev) => {
                   const newMessages = [...prev]
                   const lastMessage = newMessages[newMessages.length - 1]
@@ -313,6 +332,9 @@ export function useChat({
                   return newMessages
                 })
               } else if (event.type === 'done') {
+                // Clean up flush timer
+                if (textFlushTimer) { clearTimeout(textFlushTimer); textFlushTimer = null }
+
                 // Commit any remaining pending text (this is the final answer)
                 if (pendingTurnText) {
                   assistantContent += pendingTurnText

@@ -9,8 +9,25 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2, Mail, Calendar, Quote, Check } from 'lucide-react'
+import { CheckCircle2, Mail, Calendar, Quote, Check, Minus, type LucideIcon } from 'lucide-react'
 import { URGENCY_COLORS } from '@/lib/action-constants'
+
+/** Render inline markdown bold (**text**) and italic (*text*) as styled elements. */
+function InlineMarkdown({ text }: { text: string }) {
+  if (!text) return null
+  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/)
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**'))
+          return <strong key={i} className="font-semibold text-text-primary">{part.slice(2, -2)}</strong>
+        if (part.startsWith('*') && part.endsWith('*'))
+          return <em key={i}>{part.slice(1, -1)}</em>
+        return part
+      })}
+    </>
+  )
+}
 
 // =============================================================================
 // Shared Style Constants
@@ -24,6 +41,48 @@ const BTN_PRIMARY_FILLED = 'text-[12px] font-medium px-4 py-1.5 rounded-full bg-
 const BTN_SECONDARY = 'text-[12px] font-medium px-4 py-1.5 rounded-full border border-[#D5D5D5] text-text-secondary hover:bg-surface-subtle transition-colors'
 const BTN_GHOST = 'text-[12px] font-medium px-3 py-1.5 text-[#999] hover:text-text-secondary transition-colors'
 const BTN_CONFIRMED = 'text-[12px] font-medium px-4 py-1.5 rounded-full bg-[#E8F5E9] text-[#25785A] pointer-events-none flex items-center gap-1'
+
+// =============================================================================
+// Card Lifecycle
+// =============================================================================
+
+type CardState = 'active' | 'confirmed' | 'dismissed'
+
+const CARD_DISMISSED = 'border border-border/40 bg-surface-subtle rounded-2xl px-4 py-3.5 flex items-center gap-2'
+
+function CardConfirmed({ label, icon: Icon }: { label: string; icon?: LucideIcon }) {
+  const IconComponent = Icon || CheckCircle2
+  return (
+    <div className={CARD_RESOLVED}>
+      <IconComponent className="h-3.5 w-3.5 text-brand-primary" />
+      <span className="text-[12px] text-[#25785A] font-medium">{label}</span>
+    </div>
+  )
+}
+
+function CardDismissed({ label }: { label: string }) {
+  return (
+    <div className={CARD_DISMISSED}>
+      <Minus className="h-3.5 w-3.5 text-[#999]" />
+      <span className="text-[12px] text-[#999] font-medium">{label}</span>
+    </div>
+  )
+}
+
+function FallbackCard() {
+  return (
+    <div className={CARD_DISMISSED}>
+      <span className="text-[12px] text-[#999]">Card unavailable</span>
+    </div>
+  )
+}
+
+function inferIntent(action: { label: string; variant?: string }): 'confirm' | 'discuss' | 'dismiss' {
+  if (/skip|dismiss|later|cancel|no thanks|not now/i.test(action.label)) return 'dismiss'
+  if (action.variant === 'ghost') return 'dismiss'
+  if (action.variant === 'outline') return 'discuss'
+  return 'confirm'
+}
 
 // =============================================================================
 // Types
@@ -157,22 +216,19 @@ export function QuickActionCards({ cards, onAction }: QuickActionCardsProps) {
 // =============================================================================
 
 function GapCloserCard({ data, onAction }: { data: GapCloserData; onAction: (cmd: string) => void }) {
-  const [resolved, setResolved] = useState(false)
-  const severityColor = URGENCY_COLORS[data.severity] || URGENCY_COLORS.normal
+  const [cardState, setCardState] = useState<CardState>('active')
 
-  if (resolved) {
-    return (
-      <div className={CARD_RESOLVED}>
-        <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary" />
-        <span className="text-[12px] text-[#25785A] font-medium">Resolved</span>
-      </div>
-    )
-  }
+  if (!data?.label) return <FallbackCard />
+
+  if (cardState === 'confirmed') return <CardConfirmed label="Resolved" />
+  if (cardState === 'dismissed') return <CardDismissed label="Skipped" />
+
+  const severityColor = URGENCY_COLORS[data.severity] || URGENCY_COLORS.normal
 
   return (
     <div className={CARD_BASE}>
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[13px] font-medium text-[#333] flex-1 min-w-0">{data.label}</span>
+        <span className="text-[13px] font-medium text-[#333] flex-1 min-w-0"><InlineMarkdown text={data.label} /></span>
         <span
           className="text-[10px] rounded-full px-2 py-0.5 font-medium shrink-0"
           style={{ backgroundColor: `${severityColor}18`, color: severityColor }}
@@ -181,21 +237,30 @@ function GapCloserCard({ data, onAction }: { data: GapCloserData; onAction: (cmd
         </span>
       </div>
       {data.resolution && (
-        <p className="text-[11px] text-text-muted border-l-2 border-border pl-2 mt-1.5">{data.resolution}</p>
+        <p className="text-[11px] text-text-muted border-l-2 border-border pl-2 mt-1.5"><InlineMarkdown text={data.resolution} /></p>
       )}
       <div className="flex items-center gap-2 mt-3">
-        {data.actions?.map((action, i) => (
-          <button
-            key={i}
-            onClick={() => {
-              setResolved(true)
-              onAction(action.command)
-            }}
-            className={action.variant === 'ghost' ? BTN_SECONDARY : BTN_PRIMARY_OUTLINE}
-          >
-            {action.label}
-          </button>
-        ))}
+        {data.actions?.map((action, i) => {
+          const intent = inferIntent(action)
+          return (
+            <button
+              key={i}
+              onClick={() => {
+                if (intent === 'dismiss') {
+                  setCardState('dismissed')
+                } else if (intent === 'confirm') {
+                  setCardState('confirmed')
+                  onAction(action.command)
+                } else {
+                  onAction(action.command)
+                }
+              }}
+              className={intent === 'dismiss' ? BTN_GHOST : intent === 'discuss' ? BTN_SECONDARY : BTN_PRIMARY_OUTLINE}
+            >
+              {action.label}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -208,9 +273,11 @@ function GapCloserCard({ data, onAction }: { data: GapCloserData; onAction: (cmd
 function ActionButtonsCard({ data, onAction }: { data: ActionButtonsData; onAction: (cmd: string) => void }) {
   const [confirmed, setConfirmed] = useState<string | null>(null)
 
+  if (!data?.buttons?.length) return <FallbackCard />
+
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {data.buttons?.map((btn, i) => {
+      {data.buttons.map((btn, i) => {
         const isConfirmed = confirmed === btn.label
         if (isConfirmed) {
           return (
@@ -220,17 +287,14 @@ function ActionButtonsCard({ data, onAction }: { data: ActionButtonsData; onActi
             </span>
           )
         }
-        const variant = btn.variant || 'primary'
-        const cls =
-          variant === 'ghost'
-            ? BTN_GHOST
-            : BTN_PRIMARY_OUTLINE
+        const intent = inferIntent(btn)
+        const cls = intent === 'dismiss' ? BTN_GHOST : BTN_PRIMARY_OUTLINE
         return (
           <button
             key={i}
             onClick={() => {
               setConfirmed(btn.label)
-              onAction(btn.command)
+              if (intent !== 'dismiss') onAction(btn.command)
             }}
             className={cls}
           >
@@ -249,10 +313,12 @@ function ActionButtonsCard({ data, onAction }: { data: ActionButtonsData; onActi
 function ChoiceCard({ data, onAction }: { data: ChoiceData; onAction: (cmd: string) => void }) {
   const [selected, setSelected] = useState<string | null>(null)
 
+  if (!data?.question || !data?.options?.length) return <FallbackCard />
+
   return (
     <div className={CARD_BASE}>
       {data.title && <p className={CARD_HEADER}>{data.title}</p>}
-      <p className="text-[13px] font-medium text-[#333] mb-3">{data.question}</p>
+      <p className="text-[13px] font-medium text-[#333] mb-3"><InlineMarkdown text={data.question} /></p>
       <div className="flex items-center gap-2 flex-wrap">
         {data.options?.map((opt, i) => {
           const isSelected = selected === opt.label
@@ -293,16 +359,12 @@ function ChoiceCard({ data, onAction }: { data: ChoiceData; onAction: (cmd: stri
 // =============================================================================
 
 function ProposalCard({ data, onAction }: { data: ProposalData; onAction: (cmd: string) => void }) {
-  const [approved, setApproved] = useState(false)
+  const [cardState, setCardState] = useState<CardState>('active')
 
-  if (approved) {
-    return (
-      <div className={CARD_RESOLVED}>
-        <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary" />
-        <span className="text-[12px] text-[#25785A] font-medium">Added to BRD</span>
-      </div>
-    )
-  }
+  if (!data?.title) return <FallbackCard />
+
+  if (cardState === 'confirmed') return <CardConfirmed label="Added to BRD" />
+  if (cardState === 'dismissed') return <CardDismissed label="Skipped" />
 
   return (
     <div className={CARD_BASE}>
@@ -321,29 +383,34 @@ function ProposalCard({ data, onAction }: { data: ProposalData; onAction: (cmd: 
           {data.bullets.map((b, i) => (
             <li key={i} className="text-[12px] text-text-secondary flex items-start gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-primary mt-1.5 shrink-0" />
-              {b}
+              <span><InlineMarkdown text={b} /></span>
             </li>
           ))}
         </ul>
       )}
       {data.body && !data.bullets && (
-        <p className="text-[12px] text-text-secondary mt-1.5">{data.body}</p>
+        <p className="text-[12px] text-text-secondary mt-1.5"><InlineMarkdown text={data.body} /></p>
       )}
       <div className="border-t border-border mt-3 pt-3 flex items-center gap-2">
         {data.actions?.map((action, i) => {
-          const variant = action.variant || 'primary'
-          const cls =
-            variant === 'ghost'
-              ? BTN_GHOST
-              : variant === 'outline'
-                ? BTN_SECONDARY
-                : BTN_PRIMARY_FILLED
+          const intent = inferIntent(action)
+          const cls = intent === 'dismiss'
+            ? BTN_GHOST
+            : intent === 'discuss'
+              ? BTN_SECONDARY
+              : BTN_PRIMARY_FILLED
           return (
             <button
               key={i}
               onClick={() => {
-                if (variant === 'primary') setApproved(true)
-                onAction(action.command)
+                if (intent === 'dismiss') {
+                  setCardState('dismissed')
+                } else if (intent === 'confirm') {
+                  setCardState('confirmed')
+                  onAction(action.command)
+                } else {
+                  onAction(action.command)
+                }
               }}
               className={cls}
             >
@@ -361,16 +428,12 @@ function ProposalCard({ data, onAction }: { data: ProposalData; onAction: (cmd: 
 // =============================================================================
 
 function EmailDraftCard({ data, onAction }: { data: EmailDraftData; onAction: (cmd: string) => void }) {
-  const [sent, setSent] = useState(false)
+  const [cardState, setCardState] = useState<CardState>('active')
 
-  if (sent) {
-    return (
-      <div className={CARD_RESOLVED}>
-        <Mail className="h-3.5 w-3.5 text-brand-primary" />
-        <span className="text-[12px] text-[#25785A] font-medium">Draft copied</span>
-      </div>
-    )
-  }
+  if (!data?.to || !data?.subject) return <FallbackCard />
+
+  if (cardState === 'confirmed') return <CardConfirmed label="Draft sent" icon={Mail} />
+  if (cardState === 'dismissed') return <CardDismissed label="Dismissed" />
 
   return (
     <div className="border border-border rounded-2xl bg-[#F7F8FA] overflow-hidden">
@@ -394,7 +457,7 @@ function EmailDraftCard({ data, onAction }: { data: EmailDraftData; onAction: (c
       <div className="border-t border-border px-4 py-3 flex items-center gap-2">
         <button
           onClick={() => {
-            setSent(true)
+            setCardState('confirmed')
             onAction(`Send email draft to ${data.to} about "${data.subject}"`)
           }}
           className={BTN_PRIMARY_FILLED}
@@ -417,16 +480,12 @@ function EmailDraftCard({ data, onAction }: { data: EmailDraftData; onAction: (c
 // =============================================================================
 
 function MeetingCard({ data, onAction }: { data: MeetingData; onAction: (cmd: string) => void }) {
-  const [booked, setBooked] = useState(false)
+  const [cardState, setCardState] = useState<CardState>('active')
 
-  if (booked) {
-    return (
-      <div className={CARD_RESOLVED}>
-        <Calendar className="h-3.5 w-3.5 text-brand-primary" />
-        <span className="text-[12px] text-[#25785A] font-medium">Meeting prep saved</span>
-      </div>
-    )
-  }
+  if (!data?.topic) return <FallbackCard />
+
+  if (cardState === 'confirmed') return <CardConfirmed label="Meeting booked" icon={Calendar} />
+  if (cardState === 'dismissed') return <CardDismissed label="Dismissed" />
 
   return (
     <div className="border border-border rounded-2xl bg-[#F7F8FA] overflow-hidden">
@@ -444,7 +503,7 @@ function MeetingCard({ data, onAction }: { data: MeetingData; onAction: (cmd: st
             {data.agenda.map((item, i) => (
               <li key={i} className="text-[12px] text-text-secondary flex items-start gap-1.5">
                 <span className="text-[10px] text-[#999] mt-0.5 w-3 shrink-0">{i + 1}.</span>
-                {item}
+                <InlineMarkdown text={item} />
               </li>
             ))}
           </ol>
@@ -453,7 +512,7 @@ function MeetingCard({ data, onAction }: { data: MeetingData; onAction: (cmd: st
       <div className="border-t border-border px-4 py-3 flex items-center gap-2">
         <button
           onClick={() => {
-            setBooked(true)
+            setCardState('confirmed')
             onAction(`Book meeting: "${data.topic}" with ${data.attendees?.join(', ')}`)
           }}
           className={BTN_PRIMARY_FILLED}
@@ -484,14 +543,16 @@ const TYPE_BADGE_STYLES: Record<string, string> = {
 
 function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction: (cmd: string) => void }) {
   const [checks, setChecks] = useState<boolean[]>(() =>
-    (data.items || []).map((item) => item.checked ?? true)
+    (data?.items || []).map((item) => item.checked ?? true)
   )
-  const [saved, setSaved] = useState(false)
+  const [cardState, setCardState] = useState<CardState>('active')
+
+  if (!data?.items?.length) return <FallbackCard />
 
   const selectedCount = checks.filter(Boolean).length
 
   const handleToggle = (idx: number) => {
-    if (saved) return
+    if (cardState !== 'active') return
     setChecks((prev) => {
       const next = [...prev]
       next[idx] = !next[idx]
@@ -500,30 +561,24 @@ function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction
   }
 
   const handleSave = () => {
-    const selectedItems = (data.items || [])
+    const selectedItems = data.items
       .filter((_, i) => checks[i])
       .map((item, i) => `${i + 1}. ${item.type}: ${item.label}`)
       .join(', ')
-    setSaved(true)
+    setCardState('confirmed')
     onAction(`Save these to BRD: ${selectedItems}`)
   }
 
-  if (saved) {
-    return (
-      <div className={CARD_RESOLVED}>
-        <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary" />
-        <span className="text-[12px] text-[#25785A] font-medium">
-          {selectedCount} item{selectedCount !== 1 ? 's' : ''} saved to BRD
-        </span>
-      </div>
-    )
+  if (cardState === 'confirmed') {
+    return <CardConfirmed label={`${selectedCount} item${selectedCount !== 1 ? 's' : ''} saved to BRD`} />
   }
+  if (cardState === 'dismissed') return <CardDismissed label="Skipped" />
 
   return (
     <div className={CARD_BASE}>
       <p className={CARD_HEADER}>From our discussion</p>
       <div className="space-y-1">
-        {(data.items || []).map((item, i) => (
+        {data.items.map((item, i) => (
           <label
             key={i}
             className="flex items-start gap-2.5 cursor-pointer group py-1.5"
@@ -546,22 +601,30 @@ function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction
               >
                 {item.type}
               </span>
-              <span className="text-[12px] text-[#333] block">{item.label}</span>
+              <span className="text-[12px] text-[#333] block"><InlineMarkdown text={item.label} /></span>
             </div>
           </label>
         ))}
       </div>
       <div className="border-t border-border mt-3 pt-3 flex items-center justify-between">
         <span className="text-[11px] text-[#999]">
-          {selectedCount} of {data.items?.length || 0} selected
+          {selectedCount} of {data.items.length} selected
         </span>
-        <button
-          onClick={handleSave}
-          disabled={selectedCount === 0}
-          className={`${BTN_PRIMARY_FILLED} disabled:opacity-40 disabled:pointer-events-none`}
-        >
-          Save selected to BRD
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCardState('dismissed')}
+            className={BTN_GHOST}
+          >
+            Skip
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={selectedCount === 0}
+            className={`${BTN_PRIMARY_FILLED} disabled:opacity-40 disabled:pointer-events-none`}
+          >
+            Save selected to BRD
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -579,16 +642,18 @@ const EVIDENCE_TAG_STYLES: Record<string, string> = {
 }
 
 function EvidenceCard({ data, onAction }: { data: EvidenceData; onAction: (cmd: string) => void }) {
+  if (!data?.items?.length) return <FallbackCard />
+
   return (
     <div className="space-y-3">
-      {(data.items || []).map((item, i) => (
-        <EvidenceItem key={i} item={item} onAction={onAction} />
+      {data.items.map((item, i) => (
+        <EvidenceItemCard key={i} item={item} onAction={onAction} />
       ))}
     </div>
   )
 }
 
-function EvidenceItem({ item, onAction }: { item: EvidenceItem; onAction: (cmd: string) => void }) {
+function EvidenceItemCard({ item, onAction }: { item: EvidenceItem; onAction: (cmd: string) => void }) {
   const [tagged, setTagged] = useState(false)
 
   return (
@@ -609,9 +674,7 @@ function EvidenceItem({ item, onAction }: { item: EvidenceItem; onAction: (cmd: 
             key={tag}
             onClick={() => {
               setTagged(true)
-              if (tag === 'dismiss') {
-                onAction(`Dismiss evidence: "${item.quote.slice(0, 60)}..."`)
-              } else {
+              if (tag !== 'dismiss') {
                 onAction(`Tag as ${tag}: "${item.quote.slice(0, 60)}..." from ${item.source}`)
               }
             }}
@@ -632,17 +695,14 @@ function EvidenceItem({ item, onAction }: { item: EvidenceItem; onAction: (cmd: 
 // =============================================================================
 
 function DiscoveryProbeCard({ data, onAction }: { data: DiscoveryProbeData; onAction: (cmd: string) => void }) {
-  const [resolved, setResolved] = useState(false)
-  const categoryStyle = NORTH_STAR_CATEGORY_STYLES[data.category] || NORTH_STAR_CATEGORY_STYLES.organizational_impact
+  const [cardState, setCardState] = useState<CardState>('active')
 
-  if (resolved) {
-    return (
-      <div className={CARD_RESOLVED}>
-        <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary" />
-        <span className="text-[12px] text-[#25785A] font-medium">Probe resolved</span>
-      </div>
-    )
-  }
+  if (!data?.question) return <FallbackCard />
+
+  if (cardState === 'confirmed') return <CardConfirmed label="Probe resolved" />
+  if (cardState === 'dismissed') return <CardDismissed label="Skipped" />
+
+  const categoryStyle = NORTH_STAR_CATEGORY_STYLES[data.category] || NORTH_STAR_CATEGORY_STYLES.organizational_impact
 
   return (
     <div className={CARD_BASE}>
@@ -655,11 +715,11 @@ function DiscoveryProbeCard({ data, onAction }: { data: DiscoveryProbeData; onAc
         </span>
       </div>
       {data.context && (
-        <p className="text-[11px] text-text-muted mb-1.5">{data.context}</p>
+        <p className="text-[11px] text-text-muted mb-1.5"><InlineMarkdown text={data.context} /></p>
       )}
-      <p className="text-[13px] font-medium text-[#333] mb-1">{data.question}</p>
+      <p className="text-[13px] font-medium text-[#333] mb-1"><InlineMarkdown text={data.question} /></p>
       {data.why && (
-        <p className="text-[11px] italic text-[#999] mb-3">{data.why}</p>
+        <p className="text-[11px] italic text-[#999] mb-3"><InlineMarkdown text={data.why} /></p>
       )}
       <div className="flex items-center gap-2">
         <button
@@ -670,7 +730,7 @@ function DiscoveryProbeCard({ data, onAction }: { data: DiscoveryProbeData; onAc
         </button>
         <button
           onClick={() => {
-            setResolved(true)
+            setCardState('confirmed')
             onAction(`Mark probe resolved: ${data.question.slice(0, 60)}`)
           }}
           className={BTN_SECONDARY}

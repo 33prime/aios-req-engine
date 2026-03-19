@@ -320,7 +320,7 @@ def get_tool_definitions() -> list[dict[str, Any]]:
                 "Show interactive action cards to the consultant. "
                 "Use after 1-3 sentences of text. Cards are clickable UI elements. "
                 "Types: gap_closer, action_buttons, choice, proposal, "
-                "email_draft, meeting, smart_summary, evidence."
+                "email_draft, meeting, smart_summary, evidence, discovery_probe."
             ),
             "input_schema": {
                 "type": "object",
@@ -341,6 +341,7 @@ def get_tool_definitions() -> list[dict[str, Any]]:
                                         "meeting",
                                         "smart_summary",
                                         "evidence",
+                                        "discovery_probe",
                                     ],
                                 },
                                 "data": {"type": "object"},
@@ -354,10 +355,3 @@ def get_tool_definitions() -> list[dict[str, Any]]:
             },
         },
     ]
-
-
-# Keep legacy function for backwards compat during rollout
-def get_legacy_tool_definitions() -> list[dict[str, Any]]:
-    """Legacy 35-tool definitions — kept as fallback."""
-    # Import is deferred to avoid loading unless needed
-    return get_tool_definitions()
