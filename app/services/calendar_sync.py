@@ -149,6 +149,7 @@ async def auto_deploy_bots() -> dict:
         Dict with deployed count
     """
     from app.core.recall_service import deploy_bot_safe
+    from app.db import call_intelligence as ci_db
     from app.db import meeting_bots as bot_db
     from app.db.supabase_client import get_supabase
 
@@ -193,14 +194,34 @@ async def auto_deploy_bots() -> dict:
         # Deploy bot
         recall_result = await deploy_bot_safe(meet_link)
         if recall_result:
+            recall_bot_id = recall_result["id"]
+            meeting_uuid = UUID(meeting["id"])
+
+            # Legacy meeting_bots record
             bot_db.create_bot(
-                meeting_id=UUID(meeting["id"]),
-                recall_bot_id=recall_result["id"],
+                meeting_id=meeting_uuid,
+                recall_bot_id=recall_bot_id,
             )
+
+            # Create or update call_recordings row so webhook routes to full pipeline
+            existing_recording = ci_db.get_recording_for_meeting(meeting_uuid)
+            if existing_recording:
+                ci_db.update_call_recording(
+                    UUID(existing_recording["id"]),
+                    {"recall_bot_id": recall_bot_id, "status": "bot_scheduled"},
+                )
+            else:
+                ci_db.create_call_recording(
+                    project_id=UUID(meeting["project_id"]),
+                    meeting_id=meeting_uuid,
+                    recall_bot_id=recall_bot_id,
+                    status="bot_scheduled",
+                )
+
             deployed += 1
             logger.info(
                 f"Auto-deployed bot for meeting {meeting['id']}: "
-                f"recall_bot_id={recall_result['id']}"
+                f"recall_bot_id={recall_bot_id}"
             )
 
     return {"deployed": deployed}

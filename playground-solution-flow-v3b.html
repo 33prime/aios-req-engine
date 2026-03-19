@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solution Flow v3b — The Journey</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #3FAF7A; --green-dark: #2A8F5F; --green-pale: rgba(63,175,122,0.08); --green-glow: rgba(63,175,122,0.18);
+  --accent: #044159; --accent-pale: rgba(4,65,89,0.05);
+  --navy: #0A1E2F;
+  --amber: #D4A017; --amber-pale: rgba(212,160,23,0.08);
+  --t1: #0A1E2F; --t2: #2D3748; --t3: #4A5568; --t4: #718096; --t5: #A0AEC0;
+  --border: #E2E8F0; --bg: #F7FAFC; --card: #FFF; --subtle: #EDF2F7;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--t2);overflow:hidden;height:100vh}
+::-webkit-scrollbar{height:5px;width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#CBD5E0;border-radius:3px}
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* ── Header ───────────────────────────── */
+header{background:var(--navy);padding:14px 32px 12px;flex-shrink:0}
+.header-row{display:flex;align-items:center;gap:20px;margin-bottom:8px}
+.thesis{font-size:14px;color:rgba(255,255,255,0.82);line-height:1.55;flex:1;max-width:660px}
+.thesis em{color:var(--green);font-style:normal;font-weight:600}
+.pills{display:flex;gap:10px;flex-shrink:0}
+.pill{display:flex;flex-direction:column;align-items:center;padding:4px 13px;border-radius:7px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07)}
+.pill-val{font-size:16px;font-weight:700;color:var(--green);line-height:1.2}
+.pill-lbl{font-size:8px;color:rgba(255,255,255,0.32);text-transform:uppercase;letter-spacing:0.04em;font-weight:500}
+.controls{display:flex;align-items:center;gap:8px}
+.persona-pills{display:flex;gap:4px;flex:1}
+.ppill{display:flex;align-items:center;gap:4px;padding:2px 9px 2px 2px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);cursor:pointer;transition:all .2s;background:0;color:rgba(255,255,255,0.4);font:500 10px 'Inter',sans-serif}
+.ppill:hover{color:rgba(255,255,255,0.75);border-color:rgba(255,255,255,0.18)}
+.ppill.active{background:rgba(255,255,255,0.08);border-color:var(--pc);color:#fff}
+.pavatar{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;flex-shrink:0}
+.present-btn{padding:4px 14px;border-radius:7px;border:1px solid rgba(63,175,122,0.3);background:rgba(63,175,122,0.06);color:var(--green);font:600 10px 'Inter',sans-serif;cursor:pointer;transition:all .2s}
+.present-btn:hover{background:rgba(63,175,122,0.15);border-color:var(--green)}
+
+/* ── Canvas ───────────────────────────── */
+.main{flex:1;overflow:auto;position:relative}
+.canvas{position:relative;min-height:100%;display:flex;flex-direction:column}
+
+/* Phase lanes */
+.phase-lanes{display:flex;flex:1;min-height:480px;position:relative}
+.phase-lane{flex:1;min-width:0;display:flex;flex-direction:column;padding:0 12px;position:relative}
+.phase-lane::before{content:'';position:absolute;inset:0;border-radius:0;pointer-events:none;z-index:0}
+.phase-lane.core::before{background:linear-gradient(180deg, rgba(63,175,122,0.025) 0%, rgba(63,175,122,0.06) 100%)}
+.phase-lane.entry::before{background:rgba(4,65,89,0.015)}
+.phase-lane.output::before{background:rgba(10,30,47,0.015)}
+.phase-lane.admin::before{background:rgba(0,0,0,0.01)}
+
+/* Lane headers */
+.lane-header{padding:16px 8px 12px;position:relative;z-index:1;flex-shrink:0}
+.lane-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px}
+.lane-sublabel{font-size:10px;color:var(--t4);line-height:1.3}
+.lane-label.entry-l{color:var(--accent)}
+.lane-label.core-l{color:var(--green-dark)}
+.lane-label.output-l{color:var(--navy)}
+.lane-label.admin-l{color:var(--t4)}
+
+/* Cards area */
+.lane-cards{flex:1;display:flex;flex-direction:column;gap:10px;padding:4px 0 16px;position:relative;z-index:1;justify-content:center}
+
+/* ── Station Cards ────────────────────── */
+.station{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);
+  position:relative;overflow:hidden;
+}
+.station:hover{border-color:var(--green);box-shadow:0 4px 16px rgba(63,175,122,0.10);transform:translateY(-1px)}
+.station.selected{border-color:var(--green);box-shadow:0 0 0 2px var(--green-glow)}
+.station.dimmed{opacity:.18;pointer-events:none}
+
+/* Core value cards — hero treatment */
+.station.core-value{border-color:rgba(63,175,122,0.2);background:linear-gradient(135deg, #fff 0%, rgba(63,175,122,0.02) 100%)}
+.station.core-value:hover{border-color:var(--green);box-shadow:0 6px 24px rgba(63,175,122,0.14)}
+
+/* Compact cards (entry/admin) */
+.station.compact .st-narrative{display:none}
+.station.compact .st-transform{display:none}
+.station.compact .st-mock{display:none}
+
+.st-top{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.st-idx{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0}
+.st-idx.entry-idx{background:var(--accent-pale);color:var(--accent)}
+.st-idx.core-idx{background:var(--green-pale);color:var(--green-dark)}
+.st-idx.output-idx{background:rgba(10,30,47,0.06);color:var(--navy)}
+.st-idx.admin-idx{background:rgba(0,0,0,0.04);color:var(--t4)}
+
+.st-title{font-size:12px;font-weight:600;color:var(--t1);line-height:1.3;flex:1}
+.station.core-value .st-title{font-size:13px;font-weight:700}
+
+.st-personas{display:flex;margin-left:auto;flex-shrink:0}
+.pdot{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:#fff;border:2px solid var(--card);margin-left:-3px}
+.pdot:first-child{margin-left:0}
+
+.st-goal{font-size:10px;color:var(--t4);line-height:1.4;margin-bottom:6px}
+
+/* The wow moment — transformation snippet on core cards */
+.st-transform{display:flex;gap:6px;align-items:center;margin-bottom:6px;padding:5px 8px;border-radius:6px;background:rgba(63,175,122,0.04)}
+.st-tf-before{font-size:9px;color:var(--t4);text-decoration:line-through;text-decoration-color:rgba(0,0,0,0.2)}
+.st-tf-arrow{font-size:10px;color:var(--green)}
+.st-tf-after{font-size:9px;color:var(--green-dark);font-weight:600}
+
+/* Mini mock render */
+.st-mock{height:48px;border-radius:6px;border:1px solid var(--border);background:var(--subtle);overflow:hidden;display:flex;align-items:stretch;position:relative}
+.st-mock-label{position:absolute;top:3px;right:5px;font-size:7px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--t5);opacity:0.7}
+
+/* Mock pattern renders */
+.mock-dashboard{display:flex;gap:3px;padding:4px;flex:1}
+.mock-kpi{flex:1;background:var(--card);border-radius:3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.mock-kpi-val{font-size:10px;font-weight:700;color:var(--green)}
+.mock-kpi-lbl{font-size:5px;color:var(--t5);text-transform:uppercase}
+
+.mock-table{display:flex;flex-direction:column;flex:1;padding:3px}
+.mock-table-row{display:flex;gap:2px;padding:1px 2px;flex:1;align-items:center}
+.mock-table-row:first-child{background:rgba(0,0,0,0.03);border-radius:2px}
+.mock-table-cell{flex:1;height:4px;background:var(--border);border-radius:1px}
+.mock-table-cell.header{background:var(--t5);height:3px}
+.mock-table-cell.green{background:rgba(63,175,122,0.4)}
+
+.mock-wizard{display:flex;align-items:center;justify-content:center;flex:1;gap:6px;padding:4px}
+.mock-wiz-step{width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700}
+.mock-wiz-step.done{background:var(--green-pale);color:var(--green-dark)}
+.mock-wiz-step.current{background:var(--green);color:#fff}
+.mock-wiz-step.pending{background:var(--subtle);color:var(--t5);border:1px solid var(--border)}
+.mock-wiz-line{width:12px;height:1px;background:var(--border)}
+
+.mock-form{display:flex;flex-direction:column;gap:3px;flex:1;padding:5px 6px}
+.mock-form-row{display:flex;gap:4px;align-items:center}
+.mock-form-label{width:28px;height:3px;background:var(--t5);border-radius:1px;opacity:0.5}
+.mock-form-input{flex:1;height:8px;background:var(--card);border:1px solid var(--border);border-radius:2px}
+
+.mock-cards{display:flex;gap:3px;padding:4px;flex:1}
+.mock-card-item{flex:1;background:var(--card);border:1px solid var(--border);border-radius:3px;padding:3px;display:flex;flex-direction:column;gap:2px}
+.mock-card-bar{height:2px;border-radius:1px;background:var(--green);opacity:0.5}
+.mock-card-line{height:2px;border-radius:1px;background:var(--border)}
+
+/* AI badge on card */
+.st-ai-badge{display:inline-flex;align-items:center;gap:3px;font-size:8px;font-weight:600;color:var(--accent);padding:2px 6px;border-radius:3px;background:rgba(4,65,89,0.05);margin-top:4px}
+
+/* ── Value momentum strip ─────────────── */
+.momentum-strip{height:36px;background:var(--card);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 32px;gap:12px;flex-shrink:0}
+.mom-label{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--t5);white-space:nowrap}
+.mom-track{flex:1;height:4px;background:var(--subtle);border-radius:2px;overflow:hidden;position:relative}
+.mom-fill{height:100%;border-radius:2px;background:linear-gradient(90deg, var(--accent) 0%, var(--green) 100%);transition:width 0.8s ease}
+.mom-markers{position:absolute;inset:0;display:flex;align-items:center}
+.mom-marker{position:absolute;width:1px;height:12px;background:var(--border);top:-4px}
+.mom-pct{font-size:11px;font-weight:700;color:var(--green)}
+
+/* ── Detail Panel (reuse from v3) ─────── */
+.panel-backdrop{display:none;position:fixed;inset:0;z-index:190;background:rgba(10,30,47,0.12)}
+.panel-backdrop.open{display:block}
+.detail-panel{
+  position:fixed;right:-540px;top:0;bottom:0;z-index:200;width:520px;max-width:95vw;
+  background:var(--card);box-shadow:-8px 0 40px rgba(10,30,47,0.12);
+  display:flex;flex-direction:column;transition:right 0.3s cubic-bezier(.4,0,.2,1);
+}
+.detail-panel.open{right:0}
+.dp-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;flex-shrink:0}
+.dp-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0}
+.dp-meta{flex:1;min-width:0}
+.dp-title{font-size:15px;font-weight:700;color:var(--t1);line-height:1.25}
+.dp-goal{font-size:12px;color:var(--t4);line-height:1.4;margin-top:2px}
+.dp-close{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--subtle);color:var(--t4);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:0.15s}
+.dp-close:hover{background:var(--border);color:var(--t1)}
+.dp-content{flex:1;overflow-y:auto;padding:16px 20px}
+.dp-section{margin-bottom:14px}
+.dp-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--t5);margin-bottom:5px}
+.dp-narrative{font-size:12px;line-height:1.65;color:var(--t2);padding:12px 14px;background:var(--subtle);border-radius:8px;border-left:3px solid var(--green)}
+.dp-ba{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dp-ba-side{padding:10px 12px;border-radius:7px}
+.dp-ba-side.before{background:rgba(4,65,89,0.03);border:1px solid rgba(4,65,89,0.08)}
+.dp-ba-side.after{background:rgba(63,175,122,0.03);border:1px solid rgba(63,175,122,0.08)}
+.dp-ba-lbl{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:5px}
+.dp-ba-side.before .dp-ba-lbl{color:var(--accent)}
+.dp-ba-side.after .dp-ba-lbl{color:var(--green-dark)}
+.dp-ba-item{font-size:10px;color:var(--t3);padding:2px 0;line-height:1.4}
+.dp-ai{padding:10px 12px;border-radius:7px;background:rgba(4,65,89,0.03);border:1px solid rgba(4,65,89,0.08)}
+.dp-ai-role{font-size:11px;color:var(--t2);font-weight:500;margin-bottom:4px}
+.dp-ai-behavior{font-size:10px;color:var(--t3);padding:1px 0;line-height:1.4}
+.dp-ai-behavior::before{content:'';display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:middle}
+.dp-question{padding:8px 10px;border-radius:6px;background:var(--subtle);margin-bottom:6px;display:flex;gap:8px}
+.dp-q-icon{width:18px;height:18px;border-radius:50%;background:var(--amber-pale);color:#8B6914;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0}
+.dp-q-text{font-size:11px;color:var(--t2);line-height:1.4}
+.dp-q-ctx{font-size:10px;color:var(--t4);margin-top:2px}
+
+/* Field grid in panel */
+.dp-field-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.dp-field{display:flex;align-items:center;gap:5px;font-size:10px;padding:4px 6px;border-radius:4px;background:rgba(0,0,0,0.02)}
+.dp-field-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.dp-field-dot.known{background:var(--green)}
+.dp-field-dot.inferred{background:var(--accent)}
+.dp-field-dot.guess{background:var(--amber)}
+.dp-field-dot.unknown{background:#CBD5E0}
+.dp-field-type{font-size:7px;font-weight:600;text-transform:uppercase;padding:1px 4px;border-radius:2px;flex-shrink:0}
+.dp-field-type.captured{background:var(--amber-pale);color:#8B6914}
+.dp-field-type.computed{background:var(--accent-pale);color:var(--accent)}
+.dp-field-type.displayed{background:var(--green-pale);color:var(--green-dark)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.station{animation:fadeUp .4s ease backwards}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="header-row">
+      <div class="thesis">
+        This solution transforms <em>manual inventory classification</em> into an AI-assisted pipeline &mdash; what takes <em>2 weeks of spreadsheet work</em> becomes same-day intelligent processing.
+      </div>
+      <div class="pills">
+        <div class="pill"><span class="pill-val">6</span><span class="pill-lbl">Pains Solved</span></div>
+        <div class="pill"><span class="pill-val">8.5 hrs</span><span class="pill-lbl">Saved / Cycle</span></div>
+        <div class="pill"><span class="pill-val">$340K</span><span class="pill-lbl">Value / Year</span></div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="persona-pills" id="personaPills"></div>
+      <button class="present-btn">Present</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="canvas">
+      <div class="phase-lanes" id="phaseLanes"></div>
+      <div class="momentum-strip">
+        <span class="mom-label">Value Momentum</span>
+        <div class="mom-track">
+          <div class="mom-fill" id="momFill" style="width:0%"></div>
+        </div>
+        <span class="mom-pct" id="momPct">0%</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel-backdrop" id="panelBackdrop" onclick="closePanel()"></div>
+<div class="detail-panel" id="detailPanel">
+  <div class="dp-header" id="dpHeader"></div>
+  <div class="dp-content" id="dpContent"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+
+const personas = [
+  { name: "Sarah Chen", color: "#3FAF7A", initials: "SC" },
+  { name: "Tom Rivera", color: "#044159", initials: "TR" },
+  { name: "Alex Kim", color: "#2D6B4A", initials: "AK" },
+  { name: "Lisa Park", color: "#0A1E2F", initials: "LP" },
+];
+
+const steps = [
+  {
+    title: "Onboard & Configure Categories",
+    goal: "Set up inventory taxonomy so the system understands your classification framework",
+    phase: "entry", actors: ["Sarah Chen", "Alex Kim"],
+    implied_pattern: "wizard",
+    narrative: "Sarah and Alex sit down with the category configuration wizard. They import their existing 340-item taxonomy. The system highlights 23 categories with fewer than 5 items — candidates for consolidation. Total setup: 25 minutes.",
+    beforeAfter: { before: ["3 days to update categories"], after: ["25-minute guided setup"] },
+    fields: [
+      { name: "Category count", type: "computed", mock_value: "317 active", confidence: "known" },
+      { name: "Import source", type: "captured", mock_value: "Excel", confidence: "known" },
+      { name: "Consolidation suggestions", type: "computed", mock_value: "23 flagged", confidence: "inferred" },
+    ],
+    questions: [],
+    ai_config: null,
+    mockKpis: null,
+  },
+  {
+    title: "Import Historical Data",
+    goal: "Bring in 2 years of historical data to train the AI classifier",
+    phase: "entry", actors: ["Sarah Chen"],
+    implied_pattern: "form",
+    narrative: "Sarah uploads 24 months of inventory transactions — 47,000 records. The system auto-maps columns, flagging 12 that need manual mapping. After 8 minutes: 94% auto-classified.",
+    beforeAfter: null,
+    fields: [
+      { name: "Records imported", type: "computed", mock_value: "47,000", confidence: "known" },
+      { name: "Auto-mapped fields", type: "computed", mock_value: "18/30", confidence: "inferred" },
+      { name: "AI training quality", type: "computed", mock_value: "87%", confidence: "inferred" },
+    ],
+    questions: [
+      { question: "Import all 3 warehouses simultaneously or phase by location?", context: "Phased reduces risk but delays AI training" },
+    ],
+    ai_config: null,
+    mockKpis: null,
+  },
+  {
+    title: "AI Inventory Classification",
+    goal: "Automatically classify new arrivals — humans only review exceptions",
+    phase: "core_experience", actors: ["Sarah Chen", "Alex Kim"],
+    implied_pattern: "dashboard",
+    narrative: "Sarah opens her morning dashboard. 247 new items. AI pre-classified 89% with confidence above 90%. She reviews 27 exceptions in 4 minutes. Yesterday that took 3 hours.",
+    beforeAfter: { before: ["3 hours per 250 items", "12% error rate"], after: ["4 minutes for 247 items", "2% error rate"] },
+    fields: [
+      { name: "Items pending", type: "displayed", mock_value: "247 new", confidence: "known" },
+      { name: "Auto-classified", type: "computed", mock_value: "89%", confidence: "known" },
+      { name: "Exception queue", type: "computed", mock_value: "27 items", confidence: "known" },
+      { name: "AI confidence", type: "computed", mock_value: "94.2%", confidence: "inferred" },
+    ],
+    questions: [],
+    ai_config: { role: "Pre-classify items", behaviors: ["Auto-classify above 90%", "Flag exceptions", "Learn from corrections"] },
+    mockKpis: [{ val: "89%", lbl: "Auto" }, { val: "27", lbl: "Review" }, { val: "94%", lbl: "Confidence" }],
+  },
+  {
+    title: "Smart Vendor Matching",
+    goal: "Link classified items to best vendors by performance, cost, and history",
+    phase: "core_experience", actors: ["Tom Rivera"],
+    implied_pattern: "table",
+    narrative: "Tom sees 220 items ready for vendor matching. System pre-matched 85% based on category history and performance scores. 3 vendors ranked for 'Custom Fabrication'. Total: 8 minutes.",
+    beforeAfter: { before: ["45 min per batch", "Relies on memory"], after: ["8 min per batch", "Performance-ranked"] },
+    fields: [
+      { name: "Items ready", type: "displayed", mock_value: "220", confidence: "known" },
+      { name: "Auto-matched", type: "computed", mock_value: "85%", confidence: "inferred" },
+      { name: "Top vendor score", type: "computed", mock_value: "94/100", confidence: "inferred" },
+    ],
+    questions: [{ question: "Consider warehouse proximity for vendor matching?", context: "Could reduce shipping costs 15-20%" }],
+    ai_config: { role: "Match items to vendors", behaviors: ["Rank by quality, lead time, cost", "Learn from overrides"] },
+    mockKpis: [{ val: "85%", lbl: "Matched" }, { val: "94", lbl: "Top Score" }],
+  },
+  {
+    title: "Inventory Health Dashboard",
+    goal: "Real-time view of inventory health, classification accuracy, and trend alerts",
+    phase: "core_experience", actors: ["Sarah Chen", "Lisa Park"],
+    implied_pattern: "dashboard",
+    narrative: "Lisa opens her executive dashboard. Health: 94% — up from 78%. An alert: 'Supplier B lead time +40%' — AI recommends shifting 12 items to Supplier A.",
+    beforeAfter: null,
+    fields: [
+      { name: "Health score", type: "computed", mock_value: "94%", confidence: "inferred" },
+      { name: "Classification accuracy", type: "displayed", mock_value: "96.2%", confidence: "known" },
+      { name: "Days on hand", type: "computed", mock_value: "32 (was 45)", confidence: "known" },
+    ],
+    questions: [],
+    ai_config: { role: "Detect anomalies", behaviors: ["Track KPIs", "Surface trend deviations", "Recommend actions"] },
+    mockKpis: [{ val: "94%", lbl: "Health" }, { val: "96%", lbl: "Accuracy" }, { val: "32d", lbl: "On Hand" }],
+  },
+  {
+    title: "Predictive Reorder Engine",
+    goal: "AI-predicted reorder points based on consumption, lead times, and seasonal patterns",
+    phase: "core_experience", actors: ["Tom Rivera", "Sarah Chen"],
+    implied_pattern: "card",
+    narrative: "Tom reviews reorder recommendations. AI flagged 34 items approaching reorder. 'Stainless Steel Fasteners' shows Q4 surge — AI recommends +20%. Tom approves 28 with one click. POs generated automatically.",
+    beforeAfter: { before: ["Reactive ordering", "Stockouts happen"], after: ["30-day forecasts", "Zero stockouts"] },
+    fields: [
+      { name: "Items flagged", type: "computed", mock_value: "34", confidence: "inferred" },
+      { name: "Seasonal prediction", type: "computed", mock_value: "+20% Q4", confidence: "guess" },
+      { name: "Savings estimate", type: "computed", mock_value: "$47K", confidence: "guess" },
+    ],
+    questions: [{ question: "Risk tolerance for AI quantities?", context: "Higher = more automation, risk of over-ordering" }],
+    ai_config: { role: "Predict reorder points", behaviors: ["24-month analysis", "Seasonal detection", "Auto-generate POs"] },
+    mockKpis: [{ val: "34", lbl: "Flagged" }, { val: "+20%", lbl: "Q4 Surge" }, { val: "$47K", lbl: "Saved" }],
+  },
+  {
+    title: "Compliance & Analytics Reports",
+    goal: "Audit-ready reports generated in seconds, not days",
+    phase: "output", actors: ["Lisa Park", "Sarah Chen"],
+    implied_pattern: "form",
+    narrative: "Lisa clicks 'Generate Q3 Report'. Classification accuracy, vendor performance, inventory turns — branded PDF in 12 seconds. Last quarter: 2 days.",
+    beforeAfter: { before: ["2 days to compile"], after: ["12-second generation"] },
+    fields: [
+      { name: "Report types", type: "displayed", mock_value: "Compliance, Analytics", confidence: "known" },
+      { name: "Generation time", type: "computed", mock_value: "12 seconds", confidence: "inferred" },
+    ],
+    questions: [],
+    ai_config: null,
+    mockKpis: null,
+  },
+  {
+    title: "AI Rules & Tuning",
+    goal: "Fine-tune AI confidence thresholds and manage classification overrides",
+    phase: "admin", actors: ["Sarah Chen"],
+    implied_pattern: "form",
+    narrative: "Sarah adjusts the confidence threshold from 90% to 85%. Adds a rule: 'Supplier X items → Industrial Grade.' Reviews learning log: 847 corrections improved accuracy from 87% to 96%.",
+    beforeAfter: null,
+    fields: [
+      { name: "Confidence threshold", type: "captured", mock_value: "85%", confidence: "known" },
+      { name: "Custom rules", type: "captured", mock_value: "14 active", confidence: "known" },
+      { name: "Learning log", type: "computed", mock_value: "847 → 96%", confidence: "known" },
+    ],
+    questions: [],
+    ai_config: null,
+    mockKpis: null,
+  },
+];
+
+const PHASES = {
+  entry: { label: "Getting Started", sub: "Setup & onboarding", steps: [] },
+  core_experience: { label: "The Core Experience", sub: "Where the value lives", steps: [] },
+  output: { label: "What You Get", sub: "Reports & deliverables", steps: [] },
+  admin: { label: "Keeping It Sharp", sub: "Configuration & tuning", steps: [] },
+};
+
+steps.forEach((s, i) => { s._idx = i; PHASES[s.phase].steps.push(s); });
+
+const state = { activeStep: null, activePersona: null };
+
+// ═══════════════════════════════════════════════════════════════
+// MOCK RENDERS — tiny visual hints per pattern
+// ═══════════════════════════════════════════════════════════════
+
+function renderMock(s) {
+  const p = s.implied_pattern;
+  if (p === 'dashboard' && s.mockKpis) {
+    return `<div class="st-mock"><span class="st-mock-label">Dashboard</span>
+      <div class="mock-dashboard">${s.mockKpis.map(k => `<div class="mock-kpi"><span class="mock-kpi-val">${k.val}</span><span class="mock-kpi-lbl">${k.lbl}</span></div>`).join('')}</div></div>`;
+  }
+  if (p === 'table') {
+    return `<div class="st-mock"><span class="st-mock-label">Table</span>
+      <div class="mock-table">
+        <div class="mock-table-row"><div class="mock-table-cell header"></div><div class="mock-table-cell header"></div><div class="mock-table-cell header"></div></div>
+        <div class="mock-table-row"><div class="mock-table-cell"></div><div class="mock-table-cell green"></div><div class="mock-table-cell"></div></div>
+        <div class="mock-table-row"><div class="mock-table-cell"></div><div class="mock-table-cell"></div><div class="mock-table-cell green"></div></div>
+        <div class="mock-table-row"><div class="mock-table-cell green"></div><div class="mock-table-cell"></div><div class="mock-table-cell"></div></div>
+      </div></div>`;
+  }
+  if (p === 'wizard') {
+    return `<div class="st-mock"><span class="st-mock-label">Wizard</span>
+      <div class="mock-wizard">
+        <div class="mock-wiz-step done">1</div><div class="mock-wiz-line"></div>
+        <div class="mock-wiz-step current">2</div><div class="mock-wiz-line"></div>
+        <div class="mock-wiz-step pending">3</div>
+      </div></div>`;
+  }
+  if (p === 'card' && s.mockKpis) {
+    return `<div class="st-mock"><span class="st-mock-label">Cards</span>
+      <div class="mock-cards">${s.mockKpis.map(() => `<div class="mock-card-item"><div class="mock-card-bar" style="width:${40+Math.random()*50}%"></div><div class="mock-card-line"></div><div class="mock-card-line" style="width:60%"></div></div>`).join('')}</div></div>`;
+  }
+  if (p === 'form') {
+    return `<div class="st-mock"><span class="st-mock-label">Form</span>
+      <div class="mock-form">
+        <div class="mock-form-row"><div class="mock-form-label"></div><div class="mock-form-input"></div></div>
+        <div class="mock-form-row"><div class="mock-form-label"></div><div class="mock-form-input"></div></div>
+        <div class="mock-form-row"><div class="mock-form-label"></div><div class="mock-form-input"></div></div>
+      </div></div>`;
+  }
+  return '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════
+
+function renderAll() {
+  renderPersonas();
+  renderLanes();
+  animateMomentum();
+}
+
+function renderPersonas() {
+  document.getElementById('personaPills').innerHTML = personas.map((p, i) =>
+    `<button class="ppill${state.activePersona === i ? ' active' : ''}" style="--pc:${p.color}" onclick="togglePersona(${i})">
+      <div class="pavatar" style="background:${p.color}">${p.initials}</div>${p.name.split(' ')[0]}
+    </button>`
+  ).join('');
+}
+
+function renderLanes() {
+  const phaseOrder = ['entry', 'core_experience', 'output', 'admin'];
+  const laneClass = { entry: 'entry', core_experience: 'core', output: 'output', admin: 'admin' };
+  const idxClass = { entry: 'entry-idx', core_experience: 'core-idx', output: 'output-idx', admin: 'admin-idx' };
+  const labelClass = { entry: 'entry-l', core_experience: 'core-l', output: 'output-l', admin: 'admin-l' };
+
+  document.getElementById('phaseLanes').innerHTML = phaseOrder.map(phase => {
+    const p = PHASES[phase];
+    const isCore = phase === 'core_experience';
+
+    return `<div class="phase-lane ${laneClass[phase]}" style="flex:${isCore ? 2.5 : 1}">
+      <div class="lane-header">
+        <div class="lane-label ${labelClass[phase]}">${p.label}</div>
+        <div class="lane-sublabel">${p.sub}</div>
+      </div>
+      <div class="lane-cards">
+        ${p.steps.map(s => {
+          const isCoreVal = isCore;
+          const compactClass = !isCore ? ' compact' : '';
+
+          const dots = s.actors.map(name => {
+            const pp = personas.find(x => x.name === name);
+            return pp ? `<div class="pdot" style="background:${pp.color}" title="${pp.name}">${pp.initials}</div>` : '';
+          }).join('');
+
+          let transformHtml = '';
+          if (s.beforeAfter && isCore) {
+            transformHtml = `<div class="st-transform">
+              <span class="st-tf-before">${s.beforeAfter.before[0]}</span>
+              <span class="st-tf-arrow">→</span>
+              <span class="st-tf-after">${s.beforeAfter.after[0]}</span>
+            </div>`;
+          }
+
+          const mockHtml = isCore ? renderMock(s) : '';
+          const aiHtml = s.ai_config && isCore ? `<div class="st-ai-badge">◈ ${s.ai_config.role}</div>` : '';
+
+          return `<div class="station${isCoreVal ? ' core-value' : ''}${compactClass}"
+            data-step="${s._idx}" onclick="openPanel(${s._idx})"
+            style="animation-delay:${s._idx * 0.07}s">
+            <div class="st-top">
+              <div class="st-idx ${idxClass[phase]}">${s._idx + 1}</div>
+              <div class="st-title">${s.title}</div>
+              <div class="st-personas">${dots}</div>
+            </div>
+            <div class="st-goal">${s.goal}</div>
+            ${transformHtml}
+            ${mockHtml}
+            ${aiHtml}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function animateMomentum() {
+  // Simulate value building — core steps contribute most
+  const weights = { entry: 8, core_experience: 22, output: 12, admin: 5 };
+  let total = 0, running = 0;
+  steps.forEach(s => { total += weights[s.phase]; });
+  steps.forEach(s => { running += weights[s.phase]; });
+  const pct = Math.round(running / total * 100);
+  setTimeout(() => {
+    document.getElementById('momFill').style.width = pct + '%';
+    document.getElementById('momPct').textContent = pct + '%';
+  }, 400);
+}
+
+function togglePersona(index) {
+  state.activePersona = state.activePersona === index ? null : index;
+  renderPersonas();
+  document.querySelectorAll('.station').forEach(el => {
+    const idx = parseInt(el.dataset.step);
+    if (state.activePersona === null) {
+      el.classList.remove('dimmed');
+    } else {
+      el.classList.toggle('dimmed', !steps[idx].actors.includes(personas[state.activePersona].name));
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DETAIL PANEL
+// ═══════════════════════════════════════════════════════════════
+
+function openPanel(index) {
+  state.activeStep = index;
+  const s = steps[index];
+  const phaseColors = { entry: 'var(--accent)', core_experience: 'var(--green)', output: 'var(--navy)', admin: 'var(--t4)' };
+
+  document.getElementById('dpHeader').innerHTML = `
+    <div class="dp-icon" style="background:${phaseColors[s.phase]}">${index + 1}</div>
+    <div class="dp-meta">
+      <div class="dp-title">${s.title}</div>
+      <div class="dp-goal">${s.goal}</div>
+    </div>
+    <button class="dp-close" onclick="closePanel()">&times;</button>
+  `;
+
+  let content = '';
+
+  // Narrative
+  content += `<div class="dp-section"><div class="dp-label">The Story</div><div class="dp-narrative">${s.narrative}</div></div>`;
+
+  // Before/After
+  if (s.beforeAfter) {
+    content += `<div class="dp-section"><div class="dp-label">Transformation</div>
+      <div class="dp-ba">
+        <div class="dp-ba-side before"><div class="dp-ba-lbl">Today</div>${s.beforeAfter.before.map(b => `<div class="dp-ba-item">${b}</div>`).join('')}</div>
+        <div class="dp-ba-side after"><div class="dp-ba-lbl">Tomorrow</div>${s.beforeAfter.after.map(a => `<div class="dp-ba-item">${a}</div>`).join('')}</div>
+      </div>
+    </div>`;
+  }
+
+  // Fields
+  content += `<div class="dp-section"><div class="dp-label">Information Fields (${s.fields.length})</div>
+    <div class="dp-field-grid">${s.fields.map(f => `
+      <div class="dp-field">
+        <span class="dp-field-dot ${f.confidence}"></span>
+        <span style="flex:1;font-size:10px;color:var(--t2)">${f.name}</span>
+        <span class="dp-field-type ${f.type}">${f.type}</span>
+      </div>
+    `).join('')}</div>
+  </div>`;
+
+  // AI
+  if (s.ai_config) {
+    content += `<div class="dp-section"><div class="dp-label">AI Capabilities</div>
+      <div class="dp-ai"><div class="dp-ai-role">${s.ai_config.role}</div>
+      ${s.ai_config.behaviors.map(b => `<div class="dp-ai-behavior">${b}</div>`).join('')}</div></div>`;
+  }
+
+  // Questions
+  if (s.questions.length) {
+    content += `<div class="dp-section"><div class="dp-label">Open Questions (${s.questions.length})</div>
+      ${s.questions.map(q => `<div class="dp-question"><div class="dp-q-icon">?</div><div>
+        <div class="dp-q-text">${q.question}</div>
+        ${q.context ? `<div class="dp-q-ctx">${q.context}</div>` : ''}
+      </div></div>`).join('')}</div>`;
+  }
+
+  document.getElementById('dpContent').innerHTML = content;
+
+  document.getElementById('panelBackdrop').classList.add('open');
+  document.getElementById('detailPanel').classList.add('open');
+
+  document.querySelectorAll('.station').forEach(el => {
+    el.classList.toggle('selected', parseInt(el.dataset.step) === index);
+  });
+}
+
+function closePanel() {
+  state.activeStep = null;
+  document.getElementById('panelBackdrop').classList.remove('open');
+  document.getElementById('detailPanel').classList.remove('open');
+  document.querySelectorAll('.station').forEach(el => el.classList.remove('selected'));
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+renderAll();
+</script>
+</body>
+</html>

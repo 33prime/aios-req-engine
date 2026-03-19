@@ -383,7 +383,7 @@ class CallIntelligenceService:
         if not meeting:
             raise ValueError(f"Meeting {meeting_id} not found")
 
-        meeting_url = meeting.get("meeting_url") or meeting.get("video_url")
+        meeting_url = meeting.get("google_meet_link") or meeting.get("meeting_url") or meeting.get("video_url")
         if not meeting_url:
             raise ValueError(f"Meeting {meeting_id} has no meeting URL")
 

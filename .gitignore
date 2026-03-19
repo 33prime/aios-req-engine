@@ -69,3 +69,5 @@ aios-architecture-explorer.html
 v0_input_preview_*.md
 v0_prompt_*.md
 v0_prompt_*.json
+.netlify/
+apps/workbench/.netlify/

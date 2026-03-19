@@ -36,6 +36,8 @@ class MeetingCreate(BaseModel):
     # Google Calendar integration
     create_calendar_event: bool = False
     attendee_emails: list[str] | None = None
+    # Recording
+    recording_enabled: bool = False
 
 
 class MeetingUpdate(BaseModel):
@@ -72,6 +74,7 @@ class MeetingResponse(BaseModel):
     highlights: dict | None = None
     google_calendar_event_id: str | None = None
     google_meet_link: str | None = None
+    recording_enabled: bool = False
     created_by: UUID | None = None
     created_at: str
     updated_at: str
@@ -150,6 +153,7 @@ async def create_meeting(
         stakeholder_ids=data.stakeholder_ids,
         agenda=data.agenda,
         created_by=auth.user.id,
+        recording_enabled=data.recording_enabled,
     )
 
     if not meeting:
@@ -180,6 +184,19 @@ async def create_meeting(
             logger.warning("Google not connected, skipping calendar event: %s", e)
         except Exception as e:
             logger.error("Failed to create calendar event: %s", e)
+
+    # Pre-create call_recordings row so webhook pipeline can find it
+    if data.recording_enabled and meeting.get("google_meet_link"):
+        try:
+            from app.db import call_intelligence as ci_db
+
+            ci_db.create_call_recording(
+                project_id=data.project_id,
+                meeting_id=UUID(meeting["id"]),
+                status="scheduled",
+            )
+        except Exception as e:
+            logger.warning("Failed to pre-create call_recording: %s", e)
 
     return _to_response(meeting)
 
@@ -269,6 +286,7 @@ def _to_response(meeting: dict) -> MeetingResponse:
         highlights=meeting.get("highlights"),
         google_calendar_event_id=meeting.get("google_calendar_event_id"),
         google_meet_link=meeting.get("google_meet_link"),
+        recording_enabled=meeting.get("recording_enabled", False),
         created_by=meeting.get("created_by"),
         created_at=meeting["created_at"],
         updated_at=meeting["updated_at"],

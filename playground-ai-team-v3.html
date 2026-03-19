@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Team Canvas — v3 Exploration</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --green: #3FAF7A; --green-dim: rgba(63,175,122,0.12); --green-glow: rgba(63,175,122,0.25);
+    --accent: #044159; --navy: #0A1E2F; --surface: #0D2235; --card: #132C40; --card-hover: #163248;
+    --border: rgba(255,255,255,0.06); --border-active: rgba(63,175,122,0.3);
+    --text: rgba(255,255,255,0.88); --text-dim: rgba(255,255,255,0.45); --text-muted: rgba(255,255,255,0.25);
+  }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: #F8F8F8; color: #1D1D1F; min-height: 100vh; }
+
+  /* Shell */
+  .shell { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+  .controls {
+    background: var(--navy); color: var(--text); padding: 20px 16px; overflow-y: auto;
+    max-height: 100vh; position: sticky; top: 0; border-right: 1px solid var(--border);
+  }
+  .preview { overflow-y: auto; background: #FAFAFA; }
+
+  /* Controls */
+  .ctrl-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+  .ctrl-logo-icon { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--green), #2D9B6A); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .ctrl-logo-text { font-size: 13px; font-weight: 700; }
+  .ctrl-logo-sub { font-size: 9px; color: var(--text-muted); margin-top: 1px; }
+
+  .ctrl-section { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin: 18px 0 8px; }
+  .ctrl-section:first-of-type { margin-top: 0; }
+  .ctrl-desc { font-size: 10px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px; }
+  .ctrl-divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+  .ctrl-row { display: flex; gap: 4px; margin-bottom: 8px; }
+  .ctrl-btn {
+    flex: 1; padding: 7px 8px; border: 1px solid var(--border); border-radius: 6px;
+    background: transparent; color: var(--text-dim); font: 500 11px 'Inter', sans-serif;
+    cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .ctrl-btn:hover { background: rgba(255,255,255,0.03); color: var(--text); }
+  .ctrl-btn.active { background: var(--green-dim); border-color: var(--border-active); color: var(--green); }
+
+  .ctrl-stack { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .ctrl-stack .ctrl-btn { text-align: left; padding: 8px 10px; }
+
+  .ctrl-toggle { display: flex; align-items: center; gap: 8px; padding: 5px 0; cursor: pointer; }
+  .ctrl-toggle input { display: none; }
+  .ctrl-toggle .track { width: 28px; height: 16px; border-radius: 8px; background: rgba(255,255,255,0.1); position: relative; transition: 0.2s; flex-shrink: 0; }
+  .ctrl-toggle input:checked + .track { background: var(--green); }
+  .ctrl-toggle .track::after { content: ''; position: absolute; width: 12px; height: 12px; border-radius: 50%; background: white; top: 2px; left: 2px; transition: 0.2s; }
+  .ctrl-toggle input:checked + .track::after { transform: translateX(12px); }
+  .ctrl-toggle span { font-size: 11px; color: var(--text-dim); }
+
+  /* ─── Canvas Preview (Light Theme) ──────────── */
+  .canvas-header {
+    padding: 24px 40px 16px;
+    background: var(--navy);
+  }
+  .canvas-header-top { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+  .canvas-thesis {
+    font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.5; flex: 1;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .canvas-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .canvas-action-btn {
+    padding: 6px 14px; border-radius: 7px; font: 600 11px 'Inter', sans-serif; cursor: pointer; transition: 0.2s;
+    border: 1px solid rgba(63,175,122,0.3); background: rgba(63,175,122,0.08); color: var(--green);
+  }
+  .canvas-action-btn:hover { background: var(--green); color: white; }
+  .canvas-header-bottom { display: flex; align-items: center; gap: 8px; }
+  .persona-pill {
+    display: flex; align-items: center; gap: 5px; padding: 3px 10px 3px 3px; border-radius: 20px;
+    font-size: 10px; font-weight: 500; border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);
+    cursor: pointer; transition: 0.2s;
+  }
+  .persona-pill:hover { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); }
+  .persona-dot { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 700; color: white; }
+  .stat-pill {
+    display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 6px; margin-left: auto;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+  }
+  .stat-val { font-size: 12px; font-weight: 700; color: var(--green); }
+  .stat-label { font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.3); font-weight: 600; }
+
+  /* Canvas area */
+  .canvas-area {
+    position: relative; min-height: 580px; padding: 20px 0;
+    background: linear-gradient(90deg, #FAFAFA 0%, rgba(63,175,122,0.01) 30%, rgba(63,175,122,0.02) 60%, rgba(63,175,122,0.03) 100%);
+  }
+
+  /* Agent cards (light theme, matches existing product) */
+  .agent-card {
+    position: absolute; background: white; border: 1px solid #E5E5E5; border-radius: 12px;
+    padding: 14px 16px; cursor: pointer; transition: all 0.3s; display: flex; flex-direction: column; gap: 6px;
+    border-left: 3px solid #E5E5E5;
+  }
+  .agent-card:hover {
+    border-color: var(--green); box-shadow: 0 6px 20px rgba(63,175,122,0.1); transform: translateY(-2px);
+  }
+  .agent-card.active {
+    border-color: var(--green); box-shadow: 0 0 0 2px rgba(63,175,122,0.2);
+  }
+  .agent-card.dimmed { opacity: 0.2; filter: grayscale(40%); pointer-events: none; }
+
+  .agent-card-header { display: flex; align-items: center; gap: 6px; }
+  .agent-card-icon {
+    width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; font-size: 14px; flex-shrink: 0;
+  }
+  .agent-card-phase {
+    font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 2px 6px; border-radius: 3px; background: rgba(63,175,122,0.08); color: #2A8F5F;
+  }
+  .agent-card-maturity {
+    font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 2px 6px; border-radius: 3px; margin-left: auto;
+  }
+  .maturity-active { background: rgba(63,175,122,0.1); color: #2A8F5F; }
+  .maturity-ready { background: rgba(4,65,89,0.08); color: var(--accent); }
+  .maturity-planned { background: rgba(0,0,0,0.04); color: #999; }
+
+  .agent-card-name { font-size: 14px; font-weight: 700; color: #1D1D1F; line-height: 1.3; }
+  .agent-card-role {
+    font-size: 11px; color: #7B7B7B; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+
+  .agent-card-auto { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+  .auto-bar { flex: 1; height: 3px; border-radius: 2px; background: #F0F0F0; overflow: hidden; }
+  .auto-fill { height: 100%; border-radius: 2px; background: var(--green); }
+  .auto-val { font-size: 10px; font-weight: 600; color: #999; }
+
+  .agent-card-footer {
+    display: flex; align-items: center; justify-content: between; padding-top: 6px;
+    border-top: 1px solid #F5F5F5; gap: 4px;
+  }
+  .agent-card-actor {
+    width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 7px; font-weight: 700; color: white; border: 2px solid white;
+  }
+  .agent-card-feeds { font-size: 9px; color: #999; margin-left: auto; font-weight: 500; }
+
+  /* Data needs badge */
+  .agent-card-data { display: flex; gap: 4px; flex-wrap: wrap; }
+  .data-chip {
+    font-size: 9px; padding: 2px 7px; border-radius: 4px; font-weight: 500;
+    background: #F5F5F5; color: #666; border: 1px solid #EDEDED;
+  }
+  .data-chip.question { background: rgba(232,168,56,0.08); color: #C4882B; border-color: rgba(232,168,56,0.15); }
+
+  /* SVG dependency lines */
+  .dep-svg {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;
+  }
+  .dep-line { stroke: var(--green); stroke-width: 1.5; stroke-dasharray: 6 4; fill: none; opacity: 0.2; }
+  .dep-line.highlight { opacity: 0.6; stroke-width: 2; }
+
+  /* Discovery prompt strip */
+  .discovery-strip {
+    margin: 0 40px 20px; padding: 14px 18px; border-radius: 10px; display: flex; align-items: center; gap: 12px;
+    background: white; border: 1px solid #E5E5E5; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .discovery-strip-icon { font-size: 16px; }
+  .discovery-strip-text { font-size: 12px; color: #666; line-height: 1.5; flex: 1; }
+  .discovery-strip-tag {
+    font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 3px 8px; border-radius: 4px; flex-shrink: 0;
+  }
+  .tag-data { background: rgba(232,168,56,0.1); color: #C4882B; }
+  .tag-scope { background: rgba(63,175,122,0.08); color: #2A8F5F; }
+
+  /* Present mode */
+  .present-overlay {
+    position: fixed; inset: 0; background: var(--navy); z-index: 1000; display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+  }
+  .present-overlay.active { display: flex; }
+  .present-close {
+    position: fixed; top: 20px; right: 20px; width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-dim);
+    font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10;
+  }
+  .present-close:hover { background: rgba(255,255,255,0.1); color: white; }
+  .present-content { max-width: 760px; padding: 60px 40px; color: var(--text); }
+  .present-nav { display: flex; gap: 10px; padding-bottom: 40px; }
+  .present-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.12); cursor: pointer; transition: 0.2s; }
+  .present-dot.active { background: var(--green); transform: scale(1.4); }
+
+  /* Present slide styles */
+  .pslide-big { font-size: 38px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.15; margin-bottom: 14px; color: var(--text); }
+  .pslide-big .hl { color: var(--green); }
+  .pslide-sub { font-size: 16px; color: var(--text-dim); line-height: 1.65; max-width: 540px; }
+  .pslide-agent-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .pslide-agent-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  .pslide-agent-name { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+  .pslide-agent-type { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--green); margin-top: 2px; }
+  .pslide-story { font-size: 15px; line-height: 1.7; color: rgba(255,255,255,0.65); border-left: 3px solid var(--green); padding-left: 18px; margin-bottom: 24px; max-width: 560px; }
+  .pslide-needs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .pslide-need {
+    padding: 5px 12px; border-radius: 16px; font-size: 11px; font-weight: 500;
+  }
+  .pslide-need.has { background: var(--green-dim); color: var(--green); }
+  .pslide-need.question { background: rgba(232,168,56,0.1); color: #E8A838; }
+  .pslide-human { font-size: 12px; color: var(--text-dim); padding: 10px 14px; border-radius: 8px; background: rgba(4,65,89,0.15); border: 1px solid rgba(4,65,89,0.2); display: flex; align-items: flex-start; gap: 8px; }
+  .pslide-human-icon { flex-shrink: 0; }
+
+  .pslide-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 20px; }
+  .pslide-grid-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .pslide-grid-icon { font-size: 20px; margin-bottom: 8px; }
+  .pslide-grid-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .pslide-grid-text { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+  /* Prompt bar */
+  .prompt-bar {
+    position: sticky; bottom: 0; background: var(--navy); border-top: 1px solid var(--border);
+    padding: 12px 16px; display: flex; align-items: flex-start; gap: 10px;
+  }
+  .prompt-text { flex: 1; font-size: 11px; line-height: 1.55; color: var(--text-dim); max-height: 64px; overflow-y: auto; }
+  .prompt-copy {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-active);
+    background: var(--green-dim); color: var(--green); font: 600 11px 'Inter', sans-serif; cursor: pointer; flex-shrink: 0;
+  }
+  .prompt-copy:hover { background: var(--green); color: white; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-up { animation: fadeUp 0.35s ease both; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="controls">
+    <div class="ctrl-logo">
+      <div class="ctrl-logo-icon">⚡</div>
+      <div><div class="ctrl-logo-text">AI Team Canvas</div><div class="ctrl-logo-sub">v3 — Real Agent Workflows</div></div>
+    </div>
+
+    <div class="ctrl-section">Test Case</div>
+    <div class="ctrl-stack">
+      <button class="ctrl-btn active" onclick="setScenario('aios')" id="sc-aios">AIOS — Req Engine</button>
+      <button class="ctrl-btn" onclick="setScenario('regaffairs')" id="sc-regaffairs">Proquint — Reg Affairs</button>
+      <button class="ctrl-btn" onclick="setScenario('revops')" id="sc-revops">RevOps Platform</button>
+    </div>
+
+    <div class="ctrl-section">Agent Density</div>
+    <div class="ctrl-row">
+      <button class="ctrl-btn" onclick="setDensity(3)" id="d-3">3 Core</button>
+      <button class="ctrl-btn active" onclick="setDensity(4)" id="d-4">4 Balanced</button>
+      <button class="ctrl-btn" onclick="setDensity(5)" id="d-5">5 Full</button>
+    </div>
+
+    <div class="ctrl-section">Card Content</div>
+    <label class="ctrl-toggle"><input type="checkbox" checked id="t-auto" onchange="toggle('auto')"><div class="track"></div><span>Automation bar</span></label>
+    <label class="ctrl-toggle"><input type="checkbox" checked id="t-data" onchange="toggle('data')"><div class="track"></div><span>Data needs</span></label>
+    <label class="ctrl-toggle"><input type="checkbox" id="t-human" onchange="toggle('human')"><div class="track"></div><span>Human touchpoints</span></label>
+    <label class="ctrl-toggle"><input type="checkbox" checked id="t-deps" onchange="toggle('deps')"><div class="track"></div><span>Dependency lines</span></label>
+    <label class="ctrl-toggle"><input type="checkbox" id="t-discovery" onchange="toggle('discovery')"><div class="track"></div><span>Discovery prompts</span></label>
+
+    <div class="ctrl-divider"></div>
+
+    <div class="ctrl-section">Maturity Filter</div>
+    <div class="ctrl-row">
+      <button class="ctrl-btn active" onclick="setMaturity('all')" id="m-all">All</button>
+      <button class="ctrl-btn" onclick="setMaturity('active')" id="m-active">Active</button>
+      <button class="ctrl-btn" onclick="setMaturity('planned')" id="m-planned">Planned</button>
+    </div>
+    <div class="ctrl-desc">Active = already working on this project. Planned = will activate later.</div>
+
+    <div class="ctrl-divider"></div>
+
+    <div class="ctrl-section">Presets</div>
+    <div class="ctrl-stack">
+      <button class="ctrl-btn" onclick="preset('intro')">🌱 Client Introduction</button>
+      <button class="ctrl-btn" onclick="preset('consultant')">🔬 Consultant Deep-Dive</button>
+      <button class="ctrl-btn" onclick="preset('present')">🎬 Present Mode</button>
+    </div>
+  </div>
+
+  <div class="preview" id="preview"></div>
+</div>
+
+<div class="present-overlay" id="present-overlay">
+  <button class="present-close" onclick="closePresent()">×</button>
+  <div class="present-content" id="present-content"></div>
+  <div class="present-nav" id="present-nav"></div>
+</div>
+
+<div class="prompt-bar">
+  <div class="prompt-text" id="prompt-output"></div>
+  <button class="prompt-copy" onclick="copyPrompt()">Copy</button>
+</div>
+
+<script>
+const S = {
+  scenario: 'aios',
+  density: 4,
+  show: { auto: true, data: true, human: false, deps: true, discovery: false },
+  maturity: 'all',
+  hovered: null,
+  selected: null,
+};
+
+// ─── Scenarios ──────────────────────────────────
+const SCENARIOS = {
+  aios: {
+    name: 'AIOS Requirements Engine',
+    thesis: 'AI-powered discovery and requirements engineering — from raw signals to validated prototypes.',
+    personas: [
+      { name: 'Consultant', initials: 'CO', color: '#3FAF7A' },
+      { name: 'Client', initials: 'CL', color: '#044159' },
+    ],
+    agents: [
+      {
+        id: 'signal', name: 'Signal Intelligence', icon: '📡', phase: 'Ingest',
+        iconBg: '#E8F5EE', maturity: 'active',
+        role: 'Processes meeting transcripts, emails, and research docs — extracts features, personas, stakeholders, and pain points automatically.',
+        story: 'Every signal that enters the system — a transcript from a discovery call, a forwarded email, a research PDF — gets classified, chunked, and mined for requirements entities. The consultant reviews what was found; the AI does the reading.',
+        auto: 85, actors: [0],
+        data: [
+          { label: 'Meeting transcripts', q: false },
+          { label: 'Email threads', q: true },
+          { label: 'Research docs', q: false },
+        ],
+        human: 'Consultant confirms or rejects extracted entities. AI reads — human validates.',
+        question: 'How do you capture meeting notes today? Do clients send materials by email?',
+        feeds: ['discovery'],
+      },
+      {
+        id: 'call', name: 'Call Intelligence', icon: '🎙️', phase: 'Ingest',
+        iconBg: '#E5F0F5', maturity: 'active',
+        role: 'Real-time call analysis — captures decisions, sentiment shifts, and action items as the conversation happens.',
+        story: 'During a discovery call, Call Intelligence listens for key moments: when a client expresses frustration (pain point), when they describe a workflow (feature signal), when they commit to something (decision). It surfaces these in real-time for the consultant.',
+        auto: 75, actors: [0, 1],
+        data: [
+          { label: 'Call recordings', q: true },
+          { label: 'Calendar context', q: true },
+          { label: 'Participant roles', q: false },
+        ],
+        human: 'Consultant guides the conversation. AI captures what matters so the consultant stays present.',
+        question: 'Are discovery calls recorded? How many calls happen before a proposal?',
+        feeds: ['discovery'],
+      },
+      {
+        id: 'discovery', name: 'Discovery Engine', icon: '🔬', phase: 'Analyze',
+        iconBg: '#E8F5EE', maturity: 'active',
+        role: 'Detects gaps in understanding, generates discovery probes, and builds the intelligence briefing for each session.',
+        story: 'After signals are processed, the Discovery Engine looks at what\'s known vs unknown. It finds contradictions, clusters related gaps, and generates the questions the consultant should ask next. Before each call, it assembles a briefing with talking points.',
+        auto: 70, actors: [0],
+        data: [
+          { label: 'Extracted entities', q: false },
+          { label: 'Confidence scores', q: false },
+          { label: 'Session history', q: false },
+        ],
+        human: 'Consultant chooses which probes to ask and in what order. AI maps the territory — consultant navigates it.',
+        question: 'How do you currently prepare for discovery calls? What does a typical agenda look like?',
+        feeds: ['solution'],
+      },
+      {
+        id: 'solution', name: 'Solution Architect', icon: '🏗️', phase: 'Build',
+        iconBg: '#F0E8F5', maturity: 'active',
+        role: 'Synthesizes all intelligence into a solution flow — the step-by-step journey from problem to value delivery.',
+        story: 'Once enough signals have been processed and gaps closed, the Solution Architect builds a living blueprint: a sequence of solution steps, each with data needs, actors, and AI capabilities mapped. It\'s the consultant\'s strategy made tangible.',
+        auto: 65, actors: [0],
+        data: [
+          { label: 'BRD entities', q: false },
+          { label: 'Confirmed workflows', q: false },
+          { label: 'Pain/goal mapping', q: false },
+        ],
+        human: 'Consultant shapes the narrative and confirms step priorities. AI structures — consultant directs.',
+        question: 'What does your current proposal process look like? How do you communicate the solution to clients?',
+        feeds: ['prototype'],
+      },
+      {
+        id: 'prototype', name: 'Prototype Creator', icon: '🎨', phase: 'Validate',
+        iconBg: '#F5F0E8', maturity: 'ready',
+        role: 'Generates a working prototype from the solution flow, then refines it through consultant and client feedback cycles.',
+        story: 'The consultant\'s solution flow becomes a clickable prototype — not wireframes, but a real interactive experience. The client walks through it, gives feedback, and the prototype evolves. Each iteration sharpens the requirements.',
+        auto: 60, actors: [0, 1],
+        data: [
+          { label: 'Solution flow steps', q: false },
+          { label: 'Client brand assets', q: true },
+          { label: 'Feedback sessions', q: true },
+        ],
+        human: 'Both consultant and client review the prototype. AI builds — humans shape the vision.',
+        question: 'Do you currently show prototypes or mockups to clients? At what stage?',
+        feeds: [],
+      },
+    ],
+  },
+  regaffairs: {
+    name: 'Proquint Regulatory Platform',
+    thesis: 'Accelerate regulatory submissions with AI-powered pipeline intelligence and dossier automation.',
+    personas: [
+      { name: 'Reg Lead', initials: 'RL', color: '#3FAF7A' },
+      { name: 'Executive', initials: 'ES', color: '#044159' },
+      { name: 'Program Mgr', initials: 'PM', color: '#2D6B4A' },
+    ],
+    agents: [
+      {
+        id: 'pipeline', name: 'Pipeline Intelligence', icon: '🔍', phase: 'Ingest',
+        iconBg: '#E8F5EE', maturity: 'active',
+        role: 'Classifies regulatory documents, monitors compliance risks, and tracks guideline changes across jurisdictions.',
+        story: 'Every document that enters the system — study protocols, FDA correspondence, competitor approvals — gets classified and indexed. Risk Sentinel watches for gaps. Intel Monitor tracks guideline changes that affect your products.',
+        auto: 82, actors: [0, 2],
+        data: [
+          { label: 'Regulatory documents', q: true },
+          { label: 'Product classifications', q: false },
+          { label: 'Jurisdiction rules', q: false },
+        ],
+        human: 'Regulatory Lead reviews anything flagged as uncertain.',
+        question: 'Where do your regulatory documents live today? How are they organized?',
+        feeds: ['strategy'],
+      },
+      {
+        id: 'strategy', name: 'Strategy Architect', icon: '🧭', phase: 'Analyze',
+        iconBg: '#E5F0F5', maturity: 'active',
+        role: 'Maps products to optimal regulatory pathways, including expedited designations teams often miss.',
+        story: 'Looks at your product profile, finds similar approved products, and recommends the fastest path to approval.',
+        auto: 70, actors: [0, 1],
+        data: [
+          { label: 'Product profiles', q: true },
+          { label: 'Approval database', q: false },
+          { label: 'Expedited criteria', q: false },
+        ],
+        human: 'Your team picks the final pathway. AI surfaces options — the strategy is yours.',
+        question: 'How many products are in your pipeline? Are any pursuing expedited designations?',
+        feeds: ['dossier'],
+      },
+      {
+        id: 'dossier', name: 'Dossier Engine', icon: '📋', phase: 'Build',
+        iconBg: '#F0E8F5', maturity: 'ready',
+        role: 'Assembles compliant dossiers, manages revision cycles, and packages eCTD submissions.',
+        story: 'Pre-fills sections from validated data, applies jurisdiction templates, tracks every revision.',
+        auto: 75, actors: [0],
+        data: [
+          { label: 'Validated pipeline data', q: true },
+          { label: 'Jurisdiction templates', q: false },
+          { label: 'Review comments', q: true },
+        ],
+        human: 'Every section gets human review. AI drafts — experts perfect.',
+        question: 'What\'s your current dossier timeline? Which sections take the most effort?',
+        feeds: ['portfolio'],
+      },
+      {
+        id: 'portfolio', name: 'Portfolio Advisor', icon: '📊', phase: 'Track',
+        iconBg: '#F5F0E8', maturity: 'planned',
+        role: 'Executive dashboard with timeline forecasts, outcome tracking, and optimization feedback loops.',
+        story: 'Turns pipeline data into a living dashboard with predictions that improve with every submission.',
+        auto: 78, actors: [1],
+        data: [
+          { label: 'Submission tracking', q: true },
+          { label: 'Historical timelines', q: false },
+          { label: 'Outcome records', q: true },
+        ],
+        human: 'Executives interpret dashboards. AI generates views — leadership drives strategy.',
+        question: 'Who reviews portfolio status today? What metrics matter most to leadership?',
+        feeds: [],
+      },
+      {
+        id: 'collab', name: 'Expert Connector', icon: '🤝', phase: 'Support',
+        iconBg: '#EEF5E8', maturity: 'planned',
+        role: 'Routes questions to domain experts and synthesizes guidance into actionable items.',
+        story: 'Finds the right specialist, provides context, captures guidance so the org learns.',
+        auto: 55, actors: [0, 2],
+        data: [
+          { label: 'Expert directory', q: false },
+          { label: 'Question context', q: false },
+          { label: 'Guidance history', q: true },
+        ],
+        human: 'Experts are always human. AI routes and synthesizes.',
+        question: 'How does your team access outside expertise today?',
+        feeds: [],
+      },
+    ],
+  },
+  revops: {
+    name: 'RevOps Intelligence Platform',
+    thesis: 'AI-driven revenue operations — from lead scoring to pipeline forecasting to deal intelligence.',
+    personas: [
+      { name: 'RevOps Lead', initials: 'RO', color: '#3FAF7A' },
+      { name: 'Sales VP', initials: 'VP', color: '#044159' },
+      { name: 'AE', initials: 'AE', color: '#2D6B4A' },
+    ],
+    agents: [
+      {
+        id: 'score', name: 'Lead Scorer', icon: '🎯', phase: 'Ingest',
+        iconBg: '#E8F5EE', maturity: 'active',
+        role: 'Scores and routes inbound leads using firmographic, behavioral, and intent signals.',
+        story: 'Every lead gets a multi-dimensional score — not just "fits ICP" but "showing buying intent right now." Routes high-value leads to the right AE instantly.',
+        auto: 88, actors: [0],
+        data: [
+          { label: 'CRM lead data', q: false },
+          { label: 'Intent signals', q: true },
+          { label: 'Firmographic enrichment', q: false },
+        ],
+        human: 'RevOps tunes the scoring model. AI scores — humans set the thresholds.',
+        question: 'What does your current lead scoring look like? Manual or automated?',
+        feeds: ['deal'],
+      },
+      {
+        id: 'deal', name: 'Deal Intelligence', icon: '💡', phase: 'Analyze',
+        iconBg: '#E5F0F5', maturity: 'active',
+        role: 'Analyzes deal health, surfaces risk signals, and recommends next-best-actions for each opportunity.',
+        story: 'Monitors every open deal for stall signals, missing stakeholders, and competitive threats. Surfaces what the AE should do next.',
+        auto: 72, actors: [0, 2],
+        data: [
+          { label: 'Deal stage history', q: false },
+          { label: 'Email/call activity', q: true },
+          { label: 'Competitor mentions', q: true },
+        ],
+        human: 'AEs make the calls. AI shows the blind spots.',
+        question: 'How do you track deal health today? What signals indicate a deal is at risk?',
+        feeds: ['forecast'],
+      },
+      {
+        id: 'forecast', name: 'Pipeline Forecaster', icon: '📈', phase: 'Build',
+        iconBg: '#F0E8F5', maturity: 'ready',
+        role: 'Generates bottoms-up pipeline forecasts using deal-level probability and historical close patterns.',
+        story: 'Replaces gut-feel forecasting with data-driven predictions. Shows VP where the pipe is strong and where it leaks.',
+        auto: 80, actors: [1],
+        data: [
+          { label: 'Historical win rates', q: false },
+          { label: 'Pipeline snapshot', q: false },
+          { label: 'Seasonal patterns', q: true },
+        ],
+        human: 'VP reviews and adjusts forecast. AI provides the foundation — leadership calls the number.',
+        question: 'How accurate are your current forecasts? What\'s your typical commit vs close rate?',
+        feeds: ['optimize'],
+      },
+      {
+        id: 'optimize', name: 'Revenue Optimizer', icon: '⚡', phase: 'Track',
+        iconBg: '#F5F0E8', maturity: 'planned',
+        role: 'Identifies process bottlenecks, recommends territory/quota adjustments, and measures playbook effectiveness.',
+        story: 'Feeds closed-deal outcomes back into the system to improve scoring, routing, and forecasting over time.',
+        auto: 65, actors: [0, 1],
+        data: [
+          { label: 'Closed deal outcomes', q: false },
+          { label: 'Rep performance data', q: true },
+          { label: 'Process timestamps', q: true },
+        ],
+        human: 'RevOps acts on optimization insights. AI finds patterns — humans implement changes.',
+        question: 'Do you currently measure time-in-stage or conversion rates between stages?',
+        feeds: [],
+      },
+    ],
+  },
+};
+
+// ─── Layout Engine ──────────────────────────────
+function computeLayout(agents) {
+  // Group by phase → columns
+  const phases = []; const phaseMap = {};
+  agents.forEach(a => {
+    if (!phaseMap[a.phase]) { phaseMap[a.phase] = []; phases.push(a.phase); }
+    phaseMap[a.phase].push(a);
+  });
+
+  const colGap = 80, rowGap = 24, padLeft = 50, padTop = 16;
+  const baseW = 240, baseH = S.show.data ? 220 : (S.show.human ? 200 : 170);
+  const positions = {};
+  let x = padLeft;
+
+  phases.forEach(phase => {
+    const group = phaseMap[phase];
+    const totalH = group.length * baseH + (group.length - 1) * rowGap;
+    let y = Math.max(padTop, 240 - totalH / 2);
+
+    group.forEach(a => {
+      positions[a.id] = { x, y, w: baseW, h: baseH };
+      y += baseH + rowGap;
+    });
+    x += baseW + colGap;
+  });
+
+  return { positions, totalWidth: x + 40, totalHeight: Math.max(520, Object.values(positions).reduce((m, p) => Math.max(m, p.y + p.h + padTop), 0)) };
+}
+
+// ─── Render ─────────────────────────────────────
+function render() {
+  const sc = SCENARIOS[S.scenario];
+  const agents = sc.agents.slice(0, S.density).filter(a => S.maturity === 'all' || a.maturity === S.maturity);
+  const { positions, totalWidth, totalHeight } = computeLayout(agents);
+  const avgAuto = agents.length ? Math.round(agents.reduce((s, a) => s + a.auto, 0) / agents.length) : 0;
+
+  const preview = document.getElementById('preview');
+  preview.innerHTML = `
+    <div class="canvas-header">
+      <div class="canvas-header-top">
+        <div class="canvas-thesis">${sc.thesis}</div>
+        <div class="canvas-header-actions">
+          <button class="canvas-action-btn" onclick="openPresent()">Present</button>
+        </div>
+      </div>
+      <div class="canvas-header-bottom">
+        ${sc.personas.map(p => `
+          <div class="persona-pill">
+            <div class="persona-dot" style="background:${p.color}">${p.initials}</div>
+            ${p.name}
+          </div>
+        `).join('')}
+        <div class="stat-pill"><span class="stat-val">${agents.length}</span><span class="stat-label">Agents</span></div>
+        <div class="stat-pill"><span class="stat-val">${avgAuto}%</span><span class="stat-label">Automated</span></div>
+      </div>
+    </div>
+
+    <div class="canvas-area" style="min-width:${totalWidth}px; min-height:${totalHeight}px;">
+      ${S.show.deps ? renderDepLines(agents, positions) : ''}
+      ${agents.map((a, i) => renderCard(a, positions[a.id], sc.personas, i)).join('')}
+    </div>
+
+    ${S.show.discovery ? agents.filter(a => a.question).map(a => `
+      <div class="discovery-strip fade-up">
+        <div class="discovery-strip-icon">💬</div>
+        <div class="discovery-strip-text"><strong>${a.name}:</strong> ${a.question}</div>
+        <div class="discovery-strip-tag tag-data">Data</div>
+      </div>
+    `).join('') : ''}
+  `;
+  S.hovered = null;
+  updatePrompt(sc, agents);
+}
+
+function renderCard(agent, pos, personas, idx) {
+  const matClass = agent.maturity === 'active' ? 'maturity-active' : agent.maturity === 'ready' ? 'maturity-ready' : 'maturity-planned';
+  const matLabel = agent.maturity === 'active' ? 'Active' : agent.maturity === 'ready' ? 'Ready' : 'Planned';
+
+  return `
+    <div class="agent-card fade-up"
+         data-agent-id="${agent.id}"
+         style="left:${pos.x}px; top:${pos.y}px; width:${pos.w}px; animation-delay:${idx * 60}ms;
+                border-left-color: ${agent.maturity === 'active' ? 'var(--green)' : agent.maturity === 'ready' ? 'var(--accent)' : '#DDD'};"
+         onmouseenter="hoverAgent('${agent.id}')"
+         onmouseleave="unhoverAgent('${agent.id}')"
+         onclick="clickAgent('${agent.id}')">
+      <div class="agent-card-header">
+        <div class="agent-card-icon" style="background:${agent.iconBg}">${agent.icon}</div>
+        <div class="agent-card-phase">${agent.phase}</div>
+        <div class="agent-card-maturity ${matClass}">${matLabel}</div>
+      </div>
+      <div class="agent-card-name">${agent.name}</div>
+      <div class="agent-card-role">${agent.role}</div>
+      ${S.show.auto ? `
+        <div class="agent-card-auto">
+          <div class="auto-bar"><div class="auto-fill" style="width:${agent.auto}%"></div></div>
+          <div class="auto-val">${agent.auto}%</div>
+        </div>
+      ` : ''}
+      ${S.show.data ? `
+        <div class="agent-card-data">
+          ${agent.data.map(d => `<span class="data-chip ${d.q ? 'question' : ''}">${d.q ? '? ' : '✓ '}${d.label}</span>`).join('')}
+        </div>
+      ` : ''}
+      ${S.show.human ? `
+        <div style="font-size:10px; color:#999; margin-top:4px; line-height:1.4; padding-top:6px; border-top:1px solid #F5F5F5;">
+          👤 ${agent.human}
+        </div>
+      ` : ''}
+      <div class="agent-card-footer">
+        ${agent.actors.map(i => `<div class="agent-card-actor" style="background:${personas[i]?.color || '#999'}">${personas[i]?.initials || '?'}</div>`).join('')}
+        ${agent.feeds.length ? `<div class="agent-card-feeds">→ ${agent.feeds.length} agent${agent.feeds.length > 1 ? 's' : ''}</div>` : '<div class="agent-card-feeds">End of pipeline</div>'}
+      </div>
+    </div>
+  `;
+}
+
+function renderDepLines(agents, positions) {
+  let paths = '';
+  agents.forEach(a => {
+    if (!positions[a.id]) return;
+    const from = positions[a.id];
+    a.feeds.forEach(targetId => {
+      const to = positions[targetId];
+      if (!to) return;
+      const x1 = from.x + from.w, y1 = from.y + from.h / 2;
+      const x2 = to.x, y2 = to.y + to.h / 2;
+      const cx = (x1 + x2) / 2;
+      paths += `<path class="dep-line" data-from="${a.id}" data-to="${targetId}" d="M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}" />`;
+    });
+  });
+  return `<svg class="dep-svg">${paths}</svg>`;
+}
+
+function isConnected(id, hoveredId) {
+  const sc = SCENARIOS[S.scenario];
+  const agents = sc.agents.slice(0, S.density);
+  const hAgent = agents.find(a => a.id === hoveredId);
+  if (!hAgent) return false;
+  return hAgent.feeds.includes(id) || agents.find(a => a.id === id)?.feeds.includes(hoveredId);
+}
+
+// ─── Present Mode ───────────────────────────────
+let presentSlide = 0;
+function openPresent() {
+  document.getElementById('present-overlay').classList.add('active');
+  presentSlide = 0;
+  renderPresent();
+  document.addEventListener('keydown', presentKey);
+}
+function closePresent() {
+  document.getElementById('present-overlay').classList.remove('active');
+  document.removeEventListener('keydown', presentKey);
+}
+function presentKey(e) {
+  const sc = SCENARIOS[S.scenario];
+  const agents = sc.agents.slice(0, S.density);
+  const total = agents.length + 2;
+  if (e.key === 'Escape') closePresent();
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); presentSlide = Math.min(presentSlide + 1, total - 1); renderPresent(); }
+  if (e.key === 'ArrowLeft') { presentSlide = Math.max(presentSlide - 1, 0); renderPresent(); }
+}
+function renderPresent() {
+  const sc = SCENARIOS[S.scenario];
+  const agents = sc.agents.slice(0, S.density);
+  const total = agents.length + 2;
+  const nav = document.getElementById('present-nav');
+  const content = document.getElementById('present-content');
+  nav.innerHTML = Array.from({ length: total }, (_, j) => `<div class="present-dot ${j === presentSlide ? 'active' : ''}" onclick="presentSlide=${j};renderPresent()"></div>`).join('');
+
+  if (presentSlide === 0) {
+    content.innerHTML = `
+      <div class="fade-up">
+        <div class="pslide-big">Your <span class="hl">AI Team</span></div>
+        <div class="pslide-sub">${agents.length} specialized agents working across your pipeline. Each handles a specific domain — together, they keep everything moving.</div>
+      </div>`;
+  } else if (presentSlide <= agents.length) {
+    const a = agents[presentSlide - 1];
+    content.innerHTML = `
+      <div class="fade-up">
+        <div class="pslide-agent-row">
+          <div class="pslide-agent-icon" style="background:${a.iconBg}">${a.icon}</div>
+          <div><div class="pslide-agent-name">${a.name}</div><div class="pslide-agent-type">${a.phase}</div></div>
+        </div>
+        <div class="pslide-story">${a.story}</div>
+        <div class="pslide-needs">
+          ${a.data.map(d => `<div class="pslide-need ${d.q ? 'question' : 'has'}">${d.q ? '?' : '✓'} ${d.label}</div>`).join('')}
+        </div>
+        <div class="pslide-human"><span class="pslide-human-icon">👤</span>${a.human}</div>
+      </div>`;
+  } else {
+    const avgAuto = Math.round(agents.reduce((s, a) => s + a.auto, 0) / agents.length);
+    const dataQs = agents.flatMap(a => a.data.filter(d => d.q));
+    content.innerHTML = `
+      <div class="fade-up">
+        <div class="pslide-big" style="font-size:30px">Your Team at a <span class="hl">Glance</span></div>
+        <div class="pslide-grid">
+          <div class="pslide-grid-card"><div class="pslide-grid-icon">⚡</div><div class="pslide-grid-title">${agents.length} Agents, ${avgAuto}% Automated</div><div class="pslide-grid-text">Handles repetitive work while your experts focus on judgment.</div></div>
+          <div class="pslide-grid-card"><div class="pslide-grid-icon">🔗</div><div class="pslide-grid-title">End-to-End Pipeline</div><div class="pslide-grid-text">${agents.map(a => a.name).join(' → ')}</div></div>
+          <div class="pslide-grid-card"><div class="pslide-grid-icon">❓</div><div class="pslide-grid-title">${dataQs.length} Data Questions</div><div class="pslide-grid-text">Things we need to understand about your current data.</div></div>
+          <div class="pslide-grid-card"><div class="pslide-grid-icon">👤</div><div class="pslide-grid-title">Human in the Loop</div><div class="pslide-grid-text">Every critical decision stays with your team.</div></div>
+        </div>
+      </div>`;
+  }
+}
+
+// ─── Hover & Click (no re-render) ───────────────
+function hoverAgent(id) {
+  S.hovered = id;
+  applyHoverState();
+}
+function unhoverAgent(id) {
+  if (S.hovered === id) S.hovered = null;
+  applyHoverState();
+}
+function clickAgent(id) {
+  // Future: open modal. For now, toggle selected.
+  S.selected = S.selected === id ? null : id;
+}
+function applyHoverState() {
+  const sc = SCENARIOS[S.scenario];
+  const agents = sc.agents.slice(0, S.density);
+  const cards = document.querySelectorAll('.agent-card');
+  const lines = document.querySelectorAll('.dep-line');
+
+  cards.forEach(card => {
+    const cardId = card.dataset.agentId;
+    if (!S.hovered) {
+      card.classList.remove('dimmed', 'active');
+      return;
+    }
+    if (cardId === S.hovered) {
+      card.classList.add('active');
+      card.classList.remove('dimmed');
+    } else if (isConnected(cardId, S.hovered)) {
+      card.classList.remove('dimmed', 'active');
+    } else {
+      card.classList.add('dimmed');
+      card.classList.remove('active');
+    }
+  });
+
+  lines.forEach(line => {
+    const fromId = line.dataset.from;
+    const toId = line.dataset.to;
+    if (!S.hovered) {
+      line.classList.remove('highlight');
+      return;
+    }
+    if (fromId === S.hovered || toId === S.hovered) {
+      line.classList.add('highlight');
+    } else {
+      line.classList.remove('highlight');
+    }
+  });
+}
+
+// ─── Controls ───────────────────────────────────
+function setScenario(s) { S.scenario = s; S.hovered = null; syncBtns('sc', s); render(); }
+function setDensity(n) { S.density = n; S.hovered = null; syncBtns('d', n); render(); }
+function setMaturity(m) { S.maturity = m; syncBtns('m', m); render(); }
+function toggle(key) { S.show[key] = document.getElementById('t-' + key).checked; render(); }
+function syncBtns(prefix, val) {
+  document.querySelectorAll(`[id^="${prefix}-"]`).forEach(b => b.classList.remove('active'));
+  document.getElementById(`${prefix}-${val}`)?.classList.add('active');
+}
+function preset(name) {
+  if (name === 'intro') {
+    S.density = 4; S.show = { auto: true, data: false, human: false, deps: true, discovery: false }; S.maturity = 'all';
+  } else if (name === 'consultant') {
+    S.density = 5; S.show = { auto: true, data: true, human: true, deps: true, discovery: true }; S.maturity = 'all';
+  } else if (name === 'present') {
+    openPresent(); return;
+  }
+  syncBtns('d', S.density); syncBtns('m', S.maturity);
+  ['auto','data','human','deps','discovery'].forEach(k => document.getElementById('t-' + k).checked = S.show[k]);
+  render();
+}
+
+function updatePrompt(sc, agents) {
+  const parts = [`AI team canvas for "${sc.name}" with ${agents.length} agents: ${agents.map(a => a.name).join(', ')}.`];
+  parts.push(`Canvas layout: weighted DAG with dependency lines between agents. Phase labels on cards.`);
+  if (S.show.data) parts.push('Show data needs on each card with readiness indicators (✓ ready, ? needs discussion).');
+  if (S.show.human) parts.push('Include human-in-the-loop callouts showing where humans stay in control.');
+  if (S.show.discovery) parts.push('Show discovery question prompts below the canvas — one per agent, surfacing data readiness questions.');
+  parts.push(`Maturity states: active (green border, working now), ready (accent border, can activate), planned (gray, future).`);
+  document.getElementById('prompt-output').textContent = parts.join(' ');
+}
+function copyPrompt() {
+  navigator.clipboard.writeText(document.getElementById('prompt-output').textContent).then(() => {
+    const b = document.querySelector('.prompt-copy'); b.textContent = 'Copied!'; setTimeout(() => b.textContent = 'Copy', 1500);
+  });
+}
+
+render();
+</script>
+</body>
+</html>

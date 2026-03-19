@@ -23,6 +23,7 @@ interface MeetingCreateModalProps {
     create_calendar_event?: boolean
     attendee_emails?: string[]
     stakeholder_ids?: string[]
+    recording_enabled?: boolean
   }) => Promise<void>
 }
 
@@ -92,6 +93,10 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
     if (!title.trim() || !projectId || !date || !time) return
     setSaving(true)
     try {
+      const attendeeEmails = selectedStakeholders
+        .map((s) => s.email)
+        .filter((e): e is string => Boolean(e))
+
       await onSave({
         project_id: projectId,
         title: title.trim(),
@@ -102,9 +107,11 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
         timezone,
         description: description.trim() || undefined,
         create_calendar_event: createCalendarEvent && googleConnected,
+        attendee_emails: attendeeEmails.length > 0 ? attendeeEmails : undefined,
         stakeholder_ids: selectedStakeholders.length > 0
           ? selectedStakeholders.map((s) => s.id)
           : undefined,
+        recording_enabled: autoRecord,
       })
       // Reset
       setTitle('')

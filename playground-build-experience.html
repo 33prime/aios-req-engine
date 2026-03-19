@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIOS — Build Experience Playground</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0A1E2F;
+    --navy-light: #0D2A3D;
+    --navy-mid: #112E42;
+    --teal: #3FAF7A;
+    --teal-dim: rgba(63,175,122,0.15);
+    --teal-glow: rgba(63,175,122,0.4);
+    --grid: rgba(63,175,122,0.06);
+    --grid-line: rgba(63,175,122,0.08);
+    --text: #E8ECF0;
+    --text-dim: #6B7D8D;
+    --text-mid: #9AABB8;
+    --surface: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --amber: #F5A623;
+    --blue: #4A9EFF;
+    --purple: #A78BFA;
+    --coral: #F87171;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Top Bar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .topbar-logo {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--teal), #2D8F62);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; color: white;
+  }
+  .topbar-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .topbar-subtitle { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .ctrl-group {
+    display: flex; align-items: center; gap: 4px;
+    padding: 3px 4px; border-radius: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+  }
+  .ctrl-btn {
+    padding: 5px 10px; border-radius: 6px; border: none;
+    background: transparent; color: var(--text-dim);
+    font-size: 11px; font-weight: 500; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .ctrl-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+  .ctrl-btn.active { color: var(--teal); background: var(--teal-dim); }
+  .ctrl-label {
+    font-size: 10px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-right: 4px; padding-left: 6px;
+  }
+  .ctrl-play {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid var(--teal); background: var(--teal-dim);
+    color: var(--teal); cursor: pointer; display: flex;
+    align-items: center; justify-content: center; font-size: 12px;
+    transition: all 0.2s;
+  }
+  .ctrl-play:hover { background: var(--teal); color: white; }
+
+  /* ── Main Stage ── */
+  .stage {
+    flex: 1; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Blueprint grid background */
+  .stage::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.6;
+  }
+  .stage::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 30%, var(--navy) 80%);
+  }
+
+  .stage-content {
+    position: relative; z-index: 1;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px;
+  }
+
+  /* ── Phase indicator bar ── */
+  .phase-bar {
+    position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 0; z-index: 5;
+    background: rgba(0,0,0,0.3); border-radius: 12px;
+    padding: 6px 8px; backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+  }
+  .phase-pip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 8px;
+    font-size: 11px; font-weight: 500;
+    color: var(--text-dim); transition: all 0.5s;
+    cursor: pointer; white-space: nowrap;
+  }
+  .phase-pip.active { color: var(--teal); background: var(--teal-dim); }
+  .phase-pip.done { color: var(--teal); }
+  .phase-pip .pip-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text-dim); transition: all 0.5s;
+    flex-shrink: 0;
+  }
+  .phase-pip.active .pip-dot { background: var(--teal); box-shadow: 0 0 8px var(--teal-glow); }
+  .phase-pip.done .pip-dot { background: var(--teal); }
+  .phase-connector {
+    width: 24px; height: 1px; background: var(--border);
+    flex-shrink: 0;
+  }
+
+  /* ── Phase 0: Entity Stream ── */
+  .entity-stream {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.6s;
+  }
+  .entity-stream.visible { opacity: 1; }
+
+  .stream-title {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    margin-bottom: 4px; text-align: center;
+  }
+  .stream-subtitle {
+    font-size: 12px; color: var(--text-dim); margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .entity-cloud {
+    position: relative;
+    width: 700px; height: 360px;
+  }
+
+  .entity-card {
+    position: absolute;
+    padding: 8px 14px; border-radius: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+    font-size: 11px; font-weight: 500;
+    white-space: nowrap;
+    opacity: 0; transform: scale(0.8) translateY(10px);
+    transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+    backdrop-filter: blur(8px);
+  }
+  .entity-card.visible {
+    opacity: 1; transform: scale(1) translateY(0);
+  }
+  .entity-card.clustered {
+    transition: all 1s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .entity-card .entity-type {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 2px; opacity: 0.6;
+  }
+  .entity-card.feature { border-color: rgba(63,175,122,0.3); color: var(--teal); }
+  .entity-card.feature .entity-type { color: var(--teal); }
+  .entity-card.persona { border-color: rgba(74,158,255,0.3); color: var(--blue); }
+  .entity-card.persona .entity-type { color: var(--blue); }
+  .entity-card.flow { border-color: rgba(167,139,250,0.3); color: var(--purple); }
+  .entity-card.flow .entity-type { color: var(--purple); }
+  .entity-card.driver { border-color: rgba(245,166,35,0.3); color: var(--amber); }
+  .entity-card.driver .entity-type { color: var(--amber); }
+
+  /* Cluster labels */
+  .cluster-label {
+    position: absolute; font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--teal); opacity: 0;
+    transition: opacity 0.8s;
+    padding: 4px 10px; border-radius: 6px;
+    background: rgba(63,175,122,0.08);
+    border: 1px solid rgba(63,175,122,0.15);
+  }
+  .cluster-label.visible { opacity: 1; }
+
+  /* Cluster connection lines */
+  .cluster-lines {
+    position: absolute; inset: 0;
+    pointer-events: none;
+  }
+  .cluster-lines line {
+    stroke: rgba(63,175,122,0.15);
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+    opacity: 0;
+    transition: opacity 0.8s;
+  }
+  .cluster-lines line.visible { opacity: 1; }
+
+  /* ── Phase 1: Architecture Blueprint ── */
+  .blueprint {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.6s;
+  }
+  .blueprint.visible { opacity: 1; }
+
+  .bp-container {
+    display: flex; gap: 24px; align-items: flex-start;
+  }
+
+  /* Sidebar nav preview */
+  .bp-sidebar {
+    width: 160px; padding: 16px 12px;
+    background: rgba(0,0,0,0.3); border-radius: 12px;
+    border: 1px solid var(--border);
+    opacity: 0; transform: translateX(-20px);
+    transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .bp-sidebar.visible { opacity: 1; transform: translateX(0); }
+  .bp-sidebar-title {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-dim); margin-bottom: 12px; padding-left: 4px;
+  }
+  .bp-nav-section {
+    margin-bottom: 12px;
+    opacity: 0; transform: translateY(8px);
+    transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .bp-nav-section.visible { opacity: 1; transform: translateY(0); }
+  .bp-nav-section-title {
+    font-size: 10px; font-weight: 600; color: var(--text-mid);
+    margin-bottom: 6px; padding-left: 4px;
+  }
+  .bp-nav-item {
+    padding: 5px 8px; border-radius: 6px;
+    font-size: 10px; color: var(--text-dim);
+    margin-bottom: 2px; cursor: default;
+    transition: all 0.3s;
+  }
+  .bp-nav-item.active {
+    color: var(--teal); background: var(--teal-dim);
+  }
+
+  /* Screen grid */
+  .bp-screens {
+    display: grid; grid-template-columns: repeat(3, 200px);
+    gap: 16px;
+  }
+  .bp-screen {
+    height: 140px; border-radius: 10px;
+    border: 1px dashed rgba(63,175,122,0.2);
+    background: rgba(63,175,122,0.03);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+    opacity: 0; transform: scale(0.9);
+    transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .bp-screen.visible {
+    opacity: 1; transform: scale(1);
+    border-style: solid;
+    border-color: rgba(63,175,122,0.15);
+  }
+  .bp-screen.building {
+    border-color: var(--teal);
+    box-shadow: 0 0 20px rgba(63,175,122,0.15), inset 0 0 20px rgba(63,175,122,0.05);
+  }
+  .bp-screen.built {
+    border-color: rgba(63,175,122,0.3);
+    background: rgba(63,175,122,0.06);
+  }
+  .bp-screen-label {
+    font-size: 10px; font-weight: 600; color: var(--text-mid);
+    margin-bottom: 4px;
+  }
+  .bp-screen-route {
+    font-size: 9px; color: var(--text-dim);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* Feature badges inside screens */
+  .bp-feature-badge {
+    position: absolute;
+    padding: 2px 6px; border-radius: 4px;
+    font-size: 8px; font-weight: 600;
+    background: var(--teal-dim); color: var(--teal);
+    border: 1px solid rgba(63,175,122,0.2);
+    opacity: 0; transform: scale(0.7);
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .bp-feature-badge.visible { opacity: 1; transform: scale(1); }
+
+  /* Mini wireframe inside built screens */
+  .bp-wireframe {
+    position: absolute; inset: 6px;
+    opacity: 0; transition: opacity 0.6s;
+  }
+  .bp-wireframe.visible { opacity: 1; }
+  .bp-wf-bar {
+    height: 3px; background: rgba(255,255,255,0.06);
+    border-radius: 2px; margin-bottom: 4px;
+  }
+  .bp-wf-block {
+    height: 12px; background: rgba(255,255,255,0.04);
+    border-radius: 3px; margin-bottom: 3px;
+  }
+  .bp-wf-cols { display: flex; gap: 3px; margin-bottom: 3px; }
+  .bp-wf-col { flex: 1; height: 24px; background: rgba(255,255,255,0.04); border-radius: 3px; }
+
+  /* Build progress indicator */
+  .build-progress {
+    position: absolute; bottom: 6px; left: 6px; right: 6px;
+    height: 2px; background: rgba(255,255,255,0.06);
+    border-radius: 1px; overflow: hidden;
+  }
+  .build-progress-fill {
+    height: 100%; background: var(--teal);
+    border-radius: 1px; width: 0%;
+    transition: width 0.8s ease;
+  }
+  .bp-screen.building .build-progress-fill {
+    animation: build-fill 2s ease forwards;
+  }
+  @keyframes build-fill {
+    from { width: 0%; }
+    to { width: 100%; }
+  }
+
+  /* ── Phase 3: Deploy ── */
+  .deploy-view {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.6s;
+  }
+  .deploy-view.visible { opacity: 1; }
+
+  .deploy-frame {
+    width: 680px; height: 400px;
+    border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(63,175,122,0.3);
+    background: var(--navy-light);
+    box-shadow: 0 0 40px rgba(63,175,122,0.1);
+    position: relative;
+    transform: scale(0.95);
+    transition: all 1s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .deploy-frame.revealed {
+    transform: scale(1);
+    box-shadow: 0 0 60px rgba(63,175,122,0.2);
+  }
+  .deploy-frame-bar {
+    height: 28px; background: rgba(0,0,0,0.3);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 10px; gap: 6px;
+  }
+  .deploy-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.1); }
+  .deploy-url {
+    flex: 1; text-align: center; font-size: 10px;
+    font-family: 'SF Mono', monospace; color: var(--text-dim);
+  }
+  .deploy-content {
+    display: flex; height: calc(100% - 28px);
+  }
+  .deploy-sidebar-preview {
+    width: 140px; background: rgba(0,0,0,0.2);
+    border-right: 1px solid var(--border);
+    padding: 12px 8px;
+  }
+  .deploy-sidebar-item {
+    padding: 4px 8px; border-radius: 4px;
+    font-size: 9px; color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+  .deploy-sidebar-item.active { color: var(--teal); background: var(--teal-dim); }
+  .deploy-main {
+    flex: 1; padding: 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .deploy-card {
+    height: 40px; border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    opacity: 0; transform: translateY(8px);
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .deploy-card.visible { opacity: 1; transform: translateY(0); }
+  .deploy-hero {
+    height: 80px; border-radius: 6px;
+    background: linear-gradient(135deg, var(--teal-dim), rgba(63,175,122,0.05));
+    border: 1px solid rgba(63,175,122,0.2);
+    opacity: 0; transform: translateY(8px);
+    transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .deploy-hero.visible { opacity: 1; transform: translateY(0); }
+
+  .deploy-status {
+    margin-top: 16px; text-align: center;
+  }
+  .deploy-status-text {
+    font-size: 12px; font-weight: 600; color: var(--teal);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .deploy-url-live {
+    font-size: 11px; color: var(--text-dim);
+    font-family: 'SF Mono', monospace;
+    margin-top: 4px;
+  }
+
+  /* ── Stats ticker ── */
+  .stats-bar {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 20px;
+    padding: 8px 20px; border-radius: 10px;
+    background: rgba(0,0,0,0.3); backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    z-index: 5;
+  }
+  .stat-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text-dim);
+  }
+  .stat-value {
+    font-weight: 700; font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    min-width: 18px; text-align: right;
+  }
+  .stat-value.teal { color: var(--teal); }
+  .stat-value.blue { color: var(--blue); }
+  .stat-value.purple { color: var(--purple); }
+  .stat-value.amber { color: var(--amber); }
+
+  /* ── Narration text ── */
+  .narration {
+    position: absolute; bottom: 68px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: var(--text-mid);
+    text-align: center; z-index: 5;
+    transition: opacity 0.4s;
+    max-width: 500px;
+  }
+
+  /* ── Prompt output ── */
+  .prompt-bar {
+    flex-shrink: 0; padding: 12px 20px;
+    background: rgba(0,0,0,0.3); border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .prompt-text {
+    flex: 1; font-size: 11px; color: var(--text-dim);
+    font-family: 'SF Mono', monospace; line-height: 1.5;
+    max-height: 60px; overflow-y: auto;
+  }
+  .prompt-copy {
+    padding: 6px 14px; border-radius: 6px;
+    background: var(--teal-dim); border: 1px solid rgba(63,175,122,0.2);
+    color: var(--teal); font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .prompt-copy:hover { background: var(--teal); color: white; }
+
+  /* ── Pulse animation ── */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .pulsing { animation: pulse 2s ease-in-out infinite; }
+
+  /* ── Glow sweep on building screens ── */
+  @keyframes glow-sweep {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .bp-screen.building::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(63,175,122,0.08), transparent);
+    background-size: 200% 100%;
+    animation: glow-sweep 2s ease-in-out infinite;
+    border-radius: 10px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">A</div>
+    <div>
+      <div class="topbar-title">Build Experience Playground</div>
+      <div class="topbar-subtitle">Cinematic prototype build progress</div>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Speed</span>
+      <button class="ctrl-btn active" data-speed="1" onclick="setSpeed(1)">1×</button>
+      <button class="ctrl-btn" data-speed="2" onclick="setSpeed(2)">2×</button>
+      <button class="ctrl-btn" data-speed="5" onclick="setSpeed(5)">5×</button>
+      <button class="ctrl-btn" data-speed="0" onclick="setSpeed(0)">Instant</button>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Phase</span>
+      <button class="ctrl-btn" onclick="jumpToPhase(0)">Analyze</button>
+      <button class="ctrl-btn" onclick="jumpToPhase(1)">Architect</button>
+      <button class="ctrl-btn" onclick="jumpToPhase(2)">Build</button>
+      <button class="ctrl-btn" onclick="jumpToPhase(3)">Deploy</button>
+    </div>
+    <button class="ctrl-play" onclick="togglePlay()" id="playBtn">▶</button>
+  </div>
+</div>
+
+<!-- Main Stage -->
+<div class="stage">
+  <div class="stage-content">
+
+    <!-- Phase Bar -->
+    <div class="phase-bar">
+      <div class="phase-pip" id="pip-0"><div class="pip-dot"></div>Analyze</div>
+      <div class="phase-connector"></div>
+      <div class="phase-pip" id="pip-1"><div class="pip-dot"></div>Architect</div>
+      <div class="phase-connector"></div>
+      <div class="phase-pip" id="pip-2"><div class="pip-dot"></div>Build</div>
+      <div class="phase-connector"></div>
+      <div class="phase-pip" id="pip-3"><div class="pip-dot"></div>Deploy</div>
+    </div>
+
+    <!-- Phase 0: Entity Stream -->
+    <div class="entity-stream" id="phase0">
+      <div class="stream-title">Analyzing Discovery Data</div>
+      <div class="stream-subtitle">Clustering <span id="entityCount">0</span> entities into narrative epics</div>
+      <div class="entity-cloud" id="entityCloud">
+        <svg class="cluster-lines" id="clusterLines"></svg>
+      </div>
+    </div>
+
+    <!-- Phase 1+2: Architecture Blueprint -->
+    <div class="blueprint" id="phase1">
+      <div class="bp-container">
+        <div class="bp-sidebar" id="bpSidebar">
+          <div class="bp-sidebar-title">Navigation</div>
+          <div id="navSections"></div>
+        </div>
+        <div class="bp-screens" id="screenGrid"></div>
+      </div>
+    </div>
+
+    <!-- Phase 3: Deploy -->
+    <div class="deploy-view" id="phase3">
+      <div class="deploy-frame" id="deployFrame">
+        <div class="deploy-frame-bar">
+          <div class="deploy-dot"></div>
+          <div class="deploy-dot"></div>
+          <div class="deploy-dot"></div>
+          <div class="deploy-url" id="deployUrlBar">proto-revflow-c0e34438.netlify.app</div>
+        </div>
+        <div class="deploy-content">
+          <div class="deploy-sidebar-preview" id="deploySidebar"></div>
+          <div class="deploy-main" id="deployMain"></div>
+        </div>
+      </div>
+      <div class="deploy-status" id="deployStatus" style="opacity:0">
+        <div class="deploy-status-text">
+          <span style="font-size:14px">✓</span> Deployed &amp; Live
+        </div>
+        <div class="deploy-url-live">https://proto-revflow-c0e34438.netlify.app</div>
+      </div>
+    </div>
+
+    <!-- Narration -->
+    <div class="narration" id="narration"></div>
+
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat-item"><span class="stat-value teal" id="statFeatures">0</span> features</div>
+      <div class="stat-item"><span class="stat-value blue" id="statPersonas">0</span> personas</div>
+      <div class="stat-item"><span class="stat-value purple" id="statEpics">0</span> epics</div>
+      <div class="stat-item"><span class="stat-value amber" id="statScreens">0</span> screens</div>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt Output -->
+<div class="prompt-bar">
+  <div class="prompt-text" id="promptText">Press ▶ to preview the cinematic build experience, or click a phase to jump.</div>
+  <button class="prompt-copy" onclick="copyPrompt()">Copy Prompt</button>
+</div>
+
+<script>
+// ── Sample Data ──
+const SAMPLE = {
+  features: [
+    { name: 'Revenue Forecast Modeling', id: 'revenue-forecast' },
+    { name: 'Client Self-Service Portal', id: 'self-service' },
+    { name: 'Go-to-Market Strategy Builder', id: 'gtm-builder' },
+    { name: 'Scenario Testing Engine', id: 'scenario-testing' },
+    { name: 'CRM Pipeline Integration', id: 'crm-integration' },
+    { name: 'Compliance Advisory Module', id: 'compliance' },
+    { name: 'Consolidated Plan Export', id: 'plan-export' },
+  ],
+  personas: [
+    { name: 'Startup Founder', id: 'startup-founder' },
+    { name: 'Enterprise CFO', id: 'enterprise-cfo' },
+    { name: 'Growth Consultant', id: 'growth-consultant' },
+  ],
+  flowSteps: [
+    'Client Tier Selection',
+    'Guided Onboarding Funnel',
+    'Intelligence Intake',
+    'Revenue Forecast Modeling',
+    'GTM Strategy Builder',
+    'Compliance Advisory',
+    'Plan Output & Export',
+    'CRM Data Sync',
+    'Consultant Dashboard',
+    'Template Management',
+  ],
+  drivers: [
+    'Reduce time-to-revenue-plan',
+    'Scale consultant capacity',
+    'Maintain audit compliance',
+  ],
+  epics: [
+    { name: 'Onboarding Journey', features: [0, 1] },
+    { name: 'Revenue Intelligence', features: [0, 3] },
+    { name: 'Strategy & GTM', features: [2, 5] },
+    { name: 'Integration Hub', features: [4, 6] },
+    { name: 'Consultant Command', features: [1, 6] },
+  ],
+  screens: [
+    { name: 'Dashboard', route: '/dashboard', section: 'Overview' },
+    { name: 'Client Onboarding', route: '/onboarding', section: 'Clients' },
+    { name: 'Revenue Modeler', route: '/revenue', section: 'Analytics' },
+    { name: 'GTM Planner', route: '/gtm', section: 'Strategy' },
+    { name: 'Scenario Lab', route: '/scenarios', section: 'Analytics' },
+    { name: 'Compliance Check', route: '/compliance', section: 'Strategy' },
+    { name: 'CRM Sync', route: '/crm', section: 'Integrations' },
+    { name: 'Plan Export', route: '/export', section: 'Outputs' },
+    { name: 'Settings', route: '/settings', section: 'System' },
+  ],
+  navSections: [
+    { label: 'Overview', items: ['Dashboard'] },
+    { label: 'Clients', items: ['Client Onboarding'] },
+    { label: 'Analytics', items: ['Revenue Modeler', 'Scenario Lab'] },
+    { label: 'Strategy', items: ['GTM Planner', 'Compliance Check'] },
+    { label: 'Integrations', items: ['CRM Sync'] },
+    { label: 'Outputs', items: ['Plan Export'] },
+  ],
+};
+
+// ── State ──
+const state = {
+  phase: -1,
+  speed: 1,
+  playing: false,
+  timeline: [],
+  timelineIdx: 0,
+  timer: null,
+  entityCards: [],
+  screensBuilt: 0,
+};
+
+function delay(ms) {
+  if (state.speed === 0) return Promise.resolve();
+  return new Promise(r => setTimeout(r, ms / state.speed));
+}
+
+// ── Phase Bar ──
+function updatePhasePips(phase) {
+  for (let i = 0; i <= 3; i++) {
+    const pip = document.getElementById(`pip-${i}`);
+    pip.classList.toggle('active', i === phase);
+    pip.classList.toggle('done', i < phase);
+  }
+}
+
+// ── Narration ──
+function narrate(text) {
+  const el = document.getElementById('narration');
+  el.style.opacity = '0';
+  setTimeout(() => { el.textContent = text; el.style.opacity = '1'; }, 200);
+}
+
+// ── Stats ──
+function updateStats(f, p, e, s) {
+  const animate = (el, target) => {
+    const current = parseInt(el.textContent) || 0;
+    if (current === target) return;
+    const step = target > current ? 1 : -1;
+    let val = current;
+    const iv = setInterval(() => {
+      val += step;
+      el.textContent = val;
+      if (val === target) clearInterval(iv);
+    }, 60);
+  };
+  animate(document.getElementById('statFeatures'), f);
+  animate(document.getElementById('statPersonas'), p);
+  animate(document.getElementById('statEpics'), e);
+  animate(document.getElementById('statScreens'), s);
+}
+
+// ── Phase 0: Entity Stream ──
+async function runPhase0() {
+  state.phase = 0;
+  updatePhasePips(0);
+  showPhaseView('phase0');
+  narrate('Scanning confirmed entities from discovery sessions...');
+
+  const cloud = document.getElementById('entityCloud');
+  cloud.innerHTML = '<svg class="cluster-lines" id="clusterLines"></svg>';
+  document.getElementById('entityCount').textContent = '0';
+  state.entityCards = [];
+
+  const allEntities = [
+    ...SAMPLE.features.map(f => ({ ...f, type: 'feature', typeLabel: 'Feature' })),
+    ...SAMPLE.personas.map(p => ({ ...p, type: 'persona', typeLabel: 'Persona' })),
+    ...SAMPLE.drivers.map((d, i) => ({ name: d, id: `driver-${i}`, type: 'driver', typeLabel: 'Driver' })),
+    ...SAMPLE.flowSteps.slice(0, 5).map((s, i) => ({ name: s, id: `flow-${i}`, type: 'flow', typeLabel: 'Flow Step' })),
+  ];
+
+  // Scatter positions
+  const positions = allEntities.map((_, i) => ({
+    x: 60 + Math.random() * 540,
+    y: 20 + Math.random() * 300,
+  }));
+
+  let count = 0;
+  for (let i = 0; i < allEntities.length; i++) {
+    const ent = allEntities[i];
+    const card = document.createElement('div');
+    card.className = `entity-card ${ent.type}`;
+    card.innerHTML = `<div class="entity-type">${ent.typeLabel}</div>${ent.name}`;
+    card.style.left = positions[i].x + 'px';
+    card.style.top = positions[i].y + 'px';
+    cloud.appendChild(card);
+    state.entityCards.push({ el: card, entity: ent, origPos: positions[i] });
+
+    await delay(120);
+    card.classList.add('visible');
+    count++;
+    document.getElementById('entityCount').textContent = count;
+
+    if (count === SAMPLE.features.length) {
+      updateStats(SAMPLE.features.length, 0, 0, 0);
+      narrate(`Found ${SAMPLE.features.length} confirmed features...`);
+    }
+    if (count === SAMPLE.features.length + SAMPLE.personas.length) {
+      updateStats(SAMPLE.features.length, SAMPLE.personas.length, 0, 0);
+      narrate(`${SAMPLE.personas.length} personas mapped to user journeys...`);
+    }
+  }
+
+  await delay(600);
+  narrate('Clustering entities into narrative epics...');
+  await delay(800);
+
+  // Cluster animation — move cards toward epic centers
+  const epicCenters = [
+    { x: 80, y: 60 }, { x: 350, y: 40 }, { x: 550, y: 60 },
+    { x: 180, y: 240 }, { x: 450, y: 240 },
+  ];
+
+  // Add cluster labels
+  SAMPLE.epics.forEach((epic, i) => {
+    const label = document.createElement('div');
+    label.className = 'cluster-label';
+    label.textContent = epic.name;
+    label.style.left = (epicCenters[i].x - 20) + 'px';
+    label.style.top = (epicCenters[i].y - 24) + 'px';
+    cloud.appendChild(label);
+    setTimeout(() => label.classList.add('visible'), 200);
+  });
+
+  // Move feature cards toward their epic
+  state.entityCards.forEach((item) => {
+    if (item.entity.type !== 'feature') return;
+    const fIdx = SAMPLE.features.findIndex(f => f.id === item.entity.id);
+    const epicIdx = SAMPLE.epics.findIndex(e => e.features.includes(fIdx));
+    if (epicIdx >= 0) {
+      const center = epicCenters[epicIdx];
+      const offsetX = (Math.random() - 0.5) * 80;
+      const offsetY = 20 + Math.random() * 40;
+      item.el.classList.add('clustered');
+      item.el.style.left = (center.x + offsetX) + 'px';
+      item.el.style.top = (center.y + offsetY) + 'px';
+    }
+  });
+
+  await delay(1200);
+  updateStats(SAMPLE.features.length, SAMPLE.personas.length, SAMPLE.epics.length, 0);
+  narrate(`${SAMPLE.epics.length} epics formed — ready to plan architecture`);
+  await delay(1000);
+}
+
+// ── Phase 1: Architecture ──
+async function runPhase1() {
+  state.phase = 1;
+  updatePhasePips(1);
+  showPhaseView('phase1');
+  narrate('Sonnet is designing the application architecture...');
+
+  const sidebar = document.getElementById('bpSidebar');
+  const navEl = document.getElementById('navSections');
+  const grid = document.getElementById('screenGrid');
+  navEl.innerHTML = '';
+  grid.innerHTML = '';
+
+  await delay(400);
+  sidebar.classList.add('visible');
+
+  // Build nav sections
+  for (const section of SAMPLE.navSections) {
+    const div = document.createElement('div');
+    div.className = 'bp-nav-section';
+    div.innerHTML = `
+      <div class="bp-nav-section-title">${section.label}</div>
+      ${section.items.map(item => `<div class="bp-nav-item">${item}</div>`).join('')}
+    `;
+    navEl.appendChild(div);
+    await delay(300);
+    div.classList.add('visible');
+  }
+
+  narrate('Mapping screens to navigation structure...');
+  await delay(500);
+
+  // Build screen grid
+  for (const screen of SAMPLE.screens) {
+    const div = document.createElement('div');
+    div.className = 'bp-screen';
+    div.setAttribute('data-route', screen.route);
+    div.innerHTML = `
+      <div class="bp-screen-label">${screen.name}</div>
+      <div class="bp-screen-route">${screen.route}</div>
+      <div class="bp-wireframe" id="wf-${screen.route.slice(1)}">
+        <div class="bp-wf-bar" style="width:60%"></div>
+        <div class="bp-wf-block" style="height:8px;width:80%"></div>
+        <div class="bp-wf-cols"><div class="bp-wf-col"></div><div class="bp-wf-col"></div><div class="bp-wf-col"></div></div>
+        <div class="bp-wf-block" style="height:20px"></div>
+        <div class="bp-wf-cols"><div class="bp-wf-col" style="height:16px"></div><div class="bp-wf-col" style="height:16px"></div></div>
+      </div>
+      <div class="build-progress"><div class="build-progress-fill"></div></div>
+    `;
+    grid.appendChild(div);
+    await delay(200);
+    div.classList.add('visible');
+  }
+
+  updateStats(SAMPLE.features.length, SAMPLE.personas.length, SAMPLE.epics.length, SAMPLE.screens.length);
+  narrate(`${SAMPLE.screens.length} screens planned across ${SAMPLE.navSections.length} sections`);
+  await delay(800);
+}
+
+// ── Phase 2: Building ──
+async function runPhase2() {
+  state.phase = 2;
+  updatePhasePips(2);
+  narrate('Haiku agents building screens in parallel...');
+
+  const screens = document.querySelectorAll('.bp-screen');
+  state.screensBuilt = 0;
+
+  for (let i = 0; i < screens.length; i++) {
+    const screen = screens[i];
+    screen.classList.add('building');
+    const name = screen.querySelector('.bp-screen-label').textContent;
+    narrate(`Building ${name}...`);
+
+    await delay(800);
+
+    screen.classList.remove('building');
+    screen.classList.add('built');
+    const wf = screen.querySelector('.bp-wireframe');
+    if (wf) wf.classList.add('visible');
+
+    state.screensBuilt++;
+    narrate(`${state.screensBuilt} of ${screens.length} screens complete`);
+    await delay(400);
+  }
+
+  narrate('All screens built — running TypeScript validation...');
+  await delay(600);
+  narrate('Vite build passed — bundling for deploy');
+  await delay(500);
+}
+
+// ── Phase 3: Deploy ──
+async function runPhase3() {
+  state.phase = 3;
+  updatePhasePips(3);
+  showPhaseView('phase3');
+  narrate('Deploying to Netlify...');
+
+  const frame = document.getElementById('deployFrame');
+  const sidebar = document.getElementById('deploySidebar');
+  const main = document.getElementById('deployMain');
+  sidebar.innerHTML = '';
+  main.innerHTML = '';
+
+  await delay(600);
+
+  // Populate sidebar
+  SAMPLE.navSections.forEach((section, i) => {
+    section.items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'deploy-sidebar-item' + (item === 'Dashboard' ? ' active' : '');
+      div.textContent = item;
+      sidebar.appendChild(div);
+    });
+  });
+
+  await delay(400);
+
+  // Populate main content
+  const hero = document.createElement('div');
+  hero.className = 'deploy-hero';
+  main.appendChild(hero);
+  await delay(200);
+  hero.classList.add('visible');
+
+  for (let i = 0; i < 4; i++) {
+    const card = document.createElement('div');
+    card.className = 'deploy-card';
+    main.appendChild(card);
+    await delay(150);
+    card.classList.add('visible');
+  }
+
+  await delay(500);
+  frame.classList.add('revealed');
+  narrate('Prototype is live!');
+
+  await delay(400);
+  const status = document.getElementById('deployStatus');
+  status.style.opacity = '1';
+  status.style.transition = 'opacity 0.6s';
+
+  updatePrompt();
+}
+
+// ── View Management ──
+function showPhaseView(id) {
+  ['phase0', 'phase1', 'phase3'].forEach(pid => {
+    document.getElementById(pid).classList.toggle('visible', pid === id);
+  });
+}
+
+// ── Playback ──
+async function runAll() {
+  state.playing = true;
+  document.getElementById('playBtn').textContent = '⏸';
+
+  await runPhase0();
+  if (!state.playing) return;
+  await runPhase1();
+  if (!state.playing) return;
+  await runPhase2();
+  if (!state.playing) return;
+  await runPhase3();
+
+  state.playing = false;
+  document.getElementById('playBtn').textContent = '▶';
+}
+
+function togglePlay() {
+  if (state.playing) {
+    state.playing = false;
+    document.getElementById('playBtn').textContent = '▶';
+  } else {
+    runAll();
+  }
+}
+
+function setSpeed(speed) {
+  state.speed = speed;
+  document.querySelectorAll('[data-speed]').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.speed) === speed);
+  });
+}
+
+async function jumpToPhase(phase) {
+  state.playing = false;
+  await delay(100);
+
+  // Reset everything
+  document.getElementById('entityCloud').innerHTML = '<svg class="cluster-lines" id="clusterLines"></svg>';
+  document.getElementById('navSections').innerHTML = '';
+  document.getElementById('screenGrid').innerHTML = '';
+  document.getElementById('bpSidebar').classList.remove('visible');
+  document.getElementById('deployFrame').classList.remove('revealed');
+  document.getElementById('deployStatus').style.opacity = '0';
+
+  const prevSpeed = state.speed;
+  state.speed = 0; // instant
+
+  if (phase >= 0) await runPhase0();
+  if (phase >= 1) await runPhase1();
+  if (phase >= 2) await runPhase2();
+
+  state.speed = prevSpeed;
+
+  if (phase === 3) await runPhase3();
+  else {
+    state.phase = phase;
+    updatePhasePips(phase);
+    if (phase <= 0) showPhaseView('phase0');
+    else if (phase <= 2) showPhaseView('phase1');
+    else showPhaseView('phase3');
+  }
+}
+
+// ── Prompt ──
+function updatePrompt() {
+  const text = `Implement a cinematic "Building Your Prototype" experience for the Build phase view. Replace the current static 4-step checklist with a rich, animated progress visualization.
+
+Phase 0 (Analyzing): Stream entity cards (features in teal, personas in blue, flow steps in purple, drivers in amber) that appear one by one, then cluster into epic groups with labels and connecting lines. Show live entity count.
+
+Phase 1 (Architecture): Reveal a sidebar navigation structure section by section, then materialize screen rectangles in a grid with route labels. Each screen appears with a blueprint wireframe inside.
+
+Phase 2 (Building): Screens glow teal one at a time as Haiku agents build them. Show a sweep animation and progress bar per screen. Counter shows "N of M screens complete."
+
+Phase 3 (Deploy): Blueprint transforms into a browser frame preview showing the deployed prototype. Cards and layout materialize inside. Status badge: "Deployed & Live" with the Netlify URL.
+
+Throughout: stats ticker at bottom (features/personas/epics/screens with animated counters), contextual narration text that updates per sub-step, and a phase progress bar at top.
+
+Design: navy background (#0A1E2F) with blueprint grid lines, teal (#3FAF7A) accents, backdrop blur panels, smooth cubic-bezier transitions. The feel should be architectural — watching a blueprint come alive.
+
+Data source: poll the build_log array from GET /prototype-builder/build/{id}/status. Add richer log entries from each pipeline sub-phase (entity counts, screen names, section labels) so the frontend can drive the animations from real data.`;
+
+  document.getElementById('promptText').textContent = text;
+}
+
+function copyPrompt() {
+  const text = document.getElementById('promptText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.prompt-copy');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy Prompt', 1500);
+  });
+}
+
+// Init
+updatePrompt();
+</script>
+</body>
+</html>

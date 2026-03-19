@@ -96,6 +96,7 @@ def create_meeting(
     stakeholder_ids: list[UUID] | None = None,
     agenda: dict | None = None,
     created_by: UUID | None = None,
+    recording_enabled: bool = False,
 ) -> dict:
     """Create a new meeting."""
     supabase = get_supabase()
@@ -119,6 +120,8 @@ def create_meeting(
         data["agenda"] = agenda
     if created_by:
         data["created_by"] = str(created_by)
+    if recording_enabled:
+        data["recording_enabled"] = True
 
     result = supabase.table("meetings").insert(data).execute()
     return result.data[0] if result.data else {}

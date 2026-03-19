@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solution Flow v3e — Guided Chat + Live Render</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green:#3FAF7A;--green-dark:#2A8F5F;--green-pale:rgba(63,175,122,0.08);--green-glow:rgba(63,175,122,0.18);
+  --accent:#044159;--accent-pale:rgba(4,65,89,0.05);--navy:#0A1E2F;
+  --amber:#D4A017;--amber-pale:rgba(212,160,23,0.08);
+  --t1:#0A1E2F;--t2:#2D3748;--t3:#4A5568;--t4:#718096;--t5:#A0AEC0;
+  --border:#E2E8F0;--bg:#F7FAFC;--card:#FFF;--subtle:#EDF2F7;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--t2);overflow:hidden;height:100vh}
+::-webkit-scrollbar{height:5px;width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#CBD5E0;border-radius:3px}
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* ── Header ─────────────────────── */
+header{background:var(--navy);padding:14px 32px 12px;flex-shrink:0}
+.header-row{display:flex;align-items:center;gap:20px;margin-bottom:8px}
+.thesis{font-size:14px;color:rgba(255,255,255,0.82);line-height:1.55;flex:1;max-width:660px}
+.thesis em{color:var(--green);font-style:normal;font-weight:600}
+.pills{display:flex;gap:10px;flex-shrink:0}
+.pill{display:flex;flex-direction:column;align-items:center;padding:4px 13px;border-radius:7px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07)}
+.pill-val{font-size:16px;font-weight:700;color:var(--green);line-height:1.2}
+.pill-lbl{font-size:8px;color:rgba(255,255,255,0.32);text-transform:uppercase;letter-spacing:0.04em;font-weight:500}
+.controls{display:flex;align-items:center;gap:8px}
+.persona-pills{display:flex;gap:4px;flex:1}
+.ppill{display:flex;align-items:center;gap:4px;padding:2px 9px 2px 2px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);cursor:pointer;transition:all .2s;background:0;color:rgba(255,255,255,0.4);font:500 10px 'Inter',sans-serif}
+.ppill:hover{color:rgba(255,255,255,0.75)}
+.ppill.active{background:rgba(255,255,255,0.08);border-color:var(--pc);color:#fff}
+.pavatar{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;flex-shrink:0}
+.present-btn{padding:4px 14px;border-radius:7px;border:1px solid rgba(63,175,122,0.3);background:rgba(63,175,122,0.06);color:var(--green);font:600 10px 'Inter',sans-serif;cursor:pointer;transition:all .2s}
+.present-btn:hover{background:rgba(63,175,122,0.15)}
+
+/* ── Canvas ─────────────────────── */
+.main{flex:1;overflow:auto;position:relative}
+.canvas{position:relative;min-height:100%;display:flex;flex-direction:column}
+.phase-lanes{display:flex;flex:1;min-height:480px;gap:1px}
+.phase-lane{flex:1;min-width:0;display:flex;flex-direction:column;padding:0 10px;position:relative}
+.phase-lane::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:0}
+.phase-lane.core::before{background:linear-gradient(180deg,rgba(63,175,122,0.025) 0%,rgba(63,175,122,0.06) 100%)}
+.phase-lane.entry::before{background:rgba(4,65,89,0.018)}
+.phase-lane.output::before{background:rgba(10,30,47,0.015)}
+.phase-lane.admin::before{background:rgba(0,0,0,0.01)}
+.lane-header{padding:14px 6px 10px;position:relative;z-index:1;flex-shrink:0}
+.lane-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:2px}
+.lane-sublabel{font-size:10px;line-height:1.3}
+.lane-label.e{color:var(--accent)}.lane-sublabel.e{color:rgba(4,65,89,0.5)}
+.lane-label.c{color:var(--green-dark)}.lane-sublabel.c{color:rgba(63,175,122,0.6)}
+.lane-label.o{color:var(--navy)}.lane-sublabel.o{color:rgba(10,30,47,0.4)}
+.lane-label.a{color:var(--t4)}.lane-sublabel.a{color:var(--t5)}
+.lane-cards{flex:1;display:flex;flex-direction:column;gap:8px;padding:2px 0 14px;position:relative;z-index:1;justify-content:center}
+
+/* ── Cards ──────────────────────── */
+.station{border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+.station:hover{transform:translateY(-2px)}
+.station.selected{box-shadow:0 0 0 2px var(--green-glow)}
+.station.dimmed{opacity:.15;pointer-events:none}
+.station.phase-entry{background:linear-gradient(135deg,#fff 0%,rgba(4,65,89,0.04) 100%);border:1px solid rgba(4,65,89,0.12)}
+.station.phase-entry:hover{border-color:var(--accent);box-shadow:0 4px 16px rgba(4,65,89,0.08)}
+.station.phase-core_experience{background:linear-gradient(135deg,#fff 0%,rgba(63,175,122,0.05) 100%);border:1px solid rgba(63,175,122,0.20);padding:16px 18px}
+.station.phase-core_experience:hover{border-color:var(--green);box-shadow:0 6px 20px rgba(63,175,122,0.12)}
+.station.phase-core_experience .st-title{font-size:13px;font-weight:700}
+.station.phase-output{background:linear-gradient(135deg,#fff 0%,rgba(10,30,47,0.03) 100%);border:1px solid rgba(10,30,47,0.10)}
+.station.phase-output:hover{border-color:var(--navy);box-shadow:0 4px 16px rgba(10,30,47,0.08)}
+.station.phase-admin{background:linear-gradient(135deg,#fff 0%,rgba(0,0,0,0.02) 100%);border:1px solid rgba(0,0,0,0.08)}
+.station.phase-admin:hover{border-color:var(--t4);box-shadow:0 4px 16px rgba(0,0,0,0.06)}
+.st-top{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.st-idx{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0}
+.st-idx.ei{background:rgba(4,65,89,0.08);color:var(--accent)}.st-idx.ci{background:var(--green-pale);color:var(--green-dark)}
+.st-idx.oi{background:rgba(10,30,47,0.06);color:var(--navy)}.st-idx.ai{background:rgba(0,0,0,0.04);color:var(--t4)}
+.st-title{font-size:12px;font-weight:600;color:var(--t1);line-height:1.3;flex:1}
+.st-personas{display:flex;margin-left:auto;flex-shrink:0}
+.pdot{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:#fff;border:2px solid #fff;margin-left:-3px}
+.pdot:first-child{margin-left:0}
+.st-blurb{font-size:10px;color:var(--t3);line-height:1.5;margin-bottom:6px}
+.station.phase-core_experience .st-blurb{font-size:11px;color:var(--t2)}
+.st-transform{display:flex;gap:6px;align-items:center;padding:5px 9px;border-radius:6px;background:rgba(63,175,122,0.05);margin-bottom:4px}
+.st-tf-before{font-size:9px;color:var(--t4);text-decoration:line-through;text-decoration-color:rgba(0,0,0,0.18)}
+.st-tf-arrow{font-size:10px;color:var(--green);font-weight:700}
+.st-tf-after{font-size:9px;color:var(--green-dark);font-weight:600}
+.st-bottom{display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap}
+.st-ai-badge{display:inline-flex;align-items:center;gap:3px;font-size:8px;font-weight:600;color:var(--accent);padding:2px 7px;border-radius:3px;background:rgba(4,65,89,0.05)}
+.st-q-badge{display:inline-flex;align-items:center;gap:3px;font-size:8px;font-weight:600;color:#8B6914;padding:2px 7px;border-radius:3px;background:var(--amber-pale)}
+
+/* ── Momentum ───────────────────── */
+.momentum-strip{height:34px;background:var(--card);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 32px;gap:12px;flex-shrink:0}
+.mom-label{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--t5);white-space:nowrap}
+.mom-track{flex:1;height:4px;background:var(--subtle);border-radius:2px;overflow:hidden}
+.mom-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent) 0%,var(--green) 100%);transition:width 0.8s ease}
+.mom-pct{font-size:11px;font-weight:700;color:var(--green)}
+
+/* ── Panel — detail top, chat bottom ─── */
+.panel-backdrop{display:none;position:fixed;top:0;left:0;bottom:0;right:480px;z-index:180;background:rgba(10,30,47,0.10)}
+.panel-backdrop.open{display:block}
+.detail-panel{
+  position:fixed;right:-520px;top:0;bottom:0;z-index:210;width:480px;max-width:90vw;
+  background:var(--card);box-shadow:-6px 0 32px rgba(10,30,47,0.10);
+  display:flex;flex-direction:column;transition:right 0.3s cubic-bezier(.4,0,.2,1);
+}
+.detail-panel.open{right:0}
+.dp-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;flex-shrink:0}
+.dp-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.dp-meta{flex:1;min-width:0}
+.dp-title{font-size:13px;font-weight:700;color:var(--t1);line-height:1.25}
+.dp-goal{font-size:10px;color:var(--t4);line-height:1.4;margin-top:1px}
+.dp-close{width:24px;height:24px;border-radius:50%;border:1px solid var(--border);background:var(--subtle);color:var(--t4);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:0.15s}
+.dp-close:hover{background:var(--border);color:var(--t1)}
+
+/* Detail content (scrollable middle) */
+.dp-content{flex:1;overflow-y:auto;padding:12px 16px;min-height:0}
+.dp-section{margin-bottom:10px}
+.dp-label{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--t5);margin-bottom:4px}
+.dp-narrative{font-size:11px;line-height:1.6;color:var(--t2);padding:8px 10px;background:var(--subtle);border-radius:6px;border-left:3px solid var(--green)}
+.dp-ba{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.dp-ba-side{padding:7px 9px;border-radius:5px}
+.dp-ba-side.before{background:rgba(4,65,89,0.03);border:1px solid rgba(4,65,89,0.08)}
+.dp-ba-side.after{background:rgba(63,175,122,0.03);border:1px solid rgba(63,175,122,0.08)}
+.dp-ba-lbl{font-size:7px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px}
+.dp-ba-side.before .dp-ba-lbl{color:var(--accent)}.dp-ba-side.after .dp-ba-lbl{color:var(--green-dark)}
+.dp-ba-item{font-size:9px;color:var(--t3);padding:1px 0;line-height:1.4}
+.dp-fields{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.dp-field{display:flex;align-items:center;gap:4px;font-size:9px;padding:3px 5px;border-radius:3px;background:rgba(0,0,0,0.02)}
+.dp-field-dot{width:4px;height:4px;border-radius:50%;flex-shrink:0}
+.dp-field-dot.known{background:var(--green)}.dp-field-dot.inferred{background:var(--accent)}.dp-field-dot.guess{background:var(--amber)}
+.dp-field-name{flex:1;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dp-field-val{color:var(--t4);font-size:8px;flex-shrink:0}
+.dp-ai{padding:7px 9px;border-radius:5px;background:rgba(4,65,89,0.03);border:1px solid rgba(4,65,89,0.08)}
+.dp-ai-role{font-size:10px;color:var(--t2);font-weight:500;margin-bottom:2px}
+.dp-ai-beh{font-size:9px;color:var(--t3);padding:1px 0;line-height:1.4}
+.dp-ai-beh::before{content:'';display:inline-block;width:3px;height:3px;border-radius:50%;background:var(--accent);margin-right:5px;vertical-align:middle}
+
+/* Preview button */
+.preview-btn{
+  display:flex;align-items:center;justify-content:center;gap:6px;width:100%;
+  padding:9px 14px;border-radius:7px;border:1.5px solid rgba(63,175,122,0.3);
+  background:rgba(63,175,122,0.04);color:var(--green-dark);font:600 11px 'Inter',sans-serif;
+  cursor:pointer;transition:all 0.2s;margin-bottom:10px;
+}
+.preview-btn:hover{background:rgba(63,175,122,0.10);border-color:var(--green)}
+
+/* ── Chat (always visible bottom) ────── */
+.dp-chat{
+  flex-shrink:0;border-top:1px solid var(--border);display:flex;flex-direction:column;
+  height:220px;background:var(--subtle);
+}
+.dp-chat-msgs{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:5px}
+.chat-msg{padding:6px 10px;border-radius:8px;font-size:11px;line-height:1.45;max-width:88%;animation:msgIn 0.2s ease}
+@keyframes msgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.chat-msg.user{align-self:flex-end;background:var(--green);color:#fff;border-bottom-right-radius:3px}
+.chat-msg.assistant{align-self:flex-start;background:var(--card);color:var(--t2);border:1px solid var(--border);border-bottom-left-radius:3px}
+.chat-msg .msg-action{display:inline-block;margin-top:4px;font-size:9px;font-weight:600;color:var(--green-dark);padding:2px 8px;border-radius:4px;background:var(--green-pale);cursor:pointer}
+.chat-msg .msg-action:hover{background:rgba(63,175,122,0.15)}
+
+/* Guided suggestions */
+.chat-suggestions{display:flex;flex-wrap:wrap;gap:3px;padding:4px 12px}
+.chat-suggest{padding:4px 9px;border-radius:5px;background:var(--card);border:1px solid var(--border);font:500 9px 'Inter',sans-serif;color:var(--t3);cursor:pointer;transition:all 0.15s}
+.chat-suggest:hover{border-color:var(--green);color:var(--green-dark);background:var(--green-pale)}
+.chat-suggest.question{border-color:rgba(212,160,23,0.2);color:#8B6914}
+.chat-suggest.question:hover{border-color:var(--amber);background:var(--amber-pale)}
+
+/* Chat input */
+.chat-input-row{display:flex;gap:5px;padding:6px 12px 8px;border-top:1px solid rgba(0,0,0,0.04)}
+.chat-input{flex:1;padding:7px 10px;border-radius:7px;border:1px solid var(--border);font:400 11px 'Inter',sans-serif;color:var(--t2);outline:none;transition:border .2s;background:var(--card)}
+.chat-input:focus{border-color:var(--green)}
+.chat-send{padding:7px 12px;border-radius:7px;border:none;background:var(--green);color:#fff;font:600 10px 'Inter',sans-serif;cursor:pointer;transition:0.15s}
+.chat-send:hover{background:var(--green-dark)}
+
+/* Re-render button (appears after changes) */
+.rerender-btn{
+  display:none;align-items:center;justify-content:center;gap:5px;width:calc(100% - 24px);margin:0 12px 6px;
+  padding:8px;border-radius:6px;border:none;
+  background:linear-gradient(135deg,var(--green) 0%,var(--green-dark) 100%);
+  color:#fff;font:700 11px 'Inter',sans-serif;cursor:pointer;transition:all 0.2s;
+}
+.rerender-btn.visible{display:flex}
+.rerender-btn:hover{box-shadow:0 3px 12px rgba(63,175,122,0.3)}
+
+/* ── Preview Modal ──────────────── */
+.preview-overlay{display:none;position:fixed;top:0;left:0;bottom:0;right:480px;z-index:190;background:rgba(10,30,47,0.4)}
+.preview-overlay.open{display:flex;align-items:stretch}
+.preview-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
+.preview-frame{background:var(--card);border-radius:12px;width:100%;max-width:800px;max-height:92vh;box-shadow:0 20px 60px rgba(10,30,47,0.25);display:flex;flex-direction:column;overflow:hidden;animation:prevIn 0.3s ease}
+@keyframes prevIn{from{opacity:0;transform:scale(0.96) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.pf-chrome{display:flex;align-items:center;padding:8px 14px;background:linear-gradient(180deg,#FAFAFA 0%,#F0F0F0 100%);border-bottom:1px solid var(--border);flex-shrink:0;gap:8px}
+.pf-dots{display:flex;gap:4px}.pf-dot{width:8px;height:8px;border-radius:50%}
+.pf-dot.r{background:#FF5F57}.pf-dot.y{background:#FEBC2E}.pf-dot.g{background:#28C840}
+.pf-title{flex:1;text-align:center;font-size:10px;font-weight:500;color:var(--t4)}
+.pf-close{width:22px;height:22px;border-radius:50%;border:1px solid var(--border);background:var(--card);color:var(--t4);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pf-close:hover{background:var(--subtle);color:var(--t1)}
+.pf-body{flex:1;overflow-y:auto;background:#fff}
+
+/* Updating overlay on preview */
+.pf-updating{position:absolute;inset:0;background:rgba(255,255,255,0.85);display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;z-index:5;border-radius:12px}
+.pf-updating.active{display:flex}
+.pf-updating-spinner{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin 0.6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pf-updating-text{font-size:11px;color:var(--t3);font-weight:500}
+
+/* ── App chrome inside preview ─── */
+.app-topbar{display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border)}
+.app-logo{font-size:11px;font-weight:700;color:var(--green);margin-right:10px}
+.app-nav{display:flex;gap:2px}
+.app-nav-item{padding:3px 8px;border-radius:4px;font-size:9px;color:var(--t4);font-weight:500}
+.app-nav-item.active{background:var(--green-pale);color:var(--green-dark);font-weight:600}
+.app-topbar-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.app-avatar{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:#fff}
+.app-user{font-size:9px;color:var(--t4)}
+.app-content{padding:16px 20px}
+.app-page-title{font-size:15px;font-weight:700;color:var(--t1);margin-bottom:3px}
+.app-page-sub{font-size:10px;color:var(--t4);margin-bottom:14px}
+.app-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px}
+.app-kpi{background:var(--subtle);border:1px solid var(--border);border-radius:7px;padding:10px 12px}
+.app-kpi-val{font-size:20px;font-weight:800;line-height:1.1;margin-bottom:1px}
+.app-kpi-val.green{color:var(--green)}.app-kpi-val.navy{color:var(--navy)}.app-kpi-val.amber{color:var(--amber)}
+.app-kpi-label{font-size:7px;color:var(--t4);text-transform:uppercase;letter-spacing:0.04em;font-weight:500}
+.app-kpi-delta{font-size:8px;margin-top:1px;font-weight:500}.app-kpi-delta.up{color:var(--green)}.app-kpi-delta.down{color:#E53E3E}
+.app-chart{background:var(--subtle);border:1px solid var(--border);border-radius:7px;padding:12px;margin-bottom:10px}
+.app-chart-title{font-size:9px;font-weight:600;color:var(--t3);margin-bottom:8px}
+.app-chart-bars{display:flex;align-items:flex-end;gap:3px;height:70px}
+.app-chart-bar{flex:1;border-radius:2px 2px 0 0;transition:height 0.5s ease}
+.app-alert{border-radius:7px;padding:8px 12px;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.app-alert.warning{background:rgba(212,160,23,0.06);border:1px solid rgba(212,160,23,0.15)}
+.app-alert.info{background:rgba(63,175,122,0.04);border:1px solid rgba(63,175,122,0.12)}
+.app-alert-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.app-alert.warning .app-alert-icon{background:var(--amber-pale);color:#8B6914}
+.app-alert.info .app-alert-icon{background:var(--green-pale);color:var(--green-dark)}
+.app-alert-body{flex:1}.app-alert-title{font-size:10px;font-weight:600;color:var(--t1)}.app-alert-desc{font-size:9px;color:var(--t3);line-height:1.3}
+.app-alert-action{font-size:9px;font-weight:600;color:var(--green-dark);cursor:pointer;flex-shrink:0;padding:3px 8px;border-radius:4px;background:var(--green-pale)}
+.app-table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:7px;overflow:hidden;margin-bottom:10px}
+.app-table th{text-align:left;font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;color:var(--t4);padding:6px 10px;background:var(--subtle);border-bottom:1px solid var(--border)}
+.app-table td{font-size:10px;color:var(--t2);padding:6px 10px;border-bottom:1px solid rgba(0,0,0,0.03);vertical-align:middle}
+.app-table tr:last-child td{border-bottom:none}
+.badge{font-size:7px;font-weight:600;padding:2px 5px;border-radius:3px;text-transform:uppercase}
+.badge.green{background:var(--green-pale);color:var(--green-dark)}.badge.amber{background:var(--amber-pale);color:#8B6914}.badge.gray{background:var(--subtle);color:var(--t4)}
+.score-bar{width:40px;height:3px;background:var(--subtle);border-radius:2px;display:inline-block;vertical-align:middle;margin-left:4px;overflow:hidden}
+.score-fill{height:100%;border-radius:2px;background:var(--green)}
+.app-btn{padding:6px 14px;border-radius:5px;border:none;font:600 10px 'Inter',sans-serif;cursor:pointer}
+.app-btn.primary{background:var(--green);color:#fff}.app-btn.secondary{background:var(--subtle);color:var(--t3);border:1px solid var(--border)}
+.app-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:10px}
+.app-card{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:12px}
+.app-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.app-card-title{font-size:10px;font-weight:600;color:var(--t1)}.app-card-val{font-size:18px;font-weight:800;color:var(--t1);margin-bottom:2px}
+.app-card-sub{font-size:8px;color:var(--t4);margin-bottom:5px}
+.app-card-bar{height:3px;background:var(--subtle);border-radius:2px;overflow:hidden}
+.app-card-bar-fill{height:100%;border-radius:2px}
+.app-card-actions{display:flex;gap:3px;margin-top:6px}
+.app-card-action{font-size:8px;font-weight:500;padding:2px 7px;border-radius:3px;cursor:pointer}
+.app-card-action.approve{background:var(--green-pale);color:var(--green-dark)}.app-card-action.flag{background:var(--amber-pale);color:#8B6914}
+.app-wizard-steps{display:flex;align-items:center;justify-content:center;gap:0;padding:0 20px 16px;margin-bottom:14px;border-bottom:1px solid var(--border)}
+.app-wiz-step{display:flex;flex-direction:column;align-items:center;gap:3px}
+.app-wiz-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
+.app-wiz-num.done{background:var(--green);color:#fff}.app-wiz-num.current{background:var(--green);color:#fff;box-shadow:0 0 0 3px var(--green-glow)}.app-wiz-num.pending{background:var(--subtle);color:var(--t5);border:2px solid var(--border)}
+.app-wiz-label{font-size:8px;color:var(--t4);font-weight:500;white-space:nowrap}
+.app-wiz-line{width:40px;height:2px;margin-top:-16px;z-index:-1}.app-wiz-line.done{background:var(--green)}.app-wiz-line.pending{background:var(--border)}
+.app-form{max-width:400px}.app-form-group{margin-bottom:10px}.app-form-label{font-size:9px;font-weight:500;color:var(--t3);margin-bottom:2px}
+.app-form-input{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:5px;font-size:10px;color:var(--t2);background:var(--card)}
+.app-form-input.filled{background:var(--subtle)}.app-form-hint{font-size:8px;color:var(--t5);margin-top:1px}
+.app-form-select{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:5px;font-size:10px;color:var(--t2);background:var(--card);appearance:auto}
+.app-form-row{display:flex;gap:8px}.app-form-row .app-form-group{flex:1}
+.app-report-preview{background:var(--subtle);border:1px solid var(--border);border-radius:7px;padding:14px;margin-top:10px}
+.app-report-preview h4{font-size:10px;font-weight:600;color:var(--t1);margin-bottom:6px}
+.app-report-line{display:flex;justify-content:space-between;font-size:9px;padding:2px 0;border-bottom:1px solid rgba(0,0,0,0.03)}
+.app-report-line:last-child{border-bottom:none}.app-report-metric{color:var(--t3)}.app-report-value{color:var(--t1);font-weight:500}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.station{animation:fadeUp .4s ease backwards}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="header-row">
+      <div class="thesis">This solution transforms <em>manual inventory classification</em> into an AI-assisted pipeline &mdash; what takes <em>2 weeks of spreadsheet work</em> becomes same-day intelligent processing.</div>
+      <div class="pills">
+        <div class="pill"><span class="pill-val">6</span><span class="pill-lbl">Pains Solved</span></div>
+        <div class="pill"><span class="pill-val">8.5 hrs</span><span class="pill-lbl">Saved / Cycle</span></div>
+        <div class="pill"><span class="pill-val">$340K</span><span class="pill-lbl">Value / Year</span></div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="persona-pills" id="personaPills"></div>
+      <button class="present-btn">Present</button>
+    </div>
+  </header>
+  <div class="main">
+    <div class="canvas">
+      <div class="phase-lanes" id="phaseLanes"></div>
+      <div class="momentum-strip"><span class="mom-label">Value Momentum</span><div class="mom-track"><div class="mom-fill" id="momFill" style="width:0%"></div></div><span class="mom-pct" id="momPct">0%</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel-backdrop" id="panelBackdrop" onclick="closePanel()"></div>
+<div class="detail-panel" id="detailPanel">
+  <div class="dp-header" id="dpHeader"></div>
+  <div class="dp-content" id="dpContent"></div>
+  <!-- Chat is ALWAYS here, not a tab -->
+  <div class="dp-chat">
+    <button class="rerender-btn" id="rerenderBtn" onclick="rerender()">↻ Apply changes & re-render preview</button>
+    <div class="dp-chat-msgs" id="chatMsgs"></div>
+    <div class="chat-suggestions" id="chatSuggestions"></div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chatInput" placeholder="Ask about this step..." onkeydown="if(event.key==='Enter'&&this.value.trim())sendChat(this.value)">
+      <button class="chat-send" onclick="sendChat(document.getElementById('chatInput').value)">Send</button>
+    </div>
+  </div>
+</div>
+
+<div class="preview-overlay" id="previewOverlay">
+  <div class="preview-stage" onclick="if(event.target===this)closePreview()">
+    <div class="preview-frame" id="previewFrame" style="position:relative">
+      <div class="pf-chrome"><div class="pf-dots"><div class="pf-dot r"></div><div class="pf-dot y"></div><div class="pf-dot g"></div></div><div class="pf-title" id="pfTitle"></div><button class="pf-close" onclick="closePreview()">&times;</button></div>
+      <div class="pf-body" id="pfBody"></div>
+      <div class="pf-updating" id="pfUpdating"><div class="pf-updating-spinner"></div><div class="pf-updating-text">Re-rendering with your changes...</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const personas=[
+  {name:"Sarah Chen",color:"#3FAF7A",initials:"SC"},
+  {name:"Tom Rivera",color:"#044159",initials:"TR"},
+  {name:"Alex Kim",color:"#2D6B4A",initials:"AK"},
+  {name:"Lisa Park",color:"#0A1E2F",initials:"LP"},
+];
+const steps=[
+  {title:"Onboard & Configure Categories",blurb:"Sarah and Alex walk through a guided setup — importing their taxonomy and letting the system suggest consolidations.",goal:"Set up inventory taxonomy",phase:"entry",actors:["Sarah Chen","Alex Kim"],implied_pattern:"wizard",narrative:"Sarah and Alex sit down with the category configuration wizard. They import their existing 340-item taxonomy. The system highlights 23 categories with fewer than 5 items — candidates for consolidation. Total setup: 25 minutes.",beforeAfter:{before:["3 days to update categories"],after:["25-minute guided setup"]},fields:[{name:"Category count",type:"computed",val:"317 active",conf:"known"},{name:"Import source",type:"captured",val:"Excel (.xlsx)",conf:"known"},{name:"Consolidation suggestions",type:"computed",val:"23 flagged, 4 merged",conf:"inferred"},{name:"Taxonomy version",type:"displayed",val:"v2.1",conf:"known"}],questions:[],ai_config:null},
+  {title:"Import Historical Data",blurb:"Sarah uploads 24 months of transactions and the system auto-maps most fields — only 12 out of 30 need a manual look.",goal:"Train the AI with 2 years of data",phase:"entry",actors:["Sarah Chen"],implied_pattern:"form",narrative:"Sarah uploads 24 months of inventory transactions — 47,000 records across 3 warehouses. After 8 minutes: 94% auto-classified.",beforeAfter:null,fields:[{name:"Records imported",type:"computed",val:"47,000",conf:"known"},{name:"Auto-mapped fields",type:"computed",val:"18/30",conf:"inferred"},{name:"AI training quality",type:"computed",val:"87%",conf:"inferred"}],questions:[{q:"Import all 3 warehouses simultaneously or phase by location?",ctx:"Phased reduces risk but delays AI training"}],ai_config:null},
+  {title:"AI Inventory Classification",blurb:"Sarah opens her morning dashboard and 89% of new items are already classified. She reviews 27 exceptions in 4 minutes — yesterday that took 3 hours.",goal:"Auto-classify new arrivals",phase:"core_experience",actors:["Sarah Chen","Alex Kim"],implied_pattern:"dashboard",narrative:"Sarah opens her morning dashboard. 247 new items. AI pre-classified 89% with confidence above 90%. She reviews 27 exceptions in 4 minutes.",beforeAfter:{before:["3 hours per 250 items","12% error rate"],after:["4 minutes for 247 items","2% error rate"]},fields:[{name:"Items pending",type:"displayed",val:"247 new",conf:"known"},{name:"Auto-classified",type:"computed",val:"220 (89%)",conf:"known"},{name:"Exception queue",type:"computed",val:"27 for review",conf:"known"},{name:"AI confidence",type:"computed",val:"94.2%",conf:"inferred"},{name:"Correction rate",type:"computed",val:"1.2%",conf:"known"}],questions:[],ai_config:{role:"Pre-classify items",behaviors:["Auto-classify above 90%","Flag exceptions","Learn from corrections"]}},
+  {title:"Smart Vendor Matching",blurb:"Tom sees his items already matched to the best vendors — ranked by quality, cost, and lead time. He just confirms and moves on.",goal:"Link items to best vendors",phase:"core_experience",actors:["Tom Rivera"],implied_pattern:"table",narrative:"Tom sees 220 items ready for vendor matching. System pre-matched 85%. Total: 8 minutes.",beforeAfter:{before:["45 min per batch","Relies on memory"],after:["8 min per batch","Performance-ranked"]},fields:[{name:"Items ready",type:"displayed",val:"220",conf:"known"},{name:"Auto-matched",type:"computed",val:"187 (85%)",conf:"inferred"},{name:"Top vendor score",type:"computed",val:"94/100",conf:"inferred"},{name:"Alt. vendors",type:"computed",val:"3 ranked",conf:"inferred"}],questions:[{q:"Consider warehouse proximity?",ctx:"Could reduce shipping 15-20%"}],ai_config:{role:"Match items to vendors",behaviors:["Rank by quality, lead time, cost","Learn from overrides"]}},
+  {title:"Inventory Health Dashboard",blurb:"Lisa sees the big picture at a glance — health is up to 94%, and an AI alert flags a supplier issue before it becomes a problem.",goal:"Real-time health and alerts",phase:"core_experience",actors:["Sarah Chen","Lisa Park"],implied_pattern:"dashboard",narrative:"Lisa opens her executive dashboard. Health: 94% — up from 78%. Alert: Supplier B lead time +40%.",beforeAfter:null,fields:[{name:"Health score",type:"computed",val:"94%",conf:"inferred"},{name:"Classification accuracy",type:"displayed",val:"96.2%",conf:"known"},{name:"Days on hand",type:"computed",val:"32 (was 45)",conf:"known"},{name:"Vendor fill rate",type:"displayed",val:"91%",conf:"inferred"}],questions:[],ai_config:{role:"Detect anomalies",behaviors:["Track KPIs","Surface deviations","Recommend actions"]}},
+  {title:"Predictive Reorder Engine",blurb:"Tom reviews AI reorder recommendations. One click to approve 28 items. The system even caught a seasonal spike he would have missed.",goal:"AI-predicted reorder points",phase:"core_experience",actors:["Tom Rivera","Sarah Chen"],implied_pattern:"card",narrative:"Tom reviews recommendations. AI flagged 34 items approaching reorder. Tom approves 28 with one click.",beforeAfter:{before:["Reactive ordering","Stockouts happen"],after:["30-day forecasts","Zero stockouts"]},fields:[{name:"Items flagged",type:"computed",val:"34",conf:"inferred"},{name:"Seasonal prediction",type:"computed",val:"+20% Q4",conf:"guess"},{name:"Est. savings",type:"computed",val:"$47K",conf:"guess"},{name:"Auto-approved",type:"computed",val:"28/34",conf:"known"}],questions:[{q:"Risk tolerance for AI quantities?",ctx:"Higher = more automation"}],ai_config:{role:"Predict reorder points",behaviors:["24-month analysis","Seasonal detection","Auto-generate POs"]}},
+  {title:"Compliance & Analytics Reports",blurb:"Lisa clicks one button and gets a branded PDF with every metric sourced. 12 seconds vs. 2 days last quarter.",goal:"Audit-ready reports in seconds",phase:"output",actors:["Lisa Park","Sarah Chen"],implied_pattern:"form",narrative:"Lisa clicks 'Generate Q3 Report'. Branded PDF in 12 seconds. Last quarter: 2 days.",beforeAfter:{before:["2 days to compile"],after:["12-second generation"]},fields:[{name:"Report types",type:"displayed",val:"Compliance, Analytics",conf:"known"},{name:"Generation time",type:"computed",val:"12 seconds",conf:"inferred"}],questions:[],ai_config:null},
+  {title:"AI Rules & Tuning",blurb:"Sarah fine-tunes the AI — adjusting thresholds, adding rules, watching accuracy climb from 87% to 96%.",goal:"Fine-tune AI behavior",phase:"admin",actors:["Sarah Chen"],implied_pattern:"form",narrative:"Sarah adjusts threshold to 85%. Reviews learning: 847 corrections, 87→96%.",beforeAfter:null,fields:[{name:"Confidence threshold",type:"captured",val:"85%",conf:"known"},{name:"Custom rules",type:"captured",val:"14 active",conf:"known"},{name:"Learning log",type:"computed",val:"847 → 96%",conf:"known"}],questions:[],ai_config:null},
+];
+const PHASES={entry:{label:"Getting Started",sub:"Setup & onboarding",steps:[]},core_experience:{label:"The Core Experience",sub:"Where the value lives",steps:[]},output:{label:"What You Get",sub:"Reports & deliverables",steps:[]},admin:{label:"Keeping It Sharp",sub:"Configuration & tuning",steps:[]}};
+steps.forEach((s,i)=>{s._idx=i;PHASES[s.phase].steps.push(s)});
+const state={activeStep:null,activePersona:null,previewOpen:false,chatHistory:[],changesMade:false};
+
+// ═══════════════════════════════════════
+// CHAT ENGINE
+// ═══════════════════════════════════════
+
+function buildSuggestions(s){
+  const sugs=[];
+  sugs.push({text:'Update the narrative',type:'general'});
+  sugs.push({text:'Fix something in the fields',type:'general'});
+  s.questions.slice(0,2).forEach(q=>{sugs.push({text:q.q,type:'question'})});
+  if(s.ai_config) sugs.push({text:'How does the AI work here?',type:'general'});
+  return sugs;
+}
+
+function renderSuggestions(){
+  if(state.activeStep===null) return;
+  const s=steps[state.activeStep];
+  const sugs=buildSuggestions(s);
+  document.getElementById('chatSuggestions').innerHTML=sugs.map(sg=>
+    `<button class="chat-suggest${sg.type==='question'?' question':''}" onclick="sendChat('${sg.text.replace(/'/g,"\\'")}')">${sg.text}</button>`
+  ).join('');
+}
+
+function addChatMsg(role, text, actionHtml){
+  const msgs=document.getElementById('chatMsgs');
+  const div=document.createElement('div');
+  div.className='chat-msg '+role;
+  div.innerHTML=text+(actionHtml||'');
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+  state.chatHistory.push({role,text});
+}
+
+function sendChat(text){
+  if(!text||!text.trim()) return;
+  const input=document.getElementById('chatInput');
+  input.value='';
+  addChatMsg('user',text);
+
+  // Hide suggestions after first message
+  document.getElementById('chatSuggestions').innerHTML='';
+
+  // Simulate assistant response
+  setTimeout(()=>{
+    const s=steps[state.activeStep];
+    let response='';
+    let action='';
+    const lower=text.toLowerCase();
+
+    // Check if answering a question
+    const matchedQ=s.questions.find(q=>lower.includes(q.q.toLowerCase().slice(0,20)));
+    if(matchedQ || lower.includes('phase by location') || lower.includes('warehouse proximity') || lower.includes('risk tolerance')){
+      response=`Got it — I'll mark that question as resolved and update the step to reflect your answer. The narrative and fields will be adjusted.`;
+      action=`<span class="msg-action" onclick="applyChange('resolve_question')">Apply this change</span>`;
+      state.changesMade=true;
+    }
+    else if(lower.includes('narrative') || lower.includes('story') || lower.includes('update the narrative')){
+      response=`I can refine the narrative. What would you like to change? For example: make it more concise, add more detail about the AI, or adjust the persona's experience.`;
+    }
+    else if(lower.includes('concise') || lower.includes('shorter') || lower.includes('tighten')){
+      response=`Done — I've tightened the narrative to focus on the key moment and outcome. The transformation snippet stays the same.`;
+      action=`<span class="msg-action" onclick="applyChange('update_narrative')">Apply this change</span>`;
+      state.changesMade=true;
+    }
+    else if(lower.includes('fix') || lower.includes('field') || lower.includes('wrong') || lower.includes('update')){
+      response=`Which field needs updating? I can see ${s.fields.length} fields. Tell me the field name and what the correct value should be.`;
+    }
+    else if(lower.includes('ai') || lower.includes('how does')){
+      if(s.ai_config) response=`This step uses AI to ${s.ai_config.role.toLowerCase()}. Key behaviors: ${s.ai_config.behaviors.join(', ')}. The confidence threshold determines what gets auto-processed vs. flagged for review.`;
+      else response=`This step doesn't currently have AI capabilities. Would you like to add an AI role?`;
+    }
+    else if(lower.includes('%') || lower.match(/\d+/)){
+      response=`I'll update the field with that value. The preview will reflect this change.`;
+      action=`<span class="msg-action" onclick="applyChange('update_field')">Apply this change</span>`;
+      state.changesMade=true;
+    }
+    else{
+      response=`I understand. I can update the narrative, fields, or answer open questions for this step. What specifically would you like to change?`;
+    }
+
+    addChatMsg('assistant', response, action);
+
+    // Show re-render button if changes were made and preview is open
+    if(state.changesMade && state.previewOpen){
+      document.getElementById('rerenderBtn').classList.add('visible');
+    }
+
+    // Re-show suggestions
+    setTimeout(renderSuggestions, 100);
+  }, 600);
+}
+
+function applyChange(type){
+  addChatMsg('assistant','Changes applied. Hit "Re-render" to see the updated preview.','');
+  state.changesMade=true;
+  document.getElementById('rerenderBtn').classList.add('visible');
+}
+
+function rerender(){
+  if(!state.previewOpen){
+    openPreview(state.activeStep);
+    return;
+  }
+  // Show updating overlay
+  document.getElementById('pfUpdating').classList.add('active');
+  document.getElementById('rerenderBtn').classList.remove('visible');
+
+  setTimeout(()=>{
+    // Re-render the preview content
+    document.getElementById('pfBody').innerHTML=genPreview(state.activeStep);
+    document.getElementById('pfUpdating').classList.remove('active');
+    state.changesMade=false;
+    addChatMsg('assistant','Preview updated with your changes. Anything else to adjust?','');
+    renderSuggestions();
+    // Animate chart bars
+    setTimeout(()=>{document.querySelectorAll('.app-chart-bar').forEach(b=>{const h=b.style.height;b.style.height='0';setTimeout(()=>b.style.height=h,50)})},100);
+  }, 1500);
+}
+
+// ═══════════════════════════════════════
+// PREVIEW GENERATORS (same as v3d)
+// ═══════════════════════════════════════
+
+function genAppChrome(s,actor,content){
+  const p=personas.find(x=>x.name===actor)||personas[0];
+  return `<div class="app-topbar"><div class="app-logo">InvenTrack</div><div class="app-nav"><div class="app-nav-item">Dashboard</div><div class="app-nav-item active">${s.title.split(' ').slice(0,2).join(' ')}</div><div class="app-nav-item">Reports</div><div class="app-nav-item">Settings</div></div><div class="app-topbar-right"><div class="app-user">${p.name}</div><div class="app-avatar" style="background:${p.color}">${p.initials}</div></div></div><div class="app-content">${content}</div>`;
+}
+
+function genPreview(idx){
+  const s=steps[idx];
+  if(idx===0) return genAppChrome(s,s.actors[0],`<div class="app-wizard-steps"><div class="app-wiz-step"><div class="app-wiz-num done">✓</div><div class="app-wiz-label">Import</div></div><div class="app-wiz-line done"></div><div class="app-wiz-step"><div class="app-wiz-num current">2</div><div class="app-wiz-label">Map</div></div><div class="app-wiz-line pending"></div><div class="app-wiz-step"><div class="app-wiz-num pending">3</div><div class="app-wiz-label">Consolidate</div></div><div class="app-wiz-line pending"></div><div class="app-wiz-step"><div class="app-wiz-num pending">4</div><div class="app-wiz-label">Confirm</div></div></div><div class="app-page-title">Map Categories</div><div class="app-page-sub">340 categories found in your import</div><div class="app-form"><div class="app-form-group"><div class="app-form-label">Import source</div><div class="app-form-input filled">master_taxonomy_2025.xlsx</div></div><div class="app-form-row"><div class="app-form-group"><div class="app-form-label">Categories found</div><div class="app-form-input filled">340</div></div><div class="app-form-group"><div class="app-form-label">After consolidation</div><div class="app-form-input filled" style="color:var(--green);font-weight:600">317 active</div></div></div><div class="app-alert info"><div class="app-alert-icon">💡</div><div class="app-alert-body"><div class="app-alert-title">23 categories flagged for consolidation</div><div class="app-alert-desc">Fewer than 5 items each</div></div><div class="app-alert-action">Review →</div></div><div style="display:flex;gap:6px;margin-top:6px"><button class="app-btn primary">Continue</button><button class="app-btn secondary">Save Draft</button></div></div>`);
+  if(idx===1) return genAppChrome(s,s.actors[0],`<div class="app-page-title">Import Historical Data</div><div class="app-page-sub">Upload inventory transactions to train the AI</div><div class="app-kpis"><div class="app-kpi"><div class="app-kpi-val green">47,000</div><div class="app-kpi-label">Records</div></div><div class="app-kpi"><div class="app-kpi-val navy">18/30</div><div class="app-kpi-label">Auto-Mapped</div><div class="app-kpi-delta down">12 need review</div></div><div class="app-kpi"><div class="app-kpi-val green">87%</div><div class="app-kpi-label">Training Quality</div></div></div><div class="app-form"><div class="app-form-group"><div class="app-form-label">Upload</div><div class="app-form-input filled">inventory_2023-2025.csv</div></div><div class="app-form-group"><div class="app-form-label">Warehouses</div><select class="app-form-select"><option>All 3 (simultaneous)</option></select><div class="app-form-hint">⚠ Open: Phase by location instead?</div></div><div style="display:flex;gap:6px;margin-top:6px"><button class="app-btn primary">Start Import</button><button class="app-btn secondary">Preview</button></div></div>`);
+  if(idx===2) return genAppChrome(s,s.actors[0],`<div class="app-page-title">AI Classification</div><div class="app-page-sub">Monday morning — 247 new items</div><div class="app-kpis"><div class="app-kpi"><div class="app-kpi-val green">247</div><div class="app-kpi-label">Pending</div></div><div class="app-kpi"><div class="app-kpi-val green">89%</div><div class="app-kpi-label">Auto-Classified</div><div class="app-kpi-delta up">↑ from 82%</div></div><div class="app-kpi"><div class="app-kpi-val amber">27</div><div class="app-kpi-label">Exceptions</div></div><div class="app-kpi"><div class="app-kpi-val green">94.2%</div><div class="app-kpi-label">Confidence</div></div><div class="app-kpi"><div class="app-kpi-val green">1.2%</div><div class="app-kpi-label">Corrections</div><div class="app-kpi-delta up">↓ from 3.1%</div></div></div><div class="app-chart"><div class="app-chart-title">Classification Volume — 12 Weeks</div><div class="app-chart-bars">${[65,72,58,82,91,78,85,94,88,92,97,89].map(h=>`<div class="app-chart-bar" style="height:${h}%;background:linear-gradient(180deg,var(--green),rgba(63,175,122,0.3))"></div>`).join('')}</div></div><div class="app-alert info"><div class="app-alert-icon">✓</div><div class="app-alert-body"><div class="app-alert-title">220 items auto-classified</div><div class="app-alert-desc">27 in exception queue. 3 corrections logged.</div></div><div class="app-alert-action">Review →</div></div>`);
+  if(idx===3) return genAppChrome(s,s.actors[0],`<div class="app-page-title">Vendor Matching</div><div class="app-page-sub">220 items ready</div><div class="app-kpis"><div class="app-kpi"><div class="app-kpi-val green">187</div><div class="app-kpi-label">Matched (85%)</div></div><div class="app-kpi"><div class="app-kpi-val amber">33</div><div class="app-kpi-label">Review</div></div><div class="app-kpi"><div class="app-kpi-val green">94</div><div class="app-kpi-label">Top Score</div></div></div><table class="app-table"><thead><tr><th>Item</th><th>Category</th><th>Vendor</th><th>Score</th><th>Status</th></tr></thead><tbody><tr><td>SS Fasteners</td><td>Industrial</td><td>Supplier A</td><td>94<span class="score-bar"><span class="score-fill" style="width:94%"></span></span></td><td><span class="badge green">Matched</span></td></tr><tr><td>Copper Wire</td><td>Electrical</td><td>Supplier C</td><td>91<span class="score-bar"><span class="score-fill" style="width:91%"></span></span></td><td><span class="badge green">Matched</span></td></tr><tr><td>Custom Parts</td><td>Custom</td><td>3 options</td><td>—</td><td><span class="badge amber">Review</span></td></tr><tr><td>Gasket Set</td><td>Sealing</td><td>Supplier B</td><td>87<span class="score-bar"><span class="score-fill" style="width:87%"></span></span></td><td><span class="badge green">Matched</span></td></tr><tr><td>Hydraulic Valves</td><td>Mechanical</td><td>Supplier A</td><td>92<span class="score-bar"><span class="score-fill" style="width:92%"></span></span></td><td><span class="badge green">Matched</span></td></tr></tbody></table><div style="display:flex;gap:6px;margin-top:6px"><button class="app-btn primary">Confirm All (187)</button><button class="app-btn secondary">Export</button></div>`);
+  if(idx===4) return genAppChrome(s,s.actors[1],`<div class="app-page-title">Inventory Health</div><div class="app-page-sub">Executive overview</div><div class="app-kpis"><div class="app-kpi"><div class="app-kpi-val green">94%</div><div class="app-kpi-label">Health</div><div class="app-kpi-delta up">↑ 16%</div></div><div class="app-kpi"><div class="app-kpi-val green">96.2%</div><div class="app-kpi-label">Accuracy</div></div><div class="app-kpi"><div class="app-kpi-val navy">32d</div><div class="app-kpi-label">Days On Hand</div><div class="app-kpi-delta up">↓ from 45</div></div><div class="app-kpi"><div class="app-kpi-val navy">91%</div><div class="app-kpi-label">Fill Rate</div></div></div><div class="app-chart"><div class="app-chart-title">Health Trend — 12 Months</div><div class="app-chart-bars">${[62,65,68,71,73,78,80,83,86,89,91,94].map(h=>`<div class="app-chart-bar" style="height:${h}%;background:linear-gradient(180deg,var(--green),rgba(63,175,122,0.3))"></div>`).join('')}</div></div><div class="app-alert warning"><div class="app-alert-icon">⚠</div><div class="app-alert-body"><div class="app-alert-title">Supplier B: Lead Time +40%</div><div class="app-alert-desc">AI recommends shifting 12 items to Supplier A</div></div><div class="app-alert-action">Review →</div></div>`);
+  if(idx===5) return genAppChrome(s,s.actors[0],`<div class="app-page-title">Reorder Recommendations</div><div class="app-page-sub">34 items flagged</div><div class="app-kpis"><div class="app-kpi"><div class="app-kpi-val amber">34</div><div class="app-kpi-label">Flagged</div></div><div class="app-kpi"><div class="app-kpi-val green">28</div><div class="app-kpi-label">Approved</div></div><div class="app-kpi"><div class="app-kpi-val green">$47K</div><div class="app-kpi-label">Savings</div></div></div><div class="app-cards"><div class="app-card"><div class="app-card-header"><div class="app-card-title">SS Fasteners</div><span class="badge amber">+20% Q4</span></div><div class="app-card-val">340 units</div><div class="app-card-sub">Reorder in 15 days</div><div class="app-card-bar"><div class="app-card-bar-fill" style="width:78%;background:var(--amber)"></div></div><div class="app-card-actions"><span class="app-card-action approve">Approve</span><span class="app-card-action flag">Adjust</span></div></div><div class="app-card"><div class="app-card-header"><div class="app-card-title">Copper Wire</div><span class="badge green">Stable</span></div><div class="app-card-val">120 units</div><div class="app-card-sub">Reorder in 22 days</div><div class="app-card-bar"><div class="app-card-bar-fill" style="width:92%;background:var(--green)"></div></div><div class="app-card-actions"><span class="app-card-action approve">Approve</span></div></div><div class="app-card"><div class="app-card-header"><div class="app-card-title">Hydraulic Valves</div><span class="badge amber">+8% Q4</span></div><div class="app-card-val">85 units</div><div class="app-card-sub">Reorder in 18 days</div><div class="app-card-bar"><div class="app-card-bar-fill" style="width:65%;background:var(--amber)"></div></div><div class="app-card-actions"><span class="app-card-action approve">Approve</span><span class="app-card-action flag">Flag</span></div></div></div><div style="display:flex;gap:6px"><button class="app-btn primary">Approve All (28)</button><button class="app-btn secondary">Generate POs</button></div>`);
+  if(idx===6) return genAppChrome(s,s.actors[0],`<div class="app-page-title">Generate Report</div><div class="app-page-sub">Audit-ready exports</div><div class="app-form" style="max-width:440px"><div class="app-form-row"><div class="app-form-group"><div class="app-form-label">Report type</div><select class="app-form-select"><option>Q3 Compliance</option></select></div><div class="app-form-group"><div class="app-form-label">Period</div><select class="app-form-select"><option>Q3 2025</option></select></div></div><div class="app-form-group"><div class="app-form-label">Sections</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:2px">${['Classification Accuracy','Vendor Performance','Inventory Turns','Compliance','AI Summary'].map(s=>`<span class="badge green" style="font-size:8px;padding:3px 7px;cursor:pointer">${s}</span>`).join('')}</div></div><button class="app-btn primary" style="margin-top:4px">Generate Report</button></div><div class="app-report-preview"><h4>Preview</h4><div class="app-report-line"><span class="app-report-metric">Classification accuracy</span><span class="app-report-value">96.2%</span></div><div class="app-report-line"><span class="app-report-metric">Items classified (Q3)</span><span class="app-report-value">14,200</span></div><div class="app-report-line"><span class="app-report-metric">Vendor fill rate</span><span class="app-report-value">91%</span></div><div class="app-report-line"><span class="app-report-metric">Days on hand</span><span class="app-report-value">32 (↓13)</span></div><div class="app-report-line"><span class="app-report-metric">Annual savings</span><span class="app-report-value" style="color:var(--green);font-weight:600">$340,000</span></div></div>`);
+  if(idx===7) return genAppChrome(s,s.actors[0],`<div class="app-page-title">AI Configuration</div><div class="app-page-sub">Fine-tune classification behavior</div><div class="app-kpis"><div class="app-kpi"><div class="app-kpi-val green">96%</div><div class="app-kpi-label">Accuracy</div><div class="app-kpi-delta up">↑ from 87%</div></div><div class="app-kpi"><div class="app-kpi-val navy">847</div><div class="app-kpi-label">Corrections</div></div><div class="app-kpi"><div class="app-kpi-val navy">14</div><div class="app-kpi-label">Rules</div></div></div><div class="app-form" style="max-width:440px"><div class="app-form-row"><div class="app-form-group"><div class="app-form-label">Confidence threshold</div><div class="app-form-input filled">85% <span style="color:var(--t5);font-size:8px">(was 90%)</span></div><div class="app-form-hint">Below threshold → manual review</div></div><div class="app-form-group"><div class="app-form-label">Auto-approve above</div><div class="app-form-input filled">95%</div></div></div><div class="app-form-group"><div class="app-form-label">Custom rules</div><div style="font-size:9px;color:var(--t3);padding:4px 0"><div style="padding:2px 0;border-bottom:1px solid rgba(0,0,0,0.03)">Supplier X → <span class="badge green">Industrial Grade</span></div><div style="padding:2px 0;border-bottom:1px solid rgba(0,0,0,0.03)">"custom" in name → <span class="badge amber">Manual</span></div><div style="padding:2px 0">Weight > 50kg → <span class="badge green">Heavy Equipment</span></div></div></div><div style="display:flex;gap:6px"><button class="app-btn primary">Save</button><button class="app-btn secondary">Add Rule</button></div></div>`);
+  return '';
+}
+
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+
+function renderAll(){renderPersonas();renderLanes();setTimeout(()=>{document.getElementById('momFill').style.width='100%';document.getElementById('momPct').textContent='100%'},400)}
+
+function renderPersonas(){
+  document.getElementById('personaPills').innerHTML=personas.map((p,i)=>
+    `<button class="ppill${state.activePersona===i?' active':''}" style="--pc:${p.color}" onclick="togglePersona(${i})"><div class="pavatar" style="background:${p.color}">${p.initials}</div>${p.name.split(' ')[0]}</button>`
+  ).join('');
+}
+
+function renderLanes(){
+  const order=['entry','core_experience','output','admin'];
+  const lc={entry:'entry',core_experience:'core',output:'output',admin:'admin'};
+  const ic={entry:'ei',core_experience:'ci',output:'oi',admin:'ai'};
+  const ll={entry:'e',core_experience:'c',output:'o',admin:'a'};
+  document.getElementById('phaseLanes').innerHTML=order.map(phase=>{
+    const p=PHASES[phase];const isCore=phase==='core_experience';
+    return `<div class="phase-lane ${lc[phase]}" style="flex:${isCore?1.8:1}"><div class="lane-header"><div class="lane-label ${ll[phase]}">${p.label}</div><div class="lane-sublabel ${ll[phase]}">${p.sub}</div></div><div class="lane-cards">${p.steps.map(s=>{
+      const dots=s.actors.map(n=>{const pp=personas.find(x=>x.name===n);return pp?`<div class="pdot" style="background:${pp.color}">${pp.initials}</div>`:''}).join('');
+      let tf='';if(s.beforeAfter&&isCore) tf=`<div class="st-transform"><span class="st-tf-before">${s.beforeAfter.before[0]}</span><span class="st-tf-arrow">→</span><span class="st-tf-after">${s.beforeAfter.after[0]}</span></div>`;
+      const badges=[];if(s.ai_config) badges.push(`<span class="st-ai-badge">◈ AI</span>`);if(s.questions.length) badges.push(`<span class="st-q-badge">? ${s.questions.length}</span>`);
+      return `<div class="station phase-${s.phase}" data-step="${s._idx}" onclick="openPanel(${s._idx})" style="animation-delay:${s._idx*0.06}s"><div class="st-top"><div class="st-idx ${ic[phase]}">${s._idx+1}</div><div class="st-title">${s.title}</div><div class="st-personas">${dots}</div></div><div class="st-blurb">${s.blurb}</div>${tf}<div class="st-bottom">${badges.join('')}</div></div>`;
+    }).join('')}</div></div>`;
+  }).join('');
+}
+
+function togglePersona(i){state.activePersona=state.activePersona===i?null:i;renderPersonas();document.querySelectorAll('.station').forEach(el=>{const idx=parseInt(el.dataset.step);if(state.activePersona===null)el.classList.remove('dimmed');else el.classList.toggle('dimmed',!steps[idx].actors.includes(personas[state.activePersona].name))})}
+
+// ═══════════════════════════════════════
+// PANEL
+// ═══════════════════════════════════════
+
+function openPanel(idx){
+  state.activeStep=idx;state.chatHistory=[];state.changesMade=false;
+  const s=steps[idx];const pc={entry:'var(--accent)',core_experience:'var(--green)',output:'var(--navy)',admin:'var(--t4)'};
+  document.getElementById('dpHeader').innerHTML=`<div class="dp-icon" style="background:${pc[s.phase]}">${idx+1}</div><div class="dp-meta"><div class="dp-title">${s.title}</div><div class="dp-goal">${s.goal}</div></div><button class="dp-close" onclick="closePanel()">&times;</button>`;
+
+  let c=`<button class="preview-btn" onclick="openPreview(${idx})"><span style="font-size:14px">◧</span> Preview this screen</button>`;
+  c+=`<div class="dp-section"><div class="dp-label">The Story</div><div class="dp-narrative">${s.narrative}</div></div>`;
+  if(s.beforeAfter) c+=`<div class="dp-section"><div class="dp-label">Transformation</div><div class="dp-ba"><div class="dp-ba-side before"><div class="dp-ba-lbl">Today</div>${s.beforeAfter.before.map(b=>`<div class="dp-ba-item">${b}</div>`).join('')}</div><div class="dp-ba-side after"><div class="dp-ba-lbl">Tomorrow</div>${s.beforeAfter.after.map(a=>`<div class="dp-ba-item">${a}</div>`).join('')}</div></div></div>`;
+  c+=`<div class="dp-section"><div class="dp-label">Fields (${s.fields.length})</div><div class="dp-fields">${s.fields.map(f=>`<div class="dp-field"><span class="dp-field-dot ${f.conf}"></span><span class="dp-field-name">${f.name}</span><span class="dp-field-val">${f.val}</span></div>`).join('')}</div></div>`;
+  if(s.ai_config) c+=`<div class="dp-section"><div class="dp-label">AI</div><div class="dp-ai"><div class="dp-ai-role">${s.ai_config.role}</div>${s.ai_config.behaviors.map(b=>`<div class="dp-ai-beh">${b}</div>`).join('')}</div></div>`;
+  document.getElementById('dpContent').innerHTML=c;
+
+  // Reset chat
+  document.getElementById('chatMsgs').innerHTML='';
+  document.getElementById('rerenderBtn').classList.remove('visible');
+  addChatMsg('assistant',`Looking at <strong>${s.title}</strong> — ${s.fields.length} fields${s.questions.length?`, ${s.questions.length} open question${s.questions.length>1?'s':''}`:''}.${s.ai_config?' AI-powered.':''} What would you like to update?`);
+  renderSuggestions();
+
+  document.getElementById('panelBackdrop').classList.add('open');
+  document.getElementById('detailPanel').classList.add('open');
+  document.querySelectorAll('.station').forEach(el=>el.classList.toggle('selected',parseInt(el.dataset.step)===idx));
+}
+
+function closePanel(){
+  state.activeStep=null;state.previewOpen=false;
+  document.getElementById('panelBackdrop').classList.remove('open');
+  document.getElementById('detailPanel').classList.remove('open');
+  document.getElementById('previewOverlay').classList.remove('open');
+  document.querySelectorAll('.station').forEach(el=>el.classList.remove('selected'));
+}
+
+function openPreview(idx){
+  state.previewOpen=true;
+  document.getElementById('pfTitle').textContent=steps[idx].title;
+  document.getElementById('pfBody').innerHTML=genPreview(idx);
+  document.getElementById('pfUpdating').classList.remove('active');
+  document.getElementById('previewOverlay').classList.add('open');
+  setTimeout(()=>{document.querySelectorAll('.app-chart-bar').forEach(b=>{const h=b.style.height;b.style.height='0';setTimeout(()=>b.style.height=h,50)})},100);
+  if(state.changesMade) document.getElementById('rerenderBtn').classList.add('visible');
+}
+
+function closePreview(){
+  state.previewOpen=false;
+  document.getElementById('previewOverlay').classList.remove('open');
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(state.previewOpen)closePreview();else if(state.activeStep!==null)closePanel()}});
+
+renderAll();
+</script>
+</body>
+</html>

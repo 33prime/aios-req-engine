@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Intelligence Workbench</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --green:#3FAF7A;--green-dim:rgba(63,175,122,0.10);--green-glow:rgba(63,175,122,0.25);
+    --accent:#044159;--navy:#0A1E2F;--surface:#0D2235;--card:#132C40;
+    --border:rgba(255,255,255,0.06);--border-active:rgba(63,175,122,0.3);
+    --text:rgba(255,255,255,0.88);--text-dim:rgba(255,255,255,0.45);--text-muted:rgba(255,255,255,0.22);
+    --amber:#E8A838;--amber-dim:rgba(232,168,56,0.12);
+  }
+  body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;overflow:hidden}
+
+  /* ═══ Layout ═══ */
+  .app{display:grid;grid-template-columns:1fr;grid-template-rows:48px 1fr;height:100vh}
+  .topbar{display:flex;align-items:center;padding:0 20px;background:var(--surface);border-bottom:1px solid var(--border);gap:16px;z-index:10}
+  .topbar-logo{display:flex;align-items:center;gap:8px}
+  .topbar-icon{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,var(--green),#2D9B6A);display:flex;align-items:center;justify-content:center;font-size:11px}
+  .topbar-title{font-size:13px;font-weight:700;letter-spacing:-0.01em}
+  .topbar-sep{width:1px;height:24px;background:var(--border)}
+  .mode-tabs{display:flex;gap:2px;background:rgba(255,255,255,0.04);border-radius:7px;padding:2px}
+  .mode-tab{padding:5px 14px;border-radius:5px;font:600 11px 'Inter',sans-serif;color:var(--text-dim);cursor:pointer;transition:0.15s;border:none;background:none}
+  .mode-tab:hover{color:var(--text)}
+  .mode-tab.active{background:var(--green-dim);color:var(--green)}
+  .topbar-spacer{flex:1}
+  .topbar-scenario{font-size:11px;color:var(--text-muted)}
+  .topbar-scenario select{background:var(--card);color:var(--text-dim);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font:500 11px 'Inter',sans-serif;cursor:pointer}
+
+  .main{display:grid;overflow:hidden}
+
+  /* ═══ Canvas (Flow) ═══ */
+  .canvas-wrap{overflow:auto;position:relative}
+  .canvas{position:relative;min-height:100%;padding:24px 40px}
+
+  /* Flow nodes */
+  .flow-node{
+    position:absolute;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;
+    padding:16px 18px;cursor:pointer;transition:all 0.25s;min-width:200px;
+  }
+  .flow-node:hover{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.12);transform:translateY(-2px)}
+  .flow-node.selected{border-color:var(--green);box-shadow:0 0 0 1px var(--green-glow),0 8px 30px rgba(0,0,0,0.3)}
+  .flow-node.dimmed{opacity:0.15;pointer-events:none}
+
+  .fn-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .fn-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .fn-name{font-size:13px;font-weight:700;letter-spacing:-0.01em}
+  .fn-technique{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;padding:2px 6px;border-radius:3px;margin-left:auto}
+  .tech-llm{background:rgba(147,112,219,0.15);color:#9370DB}
+  .tech-classify{background:var(--green-dim);color:var(--green)}
+  .tech-embed{background:rgba(232,168,56,0.12);color:var(--amber)}
+  .tech-rules{background:rgba(255,255,255,0.06);color:var(--text-dim)}
+  .tech-hybrid{background:rgba(63,175,122,0.08);color:#5BBEA0}
+
+  .fn-desc{font-size:10px;color:var(--text-muted);line-height:1.5;margin-bottom:10px}
+
+  .fn-io{display:flex;gap:12px;font-size:9px;margin-bottom:8px}
+  .fn-io-col{flex:1}
+  .fn-io-label{font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:4px}
+  .fn-io-item{color:var(--text-dim);padding:2px 0;display:flex;align-items:center;gap:4px}
+  .fn-io-item::before{content:'';width:4px;height:4px;border-radius:50%;flex-shrink:0}
+  .fn-io-in::before{background:var(--amber)}
+  .fn-io-out::before{background:var(--green)}
+
+  .fn-bar{display:flex;align-items:center;gap:8px;padding-top:8px;border-top:1px solid var(--border)}
+  .fn-conf{display:flex;align-items:center;gap:4px}
+  .fn-conf-dot{width:6px;height:6px;border-radius:50%}
+  .fn-conf-label{font-size:9px;color:var(--text-muted)}
+  .fn-rhythm{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;padding:2px 6px;border-radius:3px;margin-left:auto}
+  .rhythm-triggered{background:rgba(63,175,122,0.08);color:var(--green)}
+  .rhythm-always{background:rgba(232,168,56,0.08);color:var(--amber)}
+  .rhythm-requested{background:rgba(147,112,219,0.1);color:#9370DB}
+  .rhythm-periodic{background:rgba(255,255,255,0.05);color:var(--text-dim)}
+
+  /* SVG edges */
+  .edge-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+  .edge-path{stroke:var(--green);stroke-width:1;stroke-dasharray:5 4;fill:none;opacity:0.15;transition:opacity 0.2s}
+  .edge-path.hl{opacity:0.5;stroke-width:1.5}
+  .edge-label{font:500 8px 'Inter',sans-serif;fill:var(--text-muted)}
+
+  /* Data source nodes */
+  .data-node{
+    position:absolute;padding:10px 14px;border-radius:10px;border:1px dashed rgba(232,168,56,0.25);
+    background:rgba(232,168,56,0.03);font-size:10px;font-weight:600;color:var(--amber);
+    display:flex;align-items:center;gap:6px;cursor:default;
+  }
+  .data-node-icon{font-size:14px}
+
+  /* Output nodes */
+  .output-node{
+    position:absolute;padding:10px 14px;border-radius:10px;border:1px dashed rgba(63,175,122,0.3);
+    background:rgba(63,175,122,0.03);font-size:10px;font-weight:600;color:var(--green);
+    display:flex;align-items:center;gap:6px;cursor:default;
+  }
+  .output-node-icon{font-size:14px}
+
+  /* ═══ Detail Panel (slide-in) ═══ */
+  .detail-overlay{
+    position:fixed;inset:0;background:rgba(10,30,47,0.5);z-index:100;display:none;opacity:0;transition:opacity 0.25s;
+  }
+  .detail-overlay.open{display:flex;opacity:1}
+  .detail-panel{
+    position:fixed;top:0;right:0;width:520px;height:100vh;background:var(--surface);
+    border-left:1px solid var(--border);z-index:101;transform:translateX(100%);
+    transition:transform 0.3s ease;display:flex;flex-direction:column;overflow:hidden;
+  }
+  .detail-panel.open{transform:translateX(0)}
+
+  .dp-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+  .dp-close{position:absolute;top:16px;right:16px;width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--text-dim);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .dp-close:hover{background:rgba(255,255,255,0.08);color:white}
+  .dp-icon-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .dp-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px}
+  .dp-name{font-size:20px;font-weight:800;letter-spacing:-0.02em}
+  .dp-badges{display:flex;gap:6px;margin-top:4px}
+  .dp-badge{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:3px 8px;border-radius:4px}
+  .dp-role{font-size:13px;color:var(--text-dim);line-height:1.6;margin-top:10px}
+
+  .dp-body{flex:1;overflow-y:auto;padding:20px 24px}
+
+  /* Detail sections */
+  .ds{margin-bottom:20px}
+  .ds-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .ds-title-icon{font-size:12px}
+
+  .ds-card{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px}
+  .ds-card-label{font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:6px}
+  .ds-card-text{font-size:12px;color:var(--text);line-height:1.55}
+
+  .ds-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .ds-grid-item{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+  .ds-grid-val{font-size:16px;font-weight:800;color:var(--green);margin-bottom:2px}
+  .ds-grid-label{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600}
+
+  /* Confidence tiers */
+  .conf-tier{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border);margin-bottom:6px}
+  .conf-tier-bar{width:40px;height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.06)}
+  .conf-tier-fill{height:100%;border-radius:3px}
+  .conf-tier-range{font-size:10px;font-weight:700;color:var(--text-dim);width:50px}
+  .conf-tier-action{font-size:10px;color:var(--text-dim);flex:1}
+
+  /* Evolution timeline */
+  .evo-step{display:flex;gap:12px;margin-bottom:12px}
+  .evo-dot-col{display:flex;flex-direction:column;align-items:center}
+  .evo-dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--border);background:var(--card);flex-shrink:0}
+  .evo-dot.done{border-color:var(--green);background:var(--green-dim)}
+  .evo-line{width:2px;flex:1;min-height:12px;background:var(--border)}
+  .evo-done .evo-line{background:rgba(63,175,122,0.3)}
+  .evo-body{}
+  .evo-when{font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em}
+  .evo-what{font-size:11px;color:var(--text-dim);line-height:1.5;margin-top:2px}
+  .evo-auto{font-size:10px;font-weight:600;color:var(--green);margin-top:2px}
+
+  /* ═══ Try It Panel ═══ */
+  .dp-footer{flex-shrink:0;border-top:1px solid var(--border);background:rgba(0,0,0,0.15);max-height:55vh;display:flex;flex-direction:column;overflow:hidden}
+
+  .try-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 24px;flex-shrink:0}
+  .try-tab{padding:10px 14px;font:600 10px 'Inter',sans-serif;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:0.15s}
+  .try-tab:hover{color:var(--text-dim)}
+  .try-tab.active{color:var(--green);border-bottom-color:var(--green)}
+
+  .try-body{flex:1;overflow-y:auto;padding:14px 24px}
+
+  /* Input area */
+  .try-input-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .try-textarea{
+    width:100%;min-height:60px;max-height:100px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);
+    background:rgba(255,255,255,0.03);color:var(--text);font:400 11px/1.6 'Inter',sans-serif;
+    outline:none;resize:vertical;transition:border-color 0.2s;
+  }
+  .try-textarea:focus{border-color:var(--border-active)}
+  .try-textarea::placeholder{color:var(--text-muted)}
+  .try-run-row{display:flex;gap:8px;margin-top:8px;margin-bottom:12px}
+  .try-run{
+    padding:8px 18px;border-radius:8px;border:1px solid var(--border-active);
+    background:var(--green-dim);color:var(--green);font:600 11px 'Inter',sans-serif;
+    cursor:pointer;transition:0.2s;display:flex;align-items:center;gap:6px;
+  }
+  .try-run:hover{background:var(--green);color:white}
+  .try-run.loading{opacity:0.6;pointer-events:none}
+  .try-preset{
+    padding:8px 12px;border-radius:8px;border:1px solid var(--border);
+    background:rgba(255,255,255,0.02);color:var(--text-muted);font:500 10px 'Inter',sans-serif;
+    cursor:pointer;transition:0.15s;
+  }
+  .try-preset:hover{background:rgba(255,255,255,0.05);color:var(--text-dim);border-color:rgba(255,255,255,0.1)}
+
+  /* Client-facing output */
+  .try-output{display:none}
+  .try-output.visible{display:block;animation:fadeUp 0.3s ease}
+
+  .out-section{margin-bottom:14px}
+  .out-section-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px}
+
+  .out-entity{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border);margin-bottom:6px}
+  .out-entity-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+  .out-entity-body{flex:1;min-width:0}
+  .out-entity-type{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px}
+  .out-entity-text{font-size:12px;color:var(--text);line-height:1.4}
+  .out-entity-evidence{font-size:10px;color:var(--text-muted);font-style:italic;margin-top:3px;line-height:1.4}
+  .out-entity-conf{font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;margin-left:auto;flex-shrink:0;align-self:flex-start}
+  .conf-high{background:var(--green-dim);color:var(--green)}
+  .conf-mid{background:var(--amber-dim);color:var(--amber)}
+  .conf-low{background:rgba(255,255,255,0.04);color:var(--text-muted)}
+
+  .out-narrative{font-size:12px;color:var(--text-dim);line-height:1.7;padding:12px 14px;border-radius:8px;border-left:3px solid var(--green);background:rgba(63,175,122,0.03)}
+  .out-probe{display:flex;gap:10px;padding:10px 12px;border-radius:8px;background:rgba(232,168,56,0.04);border:1px solid rgba(232,168,56,0.12);margin-bottom:6px}
+  .out-probe-icon{font-size:14px;flex-shrink:0}
+  .out-probe-q{font-size:12px;color:var(--text);line-height:1.4;font-weight:500}
+  .out-probe-why{font-size:10px;color:var(--text-muted);margin-top:3px;line-height:1.4}
+
+  .out-step{display:flex;gap:12px;padding:12px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border);margin-bottom:8px}
+  .out-step-num{width:28px;height:28px;border-radius:8px;background:var(--green-dim);color:var(--green);font:700 12px 'Inter',sans-serif;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .out-step-body{flex:1}
+  .out-step-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px}
+  .out-step-goal{font-size:11px;color:var(--text-dim);line-height:1.4}
+  .out-step-ai{font-size:9px;color:var(--green);font-weight:600;margin-top:4px}
+
+  .out-risk{padding:10px 12px;border-radius:8px;margin-bottom:6px;display:flex;align-items:flex-start;gap:10px}
+  .out-risk.critical{background:rgba(220,80,80,0.08);border:1px solid rgba(220,80,80,0.15)}
+  .out-risk.warning{background:rgba(232,168,56,0.06);border:1px solid rgba(232,168,56,0.12)}
+  .out-risk.advisory{background:rgba(255,255,255,0.02);border:1px solid var(--border)}
+  .out-risk-level{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;padding:2px 6px;border-radius:3px;flex-shrink:0}
+  .out-risk-level.critical{background:rgba(220,80,80,0.15);color:#DC5050}
+  .out-risk-level.warning{background:var(--amber-dim);color:var(--amber)}
+  .out-risk-level.advisory{background:rgba(255,255,255,0.05);color:var(--text-dim)}
+  .out-risk-text{font-size:11px;color:var(--text-dim);line-height:1.4}
+  .out-risk-action{font-size:10px;color:var(--green);margin-top:3px;font-weight:500}
+
+  /* Chat */
+  .chat-thread{margin-bottom:10px}
+  .chat-msg{padding:8px 12px;border-radius:8px;margin-bottom:6px;max-width:90%;font-size:11px;line-height:1.6}
+  .chat-msg.user{background:rgba(63,175,122,0.08);border:1px solid rgba(63,175,122,0.15);color:var(--text);margin-left:auto}
+  .chat-msg.ai{background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--text-dim)}
+  .chat-input-row{display:flex;gap:8px;margin-top:8px}
+  .chat-input{
+    flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);
+    background:rgba(255,255,255,0.03);color:var(--text);font:400 11px 'Inter',sans-serif;
+    outline:none;transition:border-color 0.2s;
+  }
+  .chat-input:focus{border-color:var(--border-active)}
+  .chat-input::placeholder{color:var(--text-muted)}
+  .chat-send{
+    padding:8px 14px;border-radius:8px;border:1px solid var(--border);
+    background:rgba(255,255,255,0.03);color:var(--text-dim);font:600 11px 'Inter',sans-serif;
+    cursor:pointer;transition:0.15s;
+  }
+  .chat-send:hover{background:var(--green-dim);color:var(--green);border-color:var(--border-active)}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
+  .typing{animation:pulse 1s infinite}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-icon">⚡</div>
+      <div class="topbar-title">Intelligence Workbench</div>
+    </div>
+    <div class="topbar-sep"></div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="setMode('architect')" id="tab-architect">Architect</button>
+      <button class="mode-tab" onclick="setMode('client')" id="tab-client">Client</button>
+      <button class="mode-tab" onclick="setMode('build')" id="tab-build">Build</button>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-scenario">
+      <select onchange="setScenario(this.value)" id="scenario-select">
+        <option value="aios">AIOS — Requirements Engine</option>
+        <option value="regaffairs">Proquint — Regulatory Affairs</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Main Canvas -->
+  <div class="canvas-wrap">
+    <div class="canvas" id="canvas"></div>
+  </div>
+</div>
+
+<!-- Detail Panel -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetail()"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="dp-header" id="dp-header"></div>
+  <div class="dp-body" id="dp-body"></div>
+  <div class="dp-footer" id="dp-footer"></div>
+</div>
+
+<script>
+// ═══ State ═══════════════════════════════════════
+const S = { scenario: 'aios', mode: 'architect', selected: null, hovered: null };
+
+// ═══ Data ════════════════════════════════════════
+const SCENARIOS = {
+aios: {
+  name: 'AIOS Requirements Engine',
+  dataSources: [
+    { id: 'ds-transcripts', label: 'Meeting Transcripts', icon: '🎙️', x: 30, y: 40 },
+    { id: 'ds-emails', label: 'Client Emails', icon: '📧', x: 30, y: 120 },
+    { id: 'ds-docs', label: 'Research Docs', icon: '📄', x: 30, y: 200 },
+    { id: 'ds-calls', label: 'Live Calls', icon: '📞', x: 30, y: 290 },
+  ],
+  outputs: [
+    { id: 'out-brd', label: 'Business Req Doc', icon: '📋', x: 950, y: 60 },
+    { id: 'out-flow', label: 'Solution Flow', icon: '🏗️', x: 950, y: 140 },
+    { id: 'out-proto', label: 'Working Prototype', icon: '🎨', x: 950, y: 220 },
+    { id: 'out-brief', label: 'Session Briefing', icon: '📊', x: 950, y: 310 },
+  ],
+  agents: [
+    {
+      id: 'signal', name: 'Signal Processor', icon: '📡', iconBg: 'rgba(63,175,122,0.12)',
+      x: 260, y: 60, w: 210,
+      technique: 'hybrid', techniqueLabel: 'Hybrid',
+      rhythm: 'triggered', rhythmLabel: 'On Signal',
+      desc: 'Classifies incoming signals, chunks content, extracts entities with confidence scores.',
+      role: 'The first intelligence layer. Every piece of client communication enters through Signal Processor. It decides what the content is (transcript vs email vs research), breaks it into meaningful chunks, and extracts structured entities: features, personas, pain points, stakeholders. Each extraction carries a confidence score that flows downstream.',
+      inputs: ['Meeting transcripts', 'Email threads', 'Research documents'],
+      outputs: ['Entity patches', 'Confidence scores', 'Signal metadata'],
+      confidence: { high: 'Auto-apply entity to BRD', mid: 'Flag for consultant review', low: 'Queue as suggestion' },
+      confPct: [45, 35, 20],
+      evolution: [
+        { when: 'Day 1', what: 'Rule-based classification + Haiku extraction', auto: '70%', done: true },
+        { when: 'Week 2', what: 'Learns client vocabulary from corrections', auto: '82%', done: true },
+        { when: 'Month 2', what: 'Cross-signal deduplication via embeddings', auto: '90%', done: false },
+      ],
+      samplePrompt: 'You are a signal processor for a requirements engineering platform. Given a meeting transcript excerpt, extract structured entities (features, personas, pain points) with confidence scores.\n\nTranscript excerpt:\n"We really need the ability for our regulatory affairs team to track submission deadlines across multiple jurisdictions. Right now Sarah manually checks three different portals every morning, and last month we missed an EMA deadline. The VP wants a single dashboard."\n\nExtract entities as JSON:',
+      sampleContext: 'meeting transcript → entity extraction',
+      value: { metric: '~3 hours saved', per: 'per discovery session', detail: 'vs manual note-taking and entity identification' },
+      feedsTo: ['discovery'],
+      feedsFrom: ['ds-transcripts', 'ds-emails', 'ds-docs'],
+    },
+    {
+      id: 'call', name: 'Call Intelligence', icon: '🎙️', iconBg: 'rgba(232,168,56,0.12)',
+      x: 260, y: 280, w: 210,
+      technique: 'llm', techniqueLabel: 'LLM (Streaming)',
+      rhythm: 'always', rhythmLabel: 'Always-on',
+      desc: 'Real-time call analysis — captures decisions, sentiment, and action items as they happen.',
+      role: 'Runs during live discovery calls. Listens for decision moments, sentiment shifts, pain point expressions, and commitments. Produces a real-time feed the consultant can glance at, and a post-call summary with extracted entities that feed into Signal Processor.',
+      inputs: ['Live audio stream', 'Participant context', 'Project knowledge'],
+      outputs: ['Live call feed', 'Post-call summary', 'Action items', 'Sentiment markers'],
+      confidence: { high: 'Auto-log as decision', mid: 'Surface to consultant in-call', low: 'Include in post-call review' },
+      confPct: [30, 45, 25],
+      evolution: [
+        { when: 'Day 1', what: 'Post-call transcript processing only', auto: '50%', done: true },
+        { when: 'Month 1', what: 'Real-time streaming with live entity feed', auto: '65%', done: false },
+        { when: 'Month 3', what: 'Predictive: suggests questions based on gaps', auto: '78%', done: false },
+      ],
+      samplePrompt: 'You are a call intelligence agent analyzing a live discovery call. Identify the key moment type (decision, pain_point, commitment, sentiment_shift) and extract structured data.\n\nCall segment:\nConsultant: "How does your team handle regulatory document versioning?"\nClient: "Honestly, it\'s a mess. We have documents in SharePoint, some in email, Sarah keeps her own folder... Last week two people edited the same submission simultaneously and we had to redo three days of work."\n\nAnalyze this moment:',
+      sampleContext: 'live call → moment detection',
+      value: { metric: '100% capture', per: 'of call decisions', detail: 'vs 30-40% with manual notes' },
+      feedsTo: ['signal'],
+      feedsFrom: ['ds-calls'],
+    },
+    {
+      id: 'discovery', name: 'Discovery Engine', icon: '🔬', iconBg: 'rgba(63,175,122,0.12)',
+      x: 540, y: 80, w: 210,
+      technique: 'embed', techniqueLabel: 'Embeddings + LLM',
+      rhythm: 'triggered', rhythmLabel: 'Pre-Session',
+      desc: 'Detects knowledge gaps, generates probes, and builds session briefings.',
+      role: 'The strategic brain. After signals are processed, Discovery Engine analyzes what\'s known vs unknown. It uses embedding-based similarity to cluster related gaps, scores them by impact, and generates the discovery probes the consultant should ask next. Before each client session, it assembles a briefing: what we learned, what\'s still unclear, and recommended talking points.',
+      inputs: ['Entity graph', 'Confidence map', 'Session history'],
+      outputs: ['Gap analysis', 'Discovery probes', 'Session briefing', 'Belief categorization'],
+      confidence: { high: 'High-confidence knowledge — build on it', mid: 'Emerging pattern — validate with client', low: 'Hypothesis only — probe carefully' },
+      confPct: [35, 40, 25],
+      evolution: [
+        { when: 'Day 1', what: 'Rule-based gap detection on required fields', auto: '55%', done: true },
+        { when: 'Week 3', what: 'Embedding-based gap clustering + probe generation', auto: '72%', done: true },
+        { when: 'Month 2', what: 'Cross-project pattern matching for better probes', auto: '85%', done: false },
+      ],
+      samplePrompt: 'You are a discovery intelligence engine. Given the current state of knowledge about a client project, identify the top 3 knowledge gaps and generate discovery probes.\n\nKnown entities:\n- Feature: "Multi-jurisdiction deadline tracker" (confidence: 0.85)\n- Persona: "Regulatory Affairs Lead" (confirmed)\n- Pain: "Manual portal checking across 3 systems" (confidence: 0.9)\n- Pain: "Missed EMA deadline last month" (confidence: 0.75)\n- Stakeholder: "VP of Regulatory" (mentioned, not interviewed)\n\nUnknown/Low confidence:\n- How many products in pipeline?\n- Current document management system?\n- Team size?\n- Budget authority?\n\nGenerate top 3 discovery probes with rationale:',
+      sampleContext: 'knowledge state → gap analysis + probes',
+      value: { metric: '2x faster', per: 'requirements convergence', detail: 'reaches confident BRD in 3 sessions vs 6' },
+      feedsTo: ['solution'],
+      feedsFrom: [],
+    },
+    {
+      id: 'solution', name: 'Solution Architect', icon: '🏗️', iconBg: 'rgba(147,112,219,0.12)',
+      x: 540, y: 300, w: 210,
+      technique: 'llm', techniqueLabel: 'LLM (Sonnet+Haiku)',
+      rhythm: 'requested', rhythmLabel: 'On Demand',
+      desc: 'Synthesizes intelligence into a solution flow — the step-by-step journey from problem to value.',
+      role: 'The architect. Takes the full intelligence picture — confirmed entities, gap analysis, discovery insights — and synthesizes it into a living solution flow. Uses a multi-phase pipeline: Sonnet plans the architecture (5-7 steps), Haiku builds detail for each step in parallel, then Sonnet runs coherence QA. The result is a validated, traceable solution blueprint.',
+      inputs: ['BRD entities', 'Gap analysis', 'Confirmed workflows', 'Pain/goal mapping'],
+      outputs: ['Solution flow steps', 'AI capability mapping', 'Data requirements', 'Horizon plan'],
+      confidence: { high: 'Confirmed step — ready for prototype', mid: 'Needs client validation', low: 'Speculative — needs more discovery' },
+      confPct: [25, 50, 25],
+      evolution: [
+        { when: 'Day 1', what: 'Single Sonnet call, basic step generation', auto: '40%', done: true },
+        { when: 'Month 1', what: 'Multi-phase pipeline (v4) with parallel builders', auto: '65%', done: true },
+        { when: 'Month 3', what: 'Cross-project templates + client-specific tuning', auto: '78%', done: false },
+      ],
+      samplePrompt: 'You are a solution architect. Given these confirmed requirements, generate a 4-step solution flow for a regulatory affairs platform.\n\nConfirmed requirements:\n- Multi-jurisdiction deadline tracking (FDA, EMA, Health Canada)\n- Automated document classification and version control\n- AI-assisted dossier assembly with eCTD templates\n- Executive dashboard with submission pipeline view\n- Team of 6 regulatory affairs professionals\n- ~8-12 submissions per year\n\nFor each step provide: title, goal (1 sentence), primary actors, key data needs, and AI capability.\n\nGenerate the solution flow:',
+      sampleContext: 'confirmed requirements → solution architecture',
+      value: { metric: '10x faster', per: 'proposal generation', detail: 'from 2 weeks manual to 2 hours AI-assisted' },
+      feedsTo: ['prototype'],
+      feedsFrom: [],
+    },
+    {
+      id: 'prototype', name: 'Prototype Builder', icon: '🎨', iconBg: 'rgba(147,112,219,0.12)',
+      x: 800, y: 160, w: 210,
+      technique: 'llm', techniqueLabel: 'LLM (Opus → v0)',
+      rhythm: 'requested', rhythmLabel: 'On Demand',
+      desc: 'Generates working prototypes from solution flows, iterates on feedback.',
+      role: 'The materializer. Takes the solution flow and generates a working interactive prototype — not wireframes, but a real clickable experience. Uses Opus to craft the v0 prompt, v0 API to generate code, then injects a feedback bridge so the consultant and client can annotate directly. Each feedback cycle refines both the prototype AND the underlying requirements.',
+      inputs: ['Solution flow', 'Client brand assets', 'Feature mapping'],
+      outputs: ['Interactive prototype', 'Feedback annotations', 'Refined requirements'],
+      confidence: { high: 'Feature validated — lock it', mid: 'Needs iteration — schedule review', low: 'Experimental — test with client' },
+      confPct: [20, 55, 25],
+      evolution: [
+        { when: 'Week 1', what: 'Single prompt → v0 generation, manual feedback', auto: '35%', done: true },
+        { when: 'Month 1', what: 'Bridge injection, automated feedback synthesis', auto: '55%', done: false },
+        { when: 'Month 3', what: 'Multi-session refinement loop, code-level updates', auto: '70%', done: false },
+      ],
+      samplePrompt: 'You are a prototype specification generator. Given a solution flow step, generate a detailed UI specification for a prototype builder.\n\nSolution Flow Step:\nTitle: "Executive Portfolio Dashboard"\nGoal: Give leadership a real-time view of submission status across all products and jurisdictions.\nActors: VP of Regulatory Affairs\nData: Submission status, timeline forecasts, risk flags, approval probabilities\nAI: Portfolio Analyst agent providing predictions\n\nGenerate a prototype spec including:\n- Page layout (sections, hierarchy)\n- Key data visualizations\n- Interactive elements\n- Sample data values\n- The "wow moment" for the client:',
+      sampleContext: 'solution step → prototype specification',
+      value: { metric: '3 sessions', per: 'to validated prototype', detail: 'from concept to clickable in days, not months' },
+      feedsTo: [],
+      feedsFrom: [],
+    },
+  ],
+  edges: [
+    { from: 'ds-transcripts', to: 'signal', label: 'raw text' },
+    { from: 'ds-emails', to: 'signal', label: 'email body' },
+    { from: 'ds-docs', to: 'signal', label: 'document' },
+    { from: 'ds-calls', to: 'call', label: 'audio stream' },
+    { from: 'call', to: 'signal', label: 'post-call entities' },
+    { from: 'signal', to: 'discovery', label: 'entity patches + confidence' },
+    { from: 'discovery', to: 'solution', label: 'intelligence brief + gaps' },
+    { from: 'discovery', to: 'out-brief', label: 'session briefing' },
+    { from: 'signal', to: 'out-brd', label: 'confirmed entities' },
+    { from: 'solution', to: 'out-flow', label: 'solution steps' },
+    { from: 'solution', to: 'prototype', label: 'flow + features' },
+    { from: 'prototype', to: 'out-proto', label: 'interactive prototype' },
+  ],
+},
+regaffairs: {
+  name: 'Proquint Regulatory Platform',
+  dataSources: [
+    { id: 'ds-regdocs', label: 'Regulatory Docs', icon: '📄', x: 30, y: 60 },
+    { id: 'ds-studies', label: 'Study Protocols', icon: '🔬', x: 30, y: 150 },
+    { id: 'ds-guidelines', label: 'FDA/EMA Guidelines', icon: '📜', x: 30, y: 240 },
+  ],
+  outputs: [
+    { id: 'out-dossier', label: 'eCTD Dossier', icon: '📋', x: 950, y: 80 },
+    { id: 'out-dashboard', label: 'Portfolio Dashboard', icon: '📊', x: 950, y: 180 },
+    { id: 'out-alerts', label: 'Risk Alerts', icon: '🚨', x: 950, y: 280 },
+  ],
+  agents: [
+    {
+      id: 'classify', name: 'Pipeline Classifier', icon: '🔍', iconBg: 'rgba(63,175,122,0.12)',
+      x: 250, y: 50, w: 210,
+      technique: 'classify', techniqueLabel: 'Classification',
+      rhythm: 'triggered', rhythmLabel: 'On Upload',
+      desc: 'Classifies and indexes regulatory documents by product, jurisdiction, and submission type.',
+      role: 'Entry point for all regulatory data. Classifies documents by type, extracts key fields, and indexes them in the vault.',
+      inputs: ['Uploaded documents', 'Product taxonomy', 'Jurisdiction rules'],
+      outputs: ['Classified entries', 'Extracted fields', 'Quality flags'],
+      confidence: { high: 'Auto-index in vault', mid: 'Flag for RA review', low: 'Queue for manual classification' },
+      confPct: [60, 25, 15],
+      evolution: [
+        { when: 'Day 1', what: 'Rule-based classification by filename/metadata', auto: '70%', done: true },
+        { when: 'Month 1', what: 'Haiku content classification + field extraction', auto: '85%', done: false },
+        { when: 'Month 3', what: 'Custom model trained on client document types', auto: '95%', done: false },
+      ],
+      samplePrompt: 'You are a regulatory document classifier. Classify this document and extract key fields.\n\nDocument metadata:\nFilename: "HLX-2847_Module3_DrugSubstance_v2.3.pdf"\nSize: 2.4MB, 47 pages\nFirst page text: "3.2.S Drug Substance - HLX-2847 Mesylate. Manufacturing Process Description and Controls. Prepared for FDA IND submission."\n\nClassify with: document_type, eCTD_module, product_id, jurisdiction, submission_type, version, key_fields[]',
+      sampleContext: 'document upload → classification + field extraction',
+      value: { metric: '85% faster', per: 'document processing', detail: 'from 15 min to 2 min per document' },
+      feedsTo: ['strategy'], feedsFrom: ['ds-regdocs', 'ds-studies'],
+    },
+    {
+      id: 'strategy', name: 'Pathway Matcher', icon: '🧭', iconBg: 'rgba(232,168,56,0.12)',
+      x: 530, y: 50, w: 210,
+      technique: 'embed', techniqueLabel: 'Embeddings + LLM',
+      rhythm: 'requested', rhythmLabel: 'On Demand',
+      desc: 'Matches products to optimal regulatory pathways using precedent database.',
+      role: 'Analyzes product profiles against 10K+ historical approvals to recommend the optimal regulatory pathway.',
+      inputs: ['Product profiles', 'Historical approvals', 'Expedited criteria'],
+      outputs: ['Pathway recommendations', 'Precedent matches', 'Designation eligibility'],
+      confidence: { high: 'Strong precedent — recommend confidently', mid: 'Similar cases exist — present options', low: 'Novel territory — flag for expert review' },
+      confPct: [35, 45, 20],
+      evolution: [
+        { when: 'Day 1', what: 'Keyword matching against approval database', auto: '50%', done: true },
+        { when: 'Month 1', what: 'Embedding-based similarity with Cohere rerank', auto: '75%', done: false },
+        { when: 'Month 3', what: 'Predictive pathway success probability', auto: '85%', done: false },
+      ],
+      samplePrompt: 'You are a regulatory pathway matcher. Given a product profile, recommend the optimal FDA regulatory pathway.\n\nProduct: HLX-2847 Mesylate\nIndication: Non-small cell lung cancer (NSCLC), 2nd line\nMechanism: Selective ALK inhibitor\nPhase: Phase 2 complete, planning Phase 3\nPrior designations: Orphan Drug (pending)\nComparators: Crizotinib, Alectinib, Lorlatinib\n\nRecommend pathway with: primary_pathway, expedited_options[], precedent_products[], estimated_timeline, confidence_score, rationale',
+      sampleContext: 'product profile → pathway recommendation',
+      value: { metric: '3 weeks saved', per: 'per product evaluation', detail: 'automated precedent search + recommendation' },
+      feedsTo: ['assembler'], feedsFrom: [],
+    },
+    {
+      id: 'assembler', name: 'Dossier Assembler', icon: '📋', iconBg: 'rgba(147,112,219,0.12)',
+      x: 530, y: 260, w: 210,
+      technique: 'llm', techniqueLabel: 'LLM (Sonnet)',
+      rhythm: 'requested', rhythmLabel: 'On Demand',
+      desc: 'Generates compliant dossier sections from validated data using jurisdiction templates.',
+      role: 'The production engine. Takes validated data and confirmed pathways, applies eCTD templates, and generates draft sections.',
+      inputs: ['Validated vault data', 'Pathway selection', 'eCTD templates'],
+      outputs: ['Draft dossier sections', 'Compliance checklist', 'Submission package'],
+      confidence: { high: 'Section complete — ready for review', mid: 'Draft ready — needs expert input', low: 'Data gaps — cannot generate' },
+      confPct: [30, 50, 20],
+      evolution: [
+        { when: 'Day 1', what: 'Template pre-fill with extracted fields', auto: '45%', done: true },
+        { when: 'Month 2', what: 'Sonnet narrative generation for key sections', auto: '70%', done: false },
+        { when: 'Month 4', what: 'Full section generation with compliance validation', auto: '85%', done: false },
+      ],
+      samplePrompt: 'You are a regulatory dossier assembler. Generate the Module 2.7.1 (Summary of Biopharmaceutic Studies) section.\n\nProduct: HLX-2847 Mesylate, 50mg tablets\nStudies available:\n- Bioavailability study (HLX-2847-BA-001): 24 subjects, crossover, fasted vs fed\n- Bioequivalence study (HLX-2847-BE-002): 36 subjects, pilot vs commercial formulation\n- Dissolution profiles: 4 media, 3 formulation variants\n\nGenerate the section following eCTD CTD format with: summary paragraph, tabular overview of studies, key findings, cross-references to Module 5.',
+      sampleContext: 'validated data → compliant dossier section',
+      value: { metric: '60% faster', per: 'dossier assembly', detail: 'from 6 weeks to 2.5 weeks per submission' },
+      feedsTo: [], feedsFrom: [],
+    },
+    {
+      id: 'sentinel', name: 'Risk Sentinel', icon: '🛡️', iconBg: 'rgba(232,168,56,0.12)',
+      x: 250, y: 260, w: 210,
+      technique: 'rules', techniqueLabel: 'Rules + LLM',
+      rhythm: 'always', rhythmLabel: 'Always-on',
+      desc: 'Monitors pipeline for compliance risks, deadline proximity, and guideline changes.',
+      role: 'Continuous watchdog. Scans for regulatory risks, checks deadline proximity, and monitors guideline feeds for relevant changes.',
+      inputs: ['Pipeline vault (live)', 'Regulatory calendars', 'Guideline feeds'],
+      outputs: ['Risk alerts', 'Deadline warnings', 'Guideline change notices'],
+      confidence: { high: 'Critical alert — escalate immediately', mid: 'Warning — review within 48h', low: 'Advisory — include in weekly digest' },
+      confPct: [15, 35, 50],
+      evolution: [
+        { when: 'Day 1', what: 'Deadline tracking + rule-based compliance checks', auto: '80%', done: true },
+        { when: 'Month 1', what: 'Guideline change detection with relevance scoring', auto: '88%', done: false },
+        { when: 'Month 3', what: 'Predictive risk scoring based on submission patterns', auto: '92%', done: false },
+      ],
+      samplePrompt: 'You are a regulatory risk sentinel. Analyze the current pipeline status and flag any risks.\n\nActive submissions:\n1. HLX-2847 IND (FDA) — Due: March 30, Status: Module 3 incomplete, Module 5 in review\n2. HLX-3195 MAA (EMA) — Due: April 15, Status: All modules complete, awaiting final QC\n3. HLX-1002 NDA (FDA) — Due: June 1, Status: Module 2 in progress, Module 4 not started\n\nRecent guideline changes:\n- FDA updated eCTD v4.0 requirements (effective April 1)\n- EMA revised Module 2.5 requirements for oncology products\n\nGenerate risk assessment with: risk_level, affected_submission, risk_type, recommended_action, deadline_impact',
+      sampleContext: 'pipeline status → risk assessment',
+      value: { metric: 'Zero missed', per: 'deadlines', detail: 'vs 2-3 near-misses per year manually' },
+      feedsTo: [], feedsFrom: ['ds-guidelines'],
+    },
+  ],
+  edges: [
+    { from: 'ds-regdocs', to: 'classify', label: 'documents' },
+    { from: 'ds-studies', to: 'classify', label: 'protocols' },
+    { from: 'ds-guidelines', to: 'sentinel', label: 'guideline feeds' },
+    { from: 'classify', to: 'strategy', label: 'classified data' },
+    { from: 'classify', to: 'assembler', label: 'extracted fields' },
+    { from: 'strategy', to: 'assembler', label: 'pathway + precedent' },
+    { from: 'assembler', to: 'out-dossier', label: 'eCTD package' },
+    { from: 'sentinel', to: 'out-alerts', label: 'risk alerts' },
+    { from: 'strategy', to: 'out-dashboard', label: 'pipeline view' },
+  ],
+},
+};
+
+// ═══ Layout & Render ════════════════════════════
+function render() {
+  const sc = SCENARIOS[S.scenario];
+  const canvas = document.getElementById('canvas');
+
+  // Compute bounding box
+  let maxX = 0, maxY = 0;
+  [...sc.dataSources, ...sc.outputs].forEach(n => { maxX = Math.max(maxX, n.x + 160); maxY = Math.max(maxY, n.y + 50); });
+  sc.agents.forEach(a => { maxX = Math.max(maxX, a.x + a.w + 20); maxY = Math.max(maxY, a.y + 250); });
+
+  canvas.style.minWidth = (maxX + 60) + 'px';
+  canvas.style.minHeight = Math.max(460, maxY + 40) + 'px';
+
+  // Build positions map for edge drawing
+  const posMap = {};
+  sc.dataSources.forEach(d => { posMap[d.id] = { x: d.x, y: d.y, w: 140, h: 36, type: 'data' }; });
+  sc.outputs.forEach(o => { posMap[o.id] = { x: o.x, y: o.y, w: 150, h: 36, type: 'output' }; });
+  sc.agents.forEach(a => { posMap[a.id] = { x: a.x, y: a.y, w: a.w, h: 220, type: 'agent' }; });
+
+  // SVG edges
+  let svgPaths = '';
+  sc.edges.forEach(e => {
+    const from = posMap[e.from], to = posMap[e.to];
+    if (!from || !to) return;
+    const x1 = from.x + from.w, y1 = from.y + from.h / 2;
+    const x2 = to.x, y2 = to.y + to.h / 2;
+    const cx1 = x1 + 40, cx2 = x2 - 40;
+    const hl = S.hovered && (S.hovered === e.from || S.hovered === e.to);
+    svgPaths += `<path class="edge-path ${hl ? 'hl' : ''}" d="M${x1},${y1} C${cx1},${y1} ${cx2},${y2} ${x2},${y2}"/>`;
+    // Label
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 - 6;
+    if (S.mode === 'architect') {
+      svgPaths += `<text class="edge-label" x="${mx}" y="${my}" text-anchor="middle">${e.label || ''}</text>`;
+    }
+  });
+
+  const isArch = S.mode === 'architect';
+  const isBuild = S.mode === 'build';
+
+  canvas.innerHTML = `
+    <svg class="edge-svg" style="width:${maxX+60}px;height:${Math.max(460,maxY+40)}px">${svgPaths}</svg>
+    ${sc.dataSources.map(d => `
+      <div class="data-node" style="left:${d.x}px;top:${d.y}px" data-id="${d.id}"
+           onmouseenter="hover('${d.id}')" onmouseleave="unhover()">
+        <span class="data-node-icon">${d.icon}</span>${d.label}
+      </div>
+    `).join('')}
+    ${sc.outputs.map(o => `
+      <div class="output-node" style="left:${o.x}px;top:${o.y}px" data-id="${o.id}"
+           onmouseenter="hover('${o.id}')" onmouseleave="unhover()">
+        <span class="output-node-icon">${o.icon}</span>${o.label}
+      </div>
+    `).join('')}
+    ${sc.agents.map(a => {
+      const dimmed = S.hovered && S.hovered !== a.id && !isEdgeConnected(sc, a.id, S.hovered);
+      const selected = S.selected === a.id;
+      return `
+      <div class="flow-node ${dimmed?'dimmed':''} ${selected?'selected':''}" data-id="${a.id}"
+           style="left:${a.x}px;top:${a.y}px;width:${a.w}px"
+           onmouseenter="hover('${a.id}')" onmouseleave="unhover()"
+           onclick="selectAgent('${a.id}')">
+        <div class="fn-top">
+          <div class="fn-icon" style="background:${a.iconBg}">${a.icon}</div>
+          <div class="fn-name">${a.name}</div>
+        </div>
+        <div class="fn-technique tech-${a.technique}">${a.techniqueLabel}</div>
+        ${isArch || isBuild ? `<div class="fn-desc">${a.desc}</div>` : ''}
+        ${isArch ? `
+          <div class="fn-io">
+            <div class="fn-io-col">
+              <div class="fn-io-label">In</div>
+              ${a.inputs.slice(0,2).map(i=>`<div class="fn-io-item fn-io-in">${i}</div>`).join('')}
+            </div>
+            <div class="fn-io-col">
+              <div class="fn-io-label">Out</div>
+              ${a.outputs.slice(0,2).map(o=>`<div class="fn-io-item fn-io-out">${o}</div>`).join('')}
+            </div>
+          </div>
+        ` : ''}
+        <div class="fn-bar">
+          <div class="fn-conf">
+            <div class="fn-conf-dot" style="background:${a.confPct[0]>40?'var(--green)':'var(--amber)'}"></div>
+            <div class="fn-conf-label">${a.confPct[0]}% high conf</div>
+          </div>
+          <div class="fn-rhythm rhythm-${a.rhythm}">${a.rhythmLabel}</div>
+        </div>
+        ${isBuild ? `
+          <div style="margin-top:8px;font-size:9px;color:var(--text-muted)">
+            ${a.evolution.filter(e=>e.done).length}/${a.evolution.length} milestones done
+          </div>
+        ` : ''}
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function isEdgeConnected(sc, id1, id2) {
+  return sc.edges.some(e => (e.from === id1 && e.to === id2) || (e.from === id2 && e.to === id1));
+}
+
+function hover(id) { S.hovered = id; applyHover(); }
+function unhover() { S.hovered = null; applyHover(); }
+
+function applyHover() {
+  const sc = SCENARIOS[S.scenario];
+  document.querySelectorAll('.flow-node').forEach(el => {
+    const id = el.dataset.id;
+    if (!S.hovered) { el.classList.remove('dimmed'); return; }
+    if (id === S.hovered || isEdgeConnected(sc, id, S.hovered)) el.classList.remove('dimmed');
+    else el.classList.add('dimmed');
+  });
+  document.querySelectorAll('.edge-path').forEach(el => {
+    // Re-render is simpler for SVG — skip for now, handled in render
+  });
+}
+
+// ═══ Detail Panel ═══════════════════════════════
+function selectAgent(id) {
+  S.selected = id;
+  const sc = SCENARIOS[S.scenario];
+  const a = sc.agents.find(x => x.id === id);
+  if (!a) return;
+
+  const dp = document.getElementById('detail-panel');
+  const overlay = document.getElementById('detail-overlay');
+
+  // Header
+  document.getElementById('dp-header').innerHTML = `
+    <button class="dp-close" onclick="closeDetail()">×</button>
+    <div class="dp-icon-row">
+      <div class="dp-icon" style="background:${a.iconBg}">${a.icon}</div>
+      <div>
+        <div class="dp-name">${a.name}</div>
+        <div class="dp-badges">
+          <div class="dp-badge tech-${a.technique}">${a.techniqueLabel}</div>
+          <div class="dp-badge rhythm-${a.rhythm}">${a.rhythmLabel}</div>
+        </div>
+      </div>
+    </div>
+    <div class="dp-role">${a.role}</div>
+  `;
+
+  // Body
+  const confColors = ['var(--green)', 'var(--amber)', 'var(--text-muted)'];
+  const confLabels = Object.entries(a.confidence);
+
+  document.getElementById('dp-body').innerHTML = `
+    <!-- Value -->
+    <div class="ds">
+      <div class="ds-title"><span class="ds-title-icon">⚡</span>Value Delivered</div>
+      <div class="ds-grid">
+        <div class="ds-grid-item"><div class="ds-grid-val">${a.value.metric}</div><div class="ds-grid-label">${a.value.per}</div></div>
+        <div class="ds-grid-item"><div style="font-size:11px;color:var(--text-dim);line-height:1.5">${a.value.detail}</div></div>
+      </div>
+    </div>
+
+    <!-- IO -->
+    <div class="ds">
+      <div class="ds-title"><span class="ds-title-icon">🔄</span>Data Flow</div>
+      <div class="ds-grid">
+        <div class="ds-card">
+          <div class="ds-card-label" style="color:var(--amber)">← Inputs</div>
+          ${a.inputs.map(i => `<div style="font-size:11px;color:var(--text-dim);padding:2px 0">• ${i}</div>`).join('')}
+        </div>
+        <div class="ds-card">
+          <div class="ds-card-label" style="color:var(--green)">→ Outputs</div>
+          ${a.outputs.map(o => `<div style="font-size:11px;color:var(--text-dim);padding:2px 0">• ${o}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Confidence Tiers -->
+    <div class="ds">
+      <div class="ds-title"><span class="ds-title-icon">🎯</span>Confidence Architecture</div>
+      ${confLabels.map(([tier, action], i) => `
+        <div class="conf-tier">
+          <div class="conf-tier-bar"><div class="conf-tier-fill" style="width:${a.confPct[i]}%;background:${confColors[i]}"></div></div>
+          <div class="conf-tier-range" style="color:${confColors[i]}">${a.confPct[i]}%</div>
+          <div class="conf-tier-action">${action}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <!-- Evolution -->
+    <div class="ds">
+      <div class="ds-title"><span class="ds-title-icon">📈</span>Evolution Path</div>
+      ${a.evolution.map((e, i) => `
+        <div class="evo-step ${e.done ? 'evo-done' : ''}">
+          <div class="evo-dot-col">
+            <div class="evo-dot ${e.done ? 'done' : ''}"></div>
+            ${i < a.evolution.length - 1 ? '<div class="evo-line"></div>' : ''}
+          </div>
+          <div class="evo-body">
+            <div class="evo-when">${e.when}</div>
+            <div class="evo-what">${e.what}</div>
+            <div class="evo-auto">${e.auto} automated</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  // Footer — sample output + chat
+  document.getElementById('dp-footer').innerHTML = `
+    <div class="try-tabs">
+      <div class="try-tab active" onclick="switchTryTab('try',this)" data-tab="try">⚡ Try It</div>
+      <div class="try-tab" onclick="switchTryTab('chat',this)" data-tab="chat">💬 Ask</div>
+    </div>
+    <div class="try-body" id="try-body">
+      <div id="try-panel-try">
+        <div class="try-input-label">📥 Input Data</div>
+        <textarea class="try-textarea" id="try-input" placeholder="Paste a meeting transcript, document text, or describe a scenario...">${a.sampleInput || ''}</textarea>
+        <div class="try-run-row">
+          <button class="try-run" id="try-run-btn" onclick="runAgent('${a.id}')">⚡ Run ${a.name}</button>
+          <button class="try-preset" onclick="loadSampleInput('${a.id}')">Load example</button>
+        </div>
+        <div class="try-output" id="try-output"></div>
+      </div>
+      <div id="try-panel-chat" style="display:none">
+        <div class="chat-thread" id="chat-thread"></div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chat-input" placeholder="Ask about this agent..." onkeydown="if(event.key==='Enter')sendChat('${a.id}')">
+          <button class="chat-send" onclick="sendChat('${a.id}')">Ask</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  dp.classList.add('open');
+  overlay.classList.add('open');
+  render();
+}
+
+function closeDetail() {
+  S.selected = null;
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('detail-overlay').classList.remove('open');
+  render();
+}
+
+// ═══ Try-It Tabs ════════════════════════════════
+function switchTryTab(tab, el) {
+  document.querySelectorAll('.try-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('try-panel-try').style.display = tab === 'try' ? 'block' : 'none';
+  document.getElementById('try-panel-chat').style.display = tab === 'chat' ? 'block' : 'none';
+}
+
+// ═══ Sample Inputs ══════════════════════════════
+const SAMPLE_INPUTS = {
+  signal: `From our discovery call with Helix Therapeutics:
+
+"We really need the ability for our regulatory affairs team to track submission deadlines across multiple jurisdictions. Right now Sarah manually checks three different portals every morning — FDA, EMA, and Health Canada. Last month we missed an EMA deadline because she was out sick. The VP wants a single dashboard where he can see everything at a glance. We also need better version control — two people edited the same Module 3 document simultaneously last week and we lost three days of work."`,
+  call: `Consultant: "Walk me through what happens when a new study protocol arrives."
+Client: "So it comes in by email usually, sometimes through our SharePoint portal. Then Maria — she's our lead — she has to figure out which product it belongs to, which module of the CTD it feeds into, and whether we already have an older version. That alone can take 30 minutes per document."
+Consultant: "And how many documents come in per week?"
+Client: "On a busy week? Maybe 40-50. During a submission crunch it's more like 100. We've had temps come in just to help with filing."`,
+  discovery: `Known so far:
+- Feature: "Multi-jurisdiction deadline tracker" (confidence: 0.85)
+- Persona: "Sarah" — Regulatory Affairs Coordinator (confirmed)
+- Persona: "Maria" — Lead, does document classification (confidence: 0.8)
+- Pain: "Manual portal checking across 3 systems" (severity: high)
+- Pain: "Missed EMA deadline due to single point of failure" (severity: critical)
+- Pain: "Version conflicts from distributed storage" (severity: high)
+- Stakeholder: "VP of Regulatory" (mentioned, not interviewed)
+
+Unknown:
+- Pipeline size (number of active products)
+- Budget and timeline constraints
+- Current tech stack beyond SharePoint
+- Team size beyond Sarah and Maria`,
+  solution: `Confirmed requirements from 3 discovery sessions:
+- Multi-jurisdiction deadline tracking (FDA, EMA, Health Canada)
+- Automated document classification and version control
+- AI-assisted dossier assembly with eCTD templates
+- Executive dashboard with submission pipeline view
+- Team: 6 regulatory affairs professionals, led by Maria
+- Volume: ~8-12 submissions per year, 40-100 docs/week
+- Pain: 3 missed deadlines in past year, frequent version conflicts
+- Integration: must work with existing SharePoint (gradual migration)`,
+  prototype: `Solution Flow Step:
+Title: "Executive Portfolio Dashboard"
+Goal: Real-time portfolio view of all submissions across jurisdictions.
+Actors: VP of Regulatory Affairs
+Data: Submission status, timeline forecasts, risk flags, approval probabilities
+AI Capability: Portfolio Analyst — predictive timeline forecasting
+Key Insight: VP currently gets a weekly PDF email from Maria. Wants real-time access.
+Wow Factor: "What-if" scenario builder showing impact of delays or resource changes.`,
+  classify: `Document received:
+Filename: "HLX-2847_Module3_DrugSubstance_v2.3.pdf"
+Size: 2.4MB, 47 pages
+Source: Email from principal investigator
+First page text: "3.2.S Drug Substance - HLX-2847 Mesylate. Manufacturing Process Description and Controls. Prepared for FDA IND submission. Revision 2.3 — Updated stability data through 24-month timepoint."`,
+  strategy: `Product Profile:
+Name: HLX-2847 Mesylate
+Indication: Non-small cell lung cancer (NSCLC), ALK-positive, 2nd line
+Mechanism: Selective ALK inhibitor (3rd generation)
+Phase: Phase 2 complete, planning Phase 3
+ORR in Phase 2: 68% (vs 45% for lorlatinib in similar population)
+Prior designations: Orphan Drug (pending)
+Target jurisdictions: FDA (primary), EMA (follow-on)`,
+  assembler: `Generate Module 2.7.1 section.
+Product: HLX-2847 Mesylate, 50mg tablets
+Available studies:
+- Bioavailability (HLX-2847-BA-001): 24 subjects, crossover, fasted vs fed
+- Bioequivalence (HLX-2847-BE-002): 36 subjects, pilot vs commercial formulation
+- Dissolution profiles: 4 media, 3 formulation variants
+Key results: Fed state ↑ AUC 22%, BE confirmed (90% CI within 80-125%)`,
+  sentinel: `Current pipeline status:
+1. HLX-2847 IND (FDA) — Due: March 30, Module 3 incomplete, Module 5 in review
+2. HLX-3195 MAA (EMA) — Due: April 15, all modules complete, final QC
+3. HLX-1002 NDA (FDA) — Due: June 1, Module 2 in progress, Module 4 not started
+
+Recent changes:
+- FDA updated eCTD v4.0 requirements (effective April 1)
+- EMA revised Module 2.5 requirements for oncology products`,
+};
+
+function loadSampleInput(agentId) {
+  const input = document.getElementById('try-input');
+  if (input && SAMPLE_INPUTS[agentId]) input.value = SAMPLE_INPUTS[agentId];
+}
+
+// ═══ Client-Facing Output Renderers ═════════════
+function renderClientOutput(agentId, inputText) {
+  const renderers = {
+    signal: () => `
+      <div class="out-section">
+        <div class="out-section-title">Extracted Requirements</div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--green)"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-type" style="color:var(--green)">Feature</div>
+            <div class="out-entity-text">Multi-jurisdiction deadline tracker</div>
+            <div class="out-entity-evidence">"track submission deadlines across multiple jurisdictions"</div>
+          </div>
+          <div class="out-entity-conf conf-high">92%</div>
+        </div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:#DC5050"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-type" style="color:#DC5050">Pain Point — Critical</div>
+            <div class="out-entity-text">Single point of failure on deadline tracking</div>
+            <div class="out-entity-evidence">"Last month we missed an EMA deadline because she was out sick"</div>
+          </div>
+          <div class="out-entity-conf conf-high">95%</div>
+        </div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--amber)"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-type" style="color:var(--amber)">Pain Point</div>
+            <div class="out-entity-text">Document version conflicts from distributed storage</div>
+            <div class="out-entity-evidence">"two people edited the same Module 3 document simultaneously... lost three days"</div>
+          </div>
+          <div class="out-entity-conf conf-high">90%</div>
+        </div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--green)"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-type" style="color:var(--green)">Feature</div>
+            <div class="out-entity-text">Centralized executive dashboard</div>
+            <div class="out-entity-evidence">"The VP wants a single dashboard where he can see everything at a glance"</div>
+          </div>
+          <div class="out-entity-conf conf-mid">78%</div>
+        </div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--accent)"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-type" style="color:var(--accent)">Persona</div>
+            <div class="out-entity-text">Sarah — Regulatory Affairs Coordinator</div>
+            <div class="out-entity-evidence">"Right now Sarah manually checks three different portals every morning"</div>
+          </div>
+          <div class="out-entity-conf conf-mid">78%</div>
+        </div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--accent)"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-type" style="color:var(--accent)">Stakeholder</div>
+            <div class="out-entity-text">VP of Regulatory Affairs</div>
+            <div class="out-entity-evidence">"The VP wants a single dashboard"</div>
+          </div>
+          <div class="out-entity-conf conf-low">65%</div>
+        </div>
+      </div>
+      <div class="out-section">
+        <div class="out-section-title">Signal Quality</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,0.06);overflow:hidden"><div style="width:88%;height:100%;border-radius:3px;background:var(--green)"></div></div>
+          <span style="font-size:12px;font-weight:700;color:var(--green)">88%</span>
+          <span style="font-size:10px;color:var(--text-muted)">High quality — 6 entities extracted, 4 high confidence</span>
+        </div>
+      </div>`,
+
+    call: () => `
+      <div class="out-section">
+        <div class="out-section-title">Call Moments Detected</div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:#DC5050"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-type" style="color:#DC5050">Pain Point — Workflow</div>
+            <div class="out-entity-text">Manual document classification takes 30 minutes per document</div>
+            <div class="out-entity-evidence">Maria: "she has to figure out which product it belongs to, which module... That alone can take 30 minutes per document"</div>
+          </div>
+          <div class="out-entity-conf conf-high">91%</div>
+        </div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--amber)"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-type" style="color:var(--amber)">Scale Signal</div>
+            <div class="out-entity-text">40-50 docs/week normal, 100+ during submission crunch</div>
+            <div class="out-entity-evidence">"On a busy week? Maybe 40-50. During a submission crunch it's more like 100."</div>
+          </div>
+          <div class="out-entity-conf conf-high">94%</div>
+        </div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--green)"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-type" style="color:var(--green)">Resource Signal</div>
+            <div class="out-entity-text">Hiring temps for filing during peaks — clear automation opportunity</div>
+            <div class="out-entity-evidence">"We've had temps come in just to help with filing"</div>
+          </div>
+          <div class="out-entity-conf conf-mid">82%</div>
+        </div>
+      </div>
+      <div class="out-section">
+        <div class="out-section-title">Suggested Follow-up</div>
+        <div class="out-probe">
+          <div class="out-probe-icon">💬</div>
+          <div>
+            <div class="out-probe-q">What percentage of Maria's week is spent on document classification vs. other regulatory work?</div>
+            <div class="out-probe-why">Quantifies the automation ROI — if it's 50%+ of her time, that's a strong business case.</div>
+          </div>
+        </div>
+      </div>`,
+
+    discovery: () => `
+      <div class="out-section">
+        <div class="out-section-title">Knowledge Confidence Map</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">
+          <div style="background:rgba(63,175,122,0.05);border:1px solid rgba(63,175,122,0.15);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:800;color:var(--green)">7</div>
+            <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Confirmed</div>
+          </div>
+          <div style="background:rgba(232,168,56,0.05);border:1px solid rgba(232,168,56,0.12);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:800;color:var(--amber)">4</div>
+            <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Unknown</div>
+          </div>
+        </div>
+      </div>
+      <div class="out-section">
+        <div class="out-section-title">Top Discovery Probes for Next Session</div>
+        <div class="out-probe">
+          <div class="out-probe-icon">🎯</div>
+          <div>
+            <div class="out-probe-q">How many active products does your regulatory pipeline currently support?</div>
+            <div class="out-probe-why">Pipeline size determines system scope, AI training volume, and pricing tier. Zero mentions across all signals.</div>
+          </div>
+        </div>
+        <div class="out-probe">
+          <div class="out-probe-icon">🔍</div>
+          <div>
+            <div class="out-probe-q">Beyond SharePoint and email, are there other systems where regulatory documents live?</div>
+            <div class="out-probe-why">Integration scope is unclear. Sarah checks "three portals" but we only know SharePoint. Missing 2 systems.</div>
+          </div>
+        </div>
+        <div class="out-probe">
+          <div class="out-probe-icon">👤</div>
+          <div>
+            <div class="out-probe-q">The VP wants a dashboard — has anyone tried to build this before? What happened?</div>
+            <div class="out-probe-why">VP is a key stakeholder but uninterviewed. This probe validates the dashboard priority and reveals past failed attempts.</div>
+          </div>
+        </div>
+      </div>
+      <div class="out-section">
+        <div class="out-section-title">Session Briefing</div>
+        <div class="out-narrative">
+          <strong>What we know:</strong> Strong pain signals around deadline tracking (missed EMA), document chaos (version conflicts, distributed storage), and scale pressure (40-100 docs/week with temp hiring).<br><br>
+          <strong>Biggest gap:</strong> No pipeline size data — we can't estimate AI training needs or system scope without knowing how many products they manage.<br><br>
+          <strong>Recommended opening:</strong> Start with the pipeline overview question, then drill into document workflow with Maria. Save VP dashboard for last — it's a feature request, not a pain point.
+        </div>
+      </div>`,
+
+    solution: () => `
+      <div class="out-section">
+        <div class="out-section-title">Solution Flow — 4 Steps</div>
+        <div class="out-step">
+          <div class="out-step-num">1</div>
+          <div class="out-step-body">
+            <div class="out-step-title">Ingest & Classify Pipeline Documents</div>
+            <div class="out-step-goal">Automatically classify and index all regulatory documents into a searchable vault — eliminating Maria's 30-minute-per-document triage.</div>
+            <div class="out-step-ai">🤖 Pipeline Classifier — 85% auto-classification from day one</div>
+          </div>
+        </div>
+        <div class="out-step">
+          <div class="out-step-num">2</div>
+          <div class="out-step-body">
+            <div class="out-step-title">Track Deadlines Across Jurisdictions</div>
+            <div class="out-step-goal">Unified deadline calendar across FDA, EMA, and Health Canada — no more single-point-of-failure with Sarah's manual checks.</div>
+            <div class="out-step-ai">🤖 Risk Sentinel — always-on monitoring with escalation alerts</div>
+          </div>
+        </div>
+        <div class="out-step">
+          <div class="out-step-num">3</div>
+          <div class="out-step-body">
+            <div class="out-step-title">Assemble Regulatory Dossiers</div>
+            <div class="out-step-goal">AI-assisted dossier assembly from classified vault data — pre-filling eCTD sections so the team focuses on substance, not formatting.</div>
+            <div class="out-step-ai">🤖 Dossier Assembler — Sonnet-powered, jurisdiction-aware generation</div>
+          </div>
+        </div>
+        <div class="out-step">
+          <div class="out-step-num">4</div>
+          <div class="out-step-body">
+            <div class="out-step-title">Executive Portfolio Dashboard</div>
+            <div class="out-step-goal">Real-time portfolio view for the VP — submission status, timeline forecasts, and risk flags in one place instead of weekly PDF emails.</div>
+            <div class="out-step-ai">🤖 Portfolio Analyst — predictive timeline forecasting</div>
+          </div>
+        </div>
+      </div>`,
+
+    prototype: () => `
+      <div class="out-section">
+        <div class="out-section-title">Prototype Specification</div>
+        <div class="out-narrative" style="border-left-color:rgba(147,112,219,0.5)">
+          <strong>Page: Executive Portfolio Dashboard</strong><br><br>
+          <strong>Hero section:</strong> 4-stat strip — Active Submissions (3), On Track (2/3 ⚠️), Avg Time to Approval (14.2 mo ↓), Next Deadline (Mar 30 🔴)<br><br>
+          <strong>Main view:</strong> Pipeline table — Product, Pathway, Status (progress bar), Deadline, Risk Level. Click any row to expand timeline detail.<br><br>
+          <strong>The wow moment:</strong> "What-If" scenario builder. VP drags a deadline → AI shows cascade impact across all submissions. "If HLX-2847 slips 2 weeks, here's what happens to your Q2 pipeline."<br><br>
+          <strong>Right panel:</strong> AI Insights feed — "HLX-1002 Module 4 has not started. At current pace, June 1 deadline requires starting this week."<br><br>
+          <strong>Sample data:</strong> 3 products across FDA and EMA, 1 critical risk, 1 warning, realistic pharma naming.
+        </div>
+      </div>`,
+
+    classify: () => `
+      <div class="out-section">
+        <div class="out-section-title">Document Classification</div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--green)"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-type" style="color:var(--green)">Classified</div>
+            <div class="out-entity-text">Drug Substance Manufacturing — Module 3.2.S</div>
+            <div class="out-entity-evidence">Product: HLX-2847 Mesylate · Jurisdiction: FDA · Type: IND · Version: 2.3</div>
+          </div>
+          <div class="out-entity-conf conf-high">94%</div>
+        </div>
+      </div>
+      <div class="out-section">
+        <div class="out-section-title">Extracted Fields</div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--green)"></div>
+          <div class="out-entity-body"><div class="out-entity-text">Manufacturing Process: 5-step synthesis</div></div>
+          <div class="out-entity-conf conf-high">88%</div>
+        </div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--green)"></div>
+          <div class="out-entity-body"><div class="out-entity-text">Stability: 24-month, 25°C/60% RH</div></div>
+          <div class="out-entity-conf conf-mid">85%</div>
+        </div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--amber)"></div>
+          <div class="out-entity-body"><div class="out-entity-text">Batch Size: 50kg pilot scale</div></div>
+          <div class="out-entity-conf conf-mid">78%</div>
+        </div>
+      </div>
+      <div class="out-section">
+        <div class="out-section-title">Actions</div>
+        <div style="font-size:11px;color:var(--text-dim);padding:8px 12px;background:rgba(63,175,122,0.04);border-radius:8px;border:1px solid rgba(63,175,122,0.1)">
+          ✓ Auto-indexed in vault under HLX-2847 → Module 3.2.S<br>
+          ✓ Version 2.1 auto-archived (superseded)<br>
+          ℹ️ Flagged: New stability data may affect Module 2.3 summary — review recommended
+        </div>
+      </div>`,
+
+    strategy: () => `
+      <div class="out-section">
+        <div class="out-section-title">Recommended Pathway</div>
+        <div style="padding:14px;border-radius:10px;background:rgba(63,175,122,0.04);border:1px solid rgba(63,175,122,0.15);margin-bottom:12px">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">505(b)(1) NDA via Accelerated Approval</div>
+          <div style="font-size:11px;color:var(--text-dim);line-height:1.5">ALK-positive NSCLC 2nd line has strong accelerated approval precedent. ORR of 68% (vs 45% lorlatinib) supports substantial improvement claim.</div>
+          <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+            <div style="font-size:10px;font-weight:600;color:var(--green)">Confidence: 82%</div>
+            <div style="font-size:10px;color:var(--text-muted)">·</div>
+            <div style="font-size:10px;color:var(--text-muted)">Estimated: 18-24 months from NDA</div>
+          </div>
+        </div>
+      </div>
+      <div class="out-section">
+        <div class="out-section-title">Expedited Designations</div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--green)"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-text">Orphan Drug Designation</div>
+            <div class="out-entity-evidence">Already pending — ALK+ NSCLC meets prevalence threshold</div>
+          </div>
+          <div class="out-entity-conf conf-high">90%</div>
+        </div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--green)"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-text">Priority Review</div>
+            <div class="out-entity-evidence">Significant improvement over available therapy likely qualifiable</div>
+          </div>
+          <div class="out-entity-conf conf-high">85%</div>
+        </div>
+        <div class="out-entity">
+          <div class="out-entity-dot" style="background:var(--amber)"></div>
+          <div class="out-entity-body">
+            <div class="out-entity-text">Breakthrough Therapy</div>
+            <div class="out-entity-evidence">Requires preliminary clinical evidence of substantial improvement — Phase 2 ORR data needed</div>
+          </div>
+          <div class="out-entity-conf conf-mid">68%</div>
+        </div>
+      </div>
+      <div class="out-section">
+        <div class="out-section-title">Closest Precedent</div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;padding:10px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:600;color:var(--text)">Lorlatinib (Lorbrena)</div>
+            <div style="font-size:10px;color:var(--text-muted)">2018 · Accelerated Approval · 89% match</div>
+          </div>
+          <div style="flex:1;padding:10px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:600;color:var(--text)">Brigatinib (Alunbrig)</div>
+            <div style="font-size:10px;color:var(--text-muted)">2017 · Accelerated Approval · 84% match</div>
+          </div>
+        </div>
+      </div>`,
+
+    assembler: () => `
+      <div class="out-section">
+        <div class="out-narrative">
+          <strong>Module 2.7.1 — Summary of Biopharmaceutic Studies</strong><br><br>
+          HLX-2847 Mesylate (50 mg tablets) was evaluated in two biopharmaceutic studies to characterize oral bioavailability, food effect, and formulation bioequivalence.<br><br>
+          <strong>Key Findings:</strong><br>
+          • Rapid absorption under fasted conditions (median T<sub>max</sub> 2.1 hours), absolute bioavailability 67%<br>
+          • Fed state increased AUC by 22% — supports administration without regard to food<br>
+          • Bioequivalence confirmed between pilot and commercial formulations (90% CI within 80-125%)<br><br>
+          <em>Cross-reference: Module 5.3.1.1 — Individual study reports</em>
+        </div>
+      </div>
+      <div class="out-section">
+        <div class="out-section-title">Compliance Check</div>
+        <div style="font-size:11px;color:var(--text-dim);padding:8px 12px;background:rgba(63,175,122,0.04);border-radius:8px;border:1px solid rgba(63,175,122,0.1)">
+          ✓ CTD format compliant<br>
+          ✓ All referenced studies present in Module 5<br>
+          ✓ Cross-references validated<br>
+          ⚠️ Dissolution profile comparison across formulation variants not yet included — add to Section 2.7.1.3
+        </div>
+      </div>`,
+
+    sentinel: () => `
+      <div class="out-section">
+        <div class="out-section-title">Risk Assessment</div>
+        <div class="out-risk critical">
+          <div class="out-risk-level critical">Critical</div>
+          <div>
+            <div class="out-risk-text"><strong>HLX-2847 IND (FDA)</strong> — Module 3 incomplete, 13 days to deadline. Current pace suggests 5-day shortfall.</div>
+            <div class="out-risk-action">→ Escalate to Regulatory Lead. Consider extension request or resource reallocation.</div>
+          </div>
+        </div>
+        <div class="out-risk warning">
+          <div class="out-risk-level warning">Warning</div>
+          <div>
+            <div class="out-risk-text"><strong>HLX-1002 NDA (FDA)</strong> — Module 4 not started, June 1 deadline. Module 4 typically requires 6-8 weeks. 4-week gap.</div>
+            <div class="out-risk-action">→ Begin Module 4 immediately. Parallel work streams for nonclinical summaries.</div>
+          </div>
+        </div>
+        <div class="out-risk warning">
+          <div class="out-risk-level warning">Warning</div>
+          <div>
+            <div class="out-risk-text"><strong>HLX-2847 IND</strong> — FDA eCTD v4.0 takes effect April 1. Submission built on v3.0.</div>
+            <div class="out-risk-action">→ Verify grandfathering with IT. Likely no impact for March 30 submission.</div>
+          </div>
+        </div>
+        <div class="out-risk advisory">
+          <div class="out-risk-level advisory">Advisory</div>
+          <div>
+            <div class="out-risk-text"><strong>HLX-3195 MAA (EMA)</strong> — Updated Module 2.5 oncology requirements. Submission in final QC.</div>
+            <div class="out-risk-action">→ Include in weekly QC review. Low urgency — submission on track.</div>
+          </div>
+        </div>
+      </div>
+      <div class="out-section">
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;padding:10px;border-radius:8px;text-align:center;background:rgba(220,80,80,0.06);border:1px solid rgba(220,80,80,0.12)">
+            <div style="font-size:18px;font-weight:800;color:#DC5050">1</div>
+            <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Critical</div>
+          </div>
+          <div style="flex:1;padding:10px;border-radius:8px;text-align:center;background:rgba(232,168,56,0.06);border:1px solid rgba(232,168,56,0.12)">
+            <div style="font-size:18px;font-weight:800;color:var(--amber)">2</div>
+            <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Warnings</div>
+          </div>
+          <div style="flex:1;padding:10px;border-radius:8px;text-align:center;background:rgba(255,255,255,0.02);border:1px solid var(--border)">
+            <div style="font-size:18px;font-weight:800;color:var(--text-dim)">1</div>
+            <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-weight:600">Advisory</div>
+          </div>
+        </div>
+      </div>`,
+  };
+
+  return (renderers[agentId] || renderers.signal)();
+}
+
+// ═══ Run Agent ══════════════════════════════════
+function runAgent(agentId) {
+  const btn = document.getElementById('try-run-btn');
+  const output = document.getElementById('try-output');
+  const input = document.getElementById('try-input').value.trim();
+
+  if (!input) { loadSampleInput(agentId); return; }
+
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="typing">⚡ Processing...</span>';
+
+  // Simulate processing delay then render rich output
+  setTimeout(() => {
+    output.innerHTML = renderClientOutput(agentId, input);
+    output.className = 'try-output visible';
+    const sc = SCENARIOS[S.scenario];
+    const a = sc.agents.find(x => x.id === agentId);
+    btn.classList.remove('loading');
+    btn.innerHTML = `⚡ Run ${a?.name || 'Agent'}`;
+  }, 800 + Math.random() * 600);
+}
+
+// ═══ Sample Generation (legacy, kept for compat) ═══
+async function generateSample(agentId) {
+  const sc = SCENARIOS[S.scenario];
+  const a = sc.agents.find(x => x.id === agentId);
+  if (!a) return;
+
+  const btn = document.getElementById('sample-btn');
+  const output = document.getElementById('sample-output');
+
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="typing">⚡ Generating...</span>';
+  output.className = 'sample-output visible';
+  output.textContent = '';
+
+  // Simulated streaming output based on agent type
+  const sampleOutputs = {
+    signal: `{
+  "entities": [
+    {
+      "type": "feature",
+      "name": "Multi-jurisdiction deadline tracker",
+      "confidence": 0.92,
+      "evidence": "we really need the ability to track submission deadlines across multiple jurisdictions",
+      "action": "auto_apply"
+    },
+    {
+      "type": "persona",
+      "name": "Sarah",
+      "role": "Regulatory Affairs Coordinator",
+      "confidence": 0.78,
+      "evidence": "Sarah manually checks three different portals every morning",
+      "action": "flag_for_review"
+    },
+    {
+      "type": "pain_point",
+      "text": "Manual daily portal checking across 3 systems",
+      "severity": "high",
+      "confidence": 0.95,
+      "action": "auto_apply"
+    },
+    {
+      "type": "stakeholder",
+      "name": "VP (unnamed)",
+      "interest": "Single consolidated dashboard",
+      "confidence": 0.65,
+      "action": "queue_suggestion"
+    }
+  ],
+  "signal_quality": 0.88,
+  "chunks_processed": 1,
+  "extraction_time_ms": 340
+}`,
+    call: `{
+  "moment_type": "pain_point",
+  "severity": "high",
+  "timestamp": "00:04:23",
+  "speaker": "Client",
+  "sentiment": "frustrated",
+  "extracted": {
+    "pain": "No centralized document management — SharePoint + email + personal folders",
+    "impact": "Concurrent editing conflict caused 3 days of rework",
+    "affected_personas": ["Regulatory Affairs Team"],
+    "frequency": "recurring"
+  },
+  "follow_up_suggestion": "Probe: 'How often does this kind of rework happen? Is it always versioning, or are there other causes?'",
+  "entities_generated": [
+    { "type": "pain_point", "text": "Document versioning conflicts from distributed storage", "confidence": 0.88 },
+    { "type": "feature", "text": "Centralized document management with version control", "confidence": 0.72 }
+  ]
+}`,
+    discovery: `{
+  "gap_analysis": {
+    "total_entities": 14,
+    "high_confidence": 6,
+    "low_confidence": 4,
+    "missing_critical": 4
+  },
+  "probes": [
+    {
+      "question": "How many products do you currently have in your regulatory pipeline, and at what stages?",
+      "rationale": "Pipeline size determines system scope and AI training data volume. Zero mentions so far.",
+      "expected_impact": "high",
+      "category": "scope"
+    },
+    {
+      "question": "Walk me through what happens when a new regulatory document arrives — who touches it first?",
+      "rationale": "We know about SharePoint and email storage, but don't understand the intake workflow. This reveals automation opportunities.",
+      "expected_impact": "high",
+      "category": "workflow"
+    },
+    {
+      "question": "When the VP looks at the portfolio, what's the one number or status they care about most?",
+      "rationale": "VP mentioned as stakeholder but hasn't been interviewed. This probe validates the dashboard feature priority.",
+      "expected_impact": "medium",
+      "category": "stakeholder"
+    }
+  ],
+  "session_briefing": {
+    "key_wins": "Strong signal on deadline tracking pain + document management chaos",
+    "biggest_gap": "No pipeline size data — can't estimate AI training needs",
+    "recommended_opening": "Start with pipeline overview question, then drill into document workflow"
+  }
+}`,
+    solution: `{
+  "flow_title": "Regulatory Intelligence Platform",
+  "steps": [
+    {
+      "index": 0,
+      "title": "Ingest & Classify Pipeline Documents",
+      "goal": "Automatically classify and index all regulatory documents into a searchable vault.",
+      "actors": ["Regulatory Affairs Lead"],
+      "ai_capability": "Document Classifier (Haiku) — 85% auto-classification",
+      "data_needs": ["Document uploads", "Product taxonomy"]
+    },
+    {
+      "index": 1,
+      "title": "Match Products to Regulatory Pathways",
+      "goal": "Identify optimal submission pathways including expedited designations.",
+      "actors": ["Regulatory Affairs Lead", "VP Regulatory"],
+      "ai_capability": "Pathway Matcher (Embeddings) — precedent-based matching",
+      "data_needs": ["Product profiles", "Historical approvals DB"]
+    },
+    {
+      "index": 2,
+      "title": "Assemble Regulatory Dossier",
+      "goal": "Auto-generate compliant dossier sections from validated data.",
+      "actors": ["Regulatory Affairs Lead"],
+      "ai_capability": "Dossier Assembler (Sonnet) — jurisdiction-aware generation",
+      "data_needs": ["Classified vault data", "eCTD templates"]
+    },
+    {
+      "index": 3,
+      "title": "Monitor Portfolio & Optimize",
+      "goal": "Real-time dashboard with timeline forecasts and risk alerts.",
+      "actors": ["VP Regulatory"],
+      "ai_capability": "Portfolio Analyst (Predictive) — outcome-driven forecasting",
+      "data_needs": ["Submission tracking", "Historical timelines"]
+    }
+  ],
+  "quality_score": 78,
+  "total_time_s": 22.4
+}`,
+    prototype: `{
+  "page": "Executive Portfolio Dashboard",
+  "layout": {
+    "header": "Portfolio Health — Helix Therapeutics",
+    "sections": [
+      {
+        "type": "stat_row",
+        "items": [
+          { "label": "Active Submissions", "value": "3", "trend": "stable" },
+          { "label": "On Track", "value": "2/3", "trend": "warning" },
+          { "label": "Avg Time to Approval", "value": "14.2 mo", "trend": "improving" },
+          { "label": "Next Deadline", "value": "Mar 30", "urgency": "high" }
+        ]
+      },
+      {
+        "type": "pipeline_table",
+        "columns": ["Product", "Pathway", "Status", "Deadline", "Risk"],
+        "wow_moment": "Click any row → AI generates a 'what-if' timeline showing impact of delays"
+      },
+      {
+        "type": "chart",
+        "title": "Submission Timeline Forecast",
+        "description": "Gantt-style view with AI confidence bands showing likely vs optimistic vs worst-case timelines"
+      }
+    ]
+  },
+  "interactive_elements": [
+    "Deadline filter by jurisdiction",
+    "Risk severity toggle (critical/warning/advisory)",
+    "'What if' scenario builder for timeline impacts"
+  ]
+}`,
+    classify: `{
+  "classification": {
+    "document_type": "Drug Substance Manufacturing",
+    "eCTD_module": "3.2.S",
+    "product_id": "HLX-2847",
+    "active_substance": "HLX-2847 Mesylate",
+    "jurisdiction": "FDA",
+    "submission_type": "IND",
+    "version": "2.3",
+    "confidence": 0.94
+  },
+  "extracted_fields": [
+    { "field": "Manufacturing Process", "value": "5-step synthesis", "confidence": 0.88 },
+    { "field": "Drug Substance Specification", "value": "USP reference standard", "confidence": 0.92 },
+    { "field": "Stability Data", "value": "24-month, 25°C/60% RH", "confidence": 0.85 },
+    { "field": "Batch Size", "value": "50kg pilot scale", "confidence": 0.78 }
+  ],
+  "quality_flags": [
+    { "flag": "Version 2.3 supersedes 2.1 — auto-archive previous", "severity": "info" }
+  ],
+  "processing_time_ms": 1200
+}`,
+    strategy: `{
+  "product": "HLX-2847 Mesylate",
+  "primary_pathway": {
+    "name": "505(b)(1) NDA via Accelerated Approval",
+    "confidence": 0.82,
+    "rationale": "ALK-positive NSCLC 2nd line has established accelerated approval precedent. ORR as surrogate endpoint accepted for 3 prior ALK inhibitors."
+  },
+  "expedited_options": [
+    { "designation": "Breakthrough Therapy", "eligibility": 0.68, "rationale": "Requires preliminary clinical evidence of substantial improvement — Phase 2 ORR data needed" },
+    { "designation": "Priority Review", "eligibility": 0.85, "rationale": "Significant improvement over available therapy likely qualifiable" },
+    { "designation": "Orphan Drug", "eligibility": 0.90, "rationale": "Already pending — ALK+ NSCLC meets prevalence threshold" }
+  ],
+  "precedent_products": [
+    { "name": "Lorlatinib (Lorbrena)", "year": 2018, "pathway": "Accelerated Approval", "similarity": 0.89 },
+    { "name": "Brigatinib (Alunbrig)", "year": 2017, "pathway": "Accelerated Approval", "similarity": 0.84 }
+  ],
+  "estimated_timeline": "18-24 months from NDA submission",
+  "key_risk": "Phase 3 confirmatory study design — FDA may require active comparator"
+}`,
+    assembler: `Module 2.7.1 — Summary of Biopharmaceutic Studies
+
+2.7.1.1 Background and Overview
+
+HLX-2847 Mesylate (50 mg tablets) was evaluated in two biopharmaceutic studies to characterize the oral bioavailability, food effect, and bioequivalence between pilot and commercial formulations.
+
+2.7.1.2 Summary of Results
+
+┌─────────────────────────────────────────────────────┐
+│ Study          │ Design       │ N  │ Key Finding    │
+├─────────────────────────────────────────────────────┤
+│ HLX-2847-BA-001│ Crossover    │ 24 │ Fed ↑ AUC 22% │
+│ HLX-2847-BE-002│ Parallel     │ 36 │ BE confirmed   │
+└─────────────────────────────────────────────────────┘
+
+Bioavailability: Under fasted conditions, HLX-2847 demonstrated rapid absorption (median Tmax 2.1 hours) with absolute bioavailability of 67%. Food effect analysis showed a 22% increase in AUC under fed conditions, supporting administration without regard to food.
+
+Bioequivalence: The 90% confidence intervals for Cmax and AUC0-inf fell within the 80-125% acceptance criteria, confirming bioequivalence between pilot and commercial formulations.
+
+[Cross-reference: Module 5.3.1.1 — Individual study reports]`,
+    sentinel: `{
+  "risk_assessment": [
+    {
+      "risk_level": "CRITICAL",
+      "affected_submission": "HLX-2847 IND (FDA)",
+      "risk_type": "deadline",
+      "detail": "Module 3 incomplete with 13 days to deadline. Current completion rate suggests 5-day shortfall.",
+      "recommended_action": "Escalate to Regulatory Lead immediately. Consider requesting 2-week extension or prioritizing Module 3 resources.",
+      "deadline_impact": "HIGH — missed IND window delays Phase 3 start by minimum 30 days"
+    },
+    {
+      "risk_level": "WARNING",
+      "affected_submission": "HLX-2847 IND (FDA)",
+      "risk_type": "compliance",
+      "detail": "FDA eCTD v4.0 requirements take effect April 1. Current submission built on v3.0 format.",
+      "recommended_action": "Verify with IT team whether v4.0 migration is needed for March 30 submission (grandfathering likely applies).",
+      "deadline_impact": "LOW — if grandfathered, no impact"
+    },
+    {
+      "risk_level": "WARNING",
+      "affected_submission": "HLX-1002 NDA (FDA)",
+      "risk_type": "timeline",
+      "detail": "Module 4 not started with June 1 deadline. Module 4 typically requires 6-8 weeks. Current trajectory: 4-week gap.",
+      "recommended_action": "Begin Module 4 immediately. Consider parallel work streams for nonclinical written and tabulated summaries.",
+      "deadline_impact": "MEDIUM — recoverable if started this week"
+    },
+    {
+      "risk_level": "ADVISORY",
+      "affected_submission": "HLX-3195 MAA (EMA)",
+      "risk_type": "compliance",
+      "detail": "EMA revised Module 2.5 for oncology products. HLX-3195 MAA includes oncology indication.",
+      "recommended_action": "Review updated Module 2.5 guidance. Include in weekly QC review — MAA is in final QC phase.",
+      "deadline_impact": "LOW — submission on track, advisory only"
+    }
+  ],
+  "summary": {
+    "critical": 1,
+    "warnings": 2,
+    "advisories": 1,
+    "next_deadline": "HLX-2847 IND — March 30 (13 days)"
+  }
+}`,
+  };
+
+  const text = sampleOutputs[agentId] || '{ "note": "Sample output for ' + a.name + '" }';
+
+  // Simulate streaming
+  let i = 0;
+  const speed = 2; // chars per frame
+  function stream() {
+    if (i < text.length) {
+      output.textContent += text.slice(i, i + speed);
+      i += speed;
+      output.scrollTop = output.scrollHeight;
+      requestAnimationFrame(stream);
+    } else {
+      btn.classList.remove('loading');
+      btn.innerHTML = `⚡ Generate Sample Output <span style="font-size:10px;opacity:0.6;margin-left:4px">(${a.sampleContext})</span>`;
+    }
+  }
+  requestAnimationFrame(stream);
+}
+
+// ═══ Chat ═══════════════════════════════════════
+function sendChat(agentId) {
+  const input = document.getElementById('chat-input');
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+
+  const sc = SCENARIOS[S.scenario];
+  const a = sc.agents.find(x => x.id === agentId);
+  const thread = document.getElementById('chat-thread');
+
+  // Add user message
+  thread.innerHTML += `<div class="chat-msg user">${q}</div>`;
+
+  // Generate contextual response
+  const responses = {
+    'cost': `Estimated cost per invocation:
+• Classification (Haiku): ~$0.002/document
+• Generation (Sonnet): ~$0.08/section
+• Embedding search: ~$0.001/query
+
+At ${a.name}'s expected volume: ~$${(Math.random()*50+10).toFixed(0)}/month. That's well under typical SaaS margins.`,
+    'accuracy': `${a.name} confidence distribution:
+• High confidence (auto-apply): ${a.confPct[0]}%
+• Medium (human review): ${a.confPct[1]}%
+• Low (queue/suggest): ${a.confPct[2]}%
+
+Accuracy improves over time: ${a.evolution.filter(e=>!e.done).map(e=>'→ '+e.what+' ('+e.auto+')').join(', ')}`,
+    'build': `Build path for ${a.name}:
+
+${a.evolution.map((e,i) => `${e.done?'✅':'⬜'} ${e.when}: ${e.what} (${e.auto})`).join('\n')}
+
+${a.evolution.filter(e=>e.done).length}/${a.evolution.length} milestones complete. Next up: ${a.evolution.find(e=>!e.done)?.what || 'fully mature'}.`,
+    'risk': `Key risks for ${a.name}:
+• Confidence gap: ${a.confPct[2]}% of outputs are low-confidence and need human review
+• Cold start: needs real client data to improve beyond MVP
+• Integration: depends on ${a.inputs.join(', ')} being available
+
+Mitigation: ${a.confidence.low}`,
+    'default': `${a.name} uses ${a.techniqueLabel} (${a.rhythmLabel}).
+
+${a.role}
+
+Current state: ${a.evolution.find(e=>e.done)?.auto || 'MVP'} automated. Next milestone: ${a.evolution.find(e=>!e.done)?.what || 'fully mature'}.
+
+Value: ${a.value.metric} ${a.value.per} — ${a.value.detail}.`
+  };
+
+  const key = q.toLowerCase().includes('cost') ? 'cost'
+    : q.toLowerCase().includes('accura') || q.toLowerCase().includes('confiden') ? 'accuracy'
+    : q.toLowerCase().includes('build') || q.toLowerCase().includes('timeline') || q.toLowerCase().includes('roadmap') ? 'build'
+    : q.toLowerCase().includes('risk') || q.toLowerCase().includes('fail') || q.toLowerCase().includes('wrong') ? 'risk'
+    : 'default';
+
+  // Simulate typing delay
+  const typing = document.createElement('div');
+  typing.className = 'chat-msg ai typing';
+  typing.textContent = '...';
+  thread.appendChild(typing);
+  thread.scrollTop = thread.scrollHeight;
+
+  setTimeout(() => {
+    typing.remove();
+    thread.innerHTML += `<div class="chat-msg ai" style="white-space:pre-wrap">${responses[key]}</div>`;
+    thread.scrollTop = thread.scrollHeight;
+  }, 400 + Math.random() * 400);
+}
+
+// ═══ Mode & Scenario ════════════════════════════
+function setMode(m) {
+  S.mode = m;
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + m)?.classList.add('active');
+  closeDetail();
+  render();
+}
+
+function setScenario(s) {
+  S.scenario = s;
+  S.selected = null; S.hovered = null;
+  closeDetail();
+  render();
+}
+
+// Init
+render();
+</script>
+</body>
+</html>

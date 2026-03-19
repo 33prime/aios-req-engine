@@ -279,6 +279,7 @@ export const createMeeting = (data: {
   agenda?: Record<string, any>
   create_calendar_event?: boolean
   attendee_emails?: string[]
+  recording_enabled?: boolean
 }) =>
   apiRequest<Meeting>('/meetings', {
     method: 'POST',
