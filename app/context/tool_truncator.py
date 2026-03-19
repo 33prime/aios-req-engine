@@ -23,8 +23,8 @@ TOOL_CONFIGS: dict[str, dict] = {
         "truncate_length": 200,
     },
     "search": {
-        "max_tokens": 2500,
-        "max_items": 10,
+        "max_tokens": 1500,
+        "max_items": 5,
         "list_field": "results",
         "truncate_fields": ["content", "excerpt"],
         "truncate_length": 300,
@@ -41,8 +41,8 @@ TOOL_CONFIGS: dict[str, dict] = {
         "truncate_fields": [],
     },
     "suggest_actions": {
-        "max_tokens": 3000,
-        "max_items": 8,
+        "max_tokens": 1500,
+        "max_items": 5,
         "list_field": "cards",
         "truncate_fields": ["body", "quote", "resolution"],
         "truncate_length": 500,
@@ -67,7 +67,7 @@ TOOL_CONFIGS: dict[str, dict] = {
 }
 
 DEFAULT_CONFIG = {
-    "max_tokens": 5000,
+    "max_tokens": 2000,
     "max_items": 20,
     "list_field": None,
     "truncate_fields": [],

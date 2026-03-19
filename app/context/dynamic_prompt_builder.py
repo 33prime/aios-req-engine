@@ -339,10 +339,6 @@ def build_smart_chat_prompt(
             dynamic_sections.append(f"# Current Step Detail\n{solution_flow_context.focused_step_prompt}")
         if solution_flow_context.cross_step_prompt:
             dynamic_sections.append(f"# Flow Intelligence\n{solution_flow_context.cross_step_prompt}")
-        if solution_flow_context.entity_change_delta:
-            dynamic_sections.append(f"# Recent Entity Changes\n{solution_flow_context.entity_change_delta}")
-        if solution_flow_context.confirmation_history:
-            dynamic_sections.append(f"# Step History\n{solution_flow_context.confirmation_history}")
 
     # 9. Conversation starter context
     if conversation_context:

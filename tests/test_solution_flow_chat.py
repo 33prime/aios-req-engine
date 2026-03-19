@@ -29,10 +29,6 @@ from app.context.prompt_compiler import (
     compile_retrieval_plan,
 )
 from app.core.chat_context import (
-    _PAGE_APPLY_CONFIDENCE,
-    _PAGE_APPLY_RECENCY,
-    _PAGE_ENTITY_TYPES,
-    _PAGE_GRAPH_DEPTH,
     ChatContext,
     build_retrieval_context,
     build_solution_flow_ctx,
@@ -281,41 +277,39 @@ class TestRetrievalPlanSolutionFlow:
 
 
 class TestPageContextMaps:
-    """Verify solution-flow page gets correct retrieval parameters."""
+    """Verify solution-flow page gets correct ChatMode profile."""
 
-    def test_entity_types_for_solution_flow(self):
-        """Solution flow pages retrieve: solution_flow_step, feature, workflow, unlock."""
-        types = _PAGE_ENTITY_TYPES.get("brd:solution-flow")
-        assert types is not None
-        assert "solution_flow_step" in types
-        assert "feature" in types
-        assert "workflow" in types
-        assert "unlock" in types
+    def test_solution_flow_mode(self):
+        """Solution flow page uses correct chat mode."""
+        from app.context.chat_modes import get_chat_mode
 
-    def test_graph_depth_for_solution_flow(self):
-        """Solution flow pages use graph depth 2."""
-        assert _PAGE_GRAPH_DEPTH.get("brd:solution-flow") == 2
+        mode = get_chat_mode("brd:solution-flow")
+        assert mode.name == "solution_flow"
+        assert mode.primary_entity_type == "solution_flow_step"
+        assert mode.thinking_eligible is True
+        assert "solution_flow" in mode.tools
 
-    def test_recency_enabled_for_solution_flow(self):
-        assert _PAGE_APPLY_RECENCY.get("brd:solution-flow") is True
+    def test_default_mode_for_unknown_page(self):
+        """Unknown pages get default mode."""
+        from app.context.chat_modes import get_chat_mode
 
-    def test_confidence_enabled_for_solution_flow(self):
-        assert _PAGE_APPLY_CONFIDENCE.get("brd:solution-flow") is True
+        mode = get_chat_mode("unknown")
+        assert mode.name == "default"
 
-    def test_default_graph_depth_is_1(self):
-        """Pages not in the map default to depth 1."""
-        assert _PAGE_GRAPH_DEPTH.get("overview", 1) == 1
-        assert _PAGE_GRAPH_DEPTH.get("collaborate", 1) == 1
+    def test_overview_mode_has_no_retrieval(self):
+        """Overview page skips retrieval."""
+        from app.context.chat_modes import get_chat_mode
 
-    def test_entity_types_none_for_overview(self):
-        """Overview page gets None (no entity type filter)."""
-        assert _PAGE_ENTITY_TYPES.get("overview") is None
+        mode = get_chat_mode("overview")
+        assert mode.retrieval_strategy == "none"
 
-    def test_prototype_entity_types(self):
-        types = _PAGE_ENTITY_TYPES.get("prototype")
-        assert types is not None
-        assert "prototype_feedback" in types
-        assert "feature" in types
+    def test_features_mode(self):
+        """Features page mode."""
+        from app.context.chat_modes import get_chat_mode
+
+        mode = get_chat_mode("brd:features")
+        assert mode.primary_entity_type == "feature"
+        assert mode.load_confidence is True
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -327,7 +321,7 @@ class TestBuildRetrievalContext:
 
     @pytest.mark.asyncio
     async def test_calls_retrieve_with_correct_params(self):
-        """Retrieval for solution-flow uses depth=2, entity types, Cohere, recency."""
+        """Retrieval uses defaults when no retrieval plan is provided."""
         mock_result = MagicMock()
 
         with (
@@ -345,13 +339,13 @@ class TestBuildRetrievalContext:
             mock_retrieve.assert_called_once()
             call_kwargs = mock_retrieve.call_args.kwargs
 
-            # Core v2.5 assertions
-            assert call_kwargs["skip_reranking"] is False  # Cohere ALWAYS on
-            assert call_kwargs["skip_evaluation"] is True  # Skip sufficiency loop
+            # Core v2.5 assertions (defaults without retrieval plan)
+            assert call_kwargs["skip_reranking"] is False
+            assert call_kwargs["skip_evaluation"] is True
             assert call_kwargs["apply_recency"] is True
             assert call_kwargs["apply_confidence"] is True
-            assert call_kwargs["graph_depth"] == 2  # Solution flow depth
-            assert call_kwargs["entity_types"] == ["solution_flow_step", "feature", "workflow", "unlock"]
+            assert call_kwargs["graph_depth"] == 1  # Default without plan
+            assert call_kwargs["entity_types"] is None  # No page-specific filtering
             assert call_kwargs["max_rounds"] == 1
 
     @pytest.mark.asyncio
@@ -395,8 +389,8 @@ class TestBuildRetrievalContext:
             assert call_kwargs["skip_decomposition"] is True
 
     @pytest.mark.asyncio
-    async def test_long_message_does_not_skip_decomposition(self):
-        """Messages 6+ words trigger query decomposition."""
+    async def test_long_message_with_question_does_not_skip_decomposition(self):
+        """Messages 15+ words with ? trigger query decomposition."""
         mock_result = MagicMock()
 
         with (
@@ -404,7 +398,7 @@ class TestBuildRetrievalContext:
             patch("app.core.retrieval_format.format_retrieval_for_context", return_value=""),
         ):
             await build_retrieval_context(
-                message="What are the key behaviors and guardrails for this step?",
+                message="What are the key behaviors and guardrails for this step and how do they relate to the overall flow design?",
                 project_id="proj-1",
                 page_context=SOLUTION_FLOW_PAGE,
                 focused_entity=None,
@@ -426,8 +420,8 @@ class TestBuildRetrievalContext:
             assert result == ""
 
     @pytest.mark.asyncio
-    async def test_features_page_uses_different_entity_types(self):
-        """Features page retrieves feature + unlock types, not flow types."""
+    async def test_features_page_defaults_without_plan(self):
+        """Features page uses defaults without retrieval plan."""
         mock_result = MagicMock()
 
         with (
@@ -442,8 +436,8 @@ class TestBuildRetrievalContext:
             )
 
             call_kwargs = mock_retrieve.call_args.kwargs
-            assert call_kwargs["entity_types"] == ["feature", "unlock"]
-            assert call_kwargs["graph_depth"] == 2
+            assert call_kwargs["entity_types"] is None  # No page-specific filtering
+            assert call_kwargs["graph_depth"] == 1  # Default
 
     @pytest.mark.asyncio
     async def test_no_page_context_uses_defaults(self):
@@ -619,8 +613,6 @@ class TestCompiledPromptSolutionFlow:
         mock_flow_ctx.focused_step_prompt = "Step: User Completes Assessment\nGoal: Guide through questionnaire"
         mock_flow_ctx.flow_summary_prompt = "Flow has 5 steps, 3 confirmed"
         mock_flow_ctx.cross_step_prompt = "Related: Login (confirmed), Review Results (drafting)"
-        mock_flow_ctx.entity_change_delta = ""
-        mock_flow_ctx.confirmation_history = ""
 
         compiled = compile_prompt(
             frame=frame,

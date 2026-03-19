@@ -12,7 +12,7 @@ class TokenBudgetManager:
     """Manages token counting and truncation for context assembly."""
 
     TOTAL_BUDGET = 80_000
-    RESPONSE_BUFFER = 4_096
+    RESPONSE_BUFFER = 1_500
     SAFETY_MARGIN = 3_000
 
     def __init__(self, total_budget: int | None = None):

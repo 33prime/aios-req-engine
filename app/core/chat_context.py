@@ -1,61 +1,16 @@
 """Chat context assembly — parallel context building for chat streaming."""
 
 import asyncio
+import time
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
+from app.context.intent_classifier import ChatIntent
 from app.context.project_awareness import ProjectAwareness  # noqa: F401
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
-# Page-context → entity type filtering for retrieval
-# Prioritizes relevant entity types so vector search returns focused results
-_PAGE_ENTITY_TYPES: dict[str, list[str]] = {
-    "brd:features": ["feature", "unlock"],
-    "brd:personas": ["persona"],
-    "brd:workflows": ["workflow", "workflow_step"],
-    "brd:data-entities": ["data_entity"],
-    "brd:stakeholders": ["stakeholder"],
-    "brd:constraints": ["constraint"],
-    "brd:solution-flow": ["solution_flow_step", "feature", "workflow", "unlock"],
-    "brd:business-drivers": ["business_driver"],
-    "brd:unlocks": ["unlock", "feature", "competitor"],
-    "prototype": ["prototype_feedback", "feature"],
-    # Canvas / overview pages get all types (None = no filter)
-}
-
-# Page-context → graph traversal depth
-# Depth=2 discovers indirect relationships (feature→persona→workflow)
-_PAGE_GRAPH_DEPTH: dict[str, int] = {
-    "brd:solution-flow": 2,
-    "brd:unlocks": 2,
-    "brd:features": 2,
-    "brd:personas": 2,
-    "brd:workflows": 2,
-    # All other pages default to 1
-}
-
-# Page-context → temporal recency weighting
-# Prioritizes recently-evidenced relationships over stale ones
-_PAGE_APPLY_RECENCY: dict[str, bool] = {
-    "brd:solution-flow": True,
-    "brd:unlocks": True,
-    "brd:features": True,
-    "brd:workflows": True,
-}
-
-# Page-context → confidence overlay
-# Shows which evidence is confirmed vs inferred vs contradicted
-_PAGE_APPLY_CONFIDENCE: dict[str, bool] = {
-    "brd:solution-flow": True,
-    "brd:unlocks": True,
-    "brd:features": True,
-    "brd:personas": True,
-    "brd:business-drivers": True,
-    "brd:stakeholders": True,
-}
 
 
 @dataclass
@@ -74,25 +29,56 @@ class ChatContext:
     next_actions: list[str] = field(default_factory=list)  # TerseAction sentences
 
 
+# ── Retrieval cache (per-conversation topic dedup) ────────────────
+_retrieval_cache: dict[str, tuple[float, str]] = {}
+_RETRIEVAL_CACHE_TTL = 60  # seconds
+
+
+def _check_retrieval_cache(project_id: str, topics: list[str]) -> str | None:
+    """Check retrieval cache. Returns cached result or None."""
+    key = f"{project_id}:{','.join(sorted(topics))}"
+    if key in _retrieval_cache:
+        ts, result = _retrieval_cache[key]
+        if time.time() - ts < _RETRIEVAL_CACHE_TTL:
+            return result
+        _retrieval_cache.pop(key, None)
+    return None
+
+
+def _store_retrieval_cache(project_id: str, topics: list[str], result: str) -> None:
+    """Store retrieval result in cache."""
+    key = f"{project_id}:{','.join(sorted(topics))}"
+    _retrieval_cache[key] = (time.time(), result)
+
+
+def invalidate_retrieval_cache(project_id: str) -> None:
+    """Invalidate all cached retrieval for a project."""
+    keys = [k for k in _retrieval_cache if k.startswith(f"{project_id}:")]
+    for k in keys:
+        _retrieval_cache.pop(k, None)
+
+
 async def build_retrieval_context(
     message: str,
     project_id: str,
     page_context: str | None,
     focused_entity: dict[str, Any] | None,
     retrieval_plan: dict | None = None,
+    skip_reranking: bool = False,
+    skip_decomposition: bool = False,
 ) -> str:
     """Run retrieval pre-fetch for chat context.
 
     If retrieval_plan is provided (from prompt compiler), uses plan-driven params.
-    Otherwise falls back to page-context maps.
+    Otherwise falls back to defaults.
     """
     try:
         from app.core.retrieval import retrieve
         from app.core.retrieval_format import format_retrieval_for_context
 
-        # Only skip decomposition for very short messages.
-        # Always rerank via Cohere for quality, skip sufficiency loop to stay fast.
-        is_very_short = len(message.split()) < 6
+        # Skip decomposition for messages under 15 words or without a question mark
+        is_short = len(message.split()) < 15 or "?" not in message
+        should_skip_decomp = skip_decomposition or is_short
 
         # Build context hint from focused entity
         context_hint = None
@@ -107,32 +93,33 @@ async def build_retrieval_context(
                     parts.append(f"Goal: {egoal}.")
                 context_hint = " ".join(parts)
 
-        # Use retrieval plan if available, otherwise fall back to page-context maps
+        # Use retrieval plan if available, otherwise fall back to defaults
         if retrieval_plan:
             entity_types = retrieval_plan.get("entity_types")
             graph_depth = retrieval_plan.get("graph_depth", 1)
             apply_recency = retrieval_plan.get("apply_recency", True)
             apply_confidence = retrieval_plan.get("apply_confidence", True)
         else:
-            entity_types = _PAGE_ENTITY_TYPES.get(page_context or "")
-            graph_depth = _PAGE_GRAPH_DEPTH.get(page_context or "", 1)
+            entity_types = None
+            graph_depth = 1
             apply_recency = True
             apply_confidence = True
 
         logger.info(
-            "Retrieval profile: page=%s depth=%d types=%s short=%s plan=%s",
+            "Retrieval profile: page=%s depth=%d types=%s skip_decomp=%s skip_rerank=%s plan=%s",
             page_context,
             graph_depth,
             entity_types,
-            is_very_short,
+            should_skip_decomp,
+            skip_reranking,
             "yes" if retrieval_plan else "no",
         )
         retrieval_result = await retrieve(
             query=message,
             project_id=project_id,
             max_rounds=1,
-            skip_decomposition=is_very_short,
-            skip_reranking=False,
+            skip_decomposition=should_skip_decomp,
+            skip_reranking=skip_reranking,
             skip_evaluation=True,
             context_hint=context_hint,
             entity_types=entity_types,
@@ -245,6 +232,18 @@ async def _safe_load_warm_memory(project_id: str, conversation_id: UUID | str | 
         return ""
 
 
+async def _noop_dict() -> dict:
+    return {}
+
+
+async def _noop_str() -> str:
+    return ""
+
+
+async def _noop_list() -> list[str]:
+    return []
+
+
 async def assemble_chat_context(
     project_id: UUID | str,
     message: str,
@@ -252,19 +251,46 @@ async def assemble_chat_context(
     focused_entity: dict[str, Any] | None,
     supabase: Any,
     conversation_id: UUID | str | None = None,
-    intent_type: str = "discuss",
+    intent: ChatIntent | None = None,
 ) -> ChatContext:
-    """Assemble all chat context in two phases.
+    """Assemble all chat context with intent-gated loading.
 
-    Phase A (parallel): Load awareness, project_name, confidence, horizon,
-    warm_memory, forge, solution_flow_ctx — everything except retrieval.
-
-    Phase B (sequential after awareness): Build retrieval with plan-driven
-    params from the cognitive frame.
+    Phase A (parallel): Load awareness, project_name, and intelligence layers
+    gated by intent.retrieval_strategy.
+    Phase B (sequential): Build retrieval (if needed) with plan-driven params.
     """
     pid = str(project_id)
+    strategy = intent.retrieval_strategy if intent else "full"
+    intent_type = intent.type if intent else "discuss"
+    is_mutation = intent_type in ("create", "update", "delete")
 
-    # Phase A: Everything except retrieval (which needs awareness for plan)
+    # Check FORGE_API_URL to skip forge loading
+    forge_enabled = False
+    try:
+        from app.core.config import get_settings
+        forge_enabled = bool(get_settings().FORGE_API_URL)
+    except Exception:
+        pass
+
+    # Determine if warm memory is useful (skip on first message)
+    has_history = bool(conversation_id)
+
+    # Phase A: Parallel loading, gated by intent
+    tasks = [
+        build_solution_flow_ctx(page_context, pid, focused_entity),
+        get_project_name(supabase, pid),
+        # Confidence: skip for mutations
+        _safe_load_confidence(pid) if not is_mutation else _noop_dict(),
+        # Horizon: skip for mutations
+        _safe_load_horizon(pid) if not is_mutation else _noop_dict(),
+        # Warm memory: skip on first message
+        _safe_load_warm_memory(pid, conversation_id) if has_history else _noop_str(),
+        # Forge: skip if URL not configured
+        _safe_load_forge(pid, page_context) if forge_enabled else _noop_dict(),
+        # Next actions: skip for search intent
+        _safe_load_next_actions(pid) if intent_type != "search" else _noop_list(),
+    ]
+
     (
         solution_flow_ctx,
         project_name,
@@ -273,41 +299,53 @@ async def assemble_chat_context(
         warm_memory,
         forge_state,
         next_actions,
-    ) = await asyncio.gather(
-        build_solution_flow_ctx(page_context, pid, focused_entity),
-        get_project_name(supabase, pid),
-        _safe_load_confidence(pid),
-        _safe_load_horizon(pid),
-        _safe_load_warm_memory(pid, conversation_id),
-        _safe_load_forge(pid, page_context),
-        _safe_load_next_actions(pid),
-    )
+    ) = await asyncio.gather(*tasks)
 
     # Load awareness (needs project_name)
     awareness = await _safe_load_awareness(pid, project_name)
 
-    # Phase B: Build retrieval plan from cognitive frame, then run retrieval
-    retrieval_plan = None
-    try:
-        from app.context.intent_classifier import classify_intent
-        from app.context.prompt_compiler import compile_cognitive_frame
+    # Phase B: Retrieval, gated by strategy
+    retrieval_context = ""
+    if strategy == "none":
+        logger.info("Retrieval skipped: strategy=none (intent=%s)", intent_type)
+    else:
+        # Check retrieval cache first
+        topics = intent.topics if intent else []
+        cached = _check_retrieval_cache(pid, topics)
+        if cached is not None:
+            retrieval_context = cached
+            logger.info("Retrieval cache hit: topics=%s", topics)
+        else:
+            # Build retrieval plan from cognitive frame
+            retrieval_plan = None
+            try:
+                from app.context.prompt_compiler import compile_cognitive_frame
 
-        intent = classify_intent(message, page_context)
-        frame = compile_cognitive_frame(
-            intent_type=intent.type,
-            awareness=awareness,
-            page_context=page_context,
-            focused_entity=focused_entity,
-            horizon_state=horizon_state,
-        )
-        if hasattr(frame, "retrieval_plan") and frame.retrieval_plan:
-            retrieval_plan = frame.retrieval_plan
-    except Exception as e:
-        logger.debug(f"Retrieval plan compilation failed (non-fatal): {e}")
+                frame = compile_cognitive_frame(
+                    intent_type=intent_type,
+                    awareness=awareness,
+                    page_context=page_context,
+                    focused_entity=focused_entity,
+                    horizon_state=horizon_state,
+                )
+                if hasattr(frame, "retrieval_plan") and frame.retrieval_plan:
+                    retrieval_plan = frame.retrieval_plan
+            except Exception as e:
+                logger.debug(f"Retrieval plan compilation failed (non-fatal): {e}")
 
-    retrieval_context = await build_retrieval_context(
-        message, pid, page_context, focused_entity, retrieval_plan
-    )
+            retrieval_context = await build_retrieval_context(
+                message,
+                pid,
+                page_context,
+                focused_entity,
+                retrieval_plan,
+                skip_reranking=(strategy == "light"),
+                skip_decomposition=(strategy == "light"),
+            )
+
+            # Cache successful retrieval
+            if retrieval_context and topics:
+                _store_retrieval_cache(pid, topics, retrieval_context)
 
     return ChatContext(
         solution_flow_ctx=solution_flow_ctx,

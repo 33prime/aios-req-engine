@@ -192,8 +192,6 @@ def test_flow_context_sections_rendered(minimal_frame):
         flow_summary_prompt="[entry] Step A — Creator",
         focused_step_prompt=f"Step ID: {step_id}\nTitle: Step A",
         cross_step_prompt="- Missing phases: admin",
-        entity_change_delta='- feature "Search": added priority',
-        confirmation_history="Status: ai_generated (v2)",
     )
     blocks = build_smart_chat_prompt(
         context_frame=minimal_frame,
@@ -209,8 +207,6 @@ def test_flow_context_sections_rendered(minimal_frame):
     assert "Solution Flow Overview" in prompt
     assert "Current Step Detail" in prompt
     assert "Flow Intelligence" in prompt
-    assert "Recent Entity Changes" in prompt
-    assert "Step History" in prompt
 
 
 # ─── Page guidance accuracy ──────────────────────────────────────────────────

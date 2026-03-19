@@ -65,8 +65,9 @@ class CognitiveFrame:
 
 @dataclass
 class CompiledPrompt:
-    cached_block: str  # Identity + cognitive instructions (~800-1000t, cached per frame)
-    dynamic_block: str  # Awareness state + page context + retrieval (~1500-2500t)
+    cached_block: str  # Identity + cognitive instructions (~800-1000t)
+    awareness_block: str  # Awareness + inventory + warm memory (~400-700t)
+    dynamic_block: str  # Evidence + page guidance + solution flow (~500-1500t)
     retrieval_plan: dict  # How retrieval should be shaped
     active_frame: str  # For logging
 
@@ -432,24 +433,40 @@ def compile_prompt(
     cached_sections.append(BLOCK_ACTION_CARDS)
     cached_sections.append(BLOCK_CONVERSATION_PATTERNS)
 
-    # ── DYNAMIC BLOCK: State + Context ───────────────────────────────
-    dynamic_sections: list[str] = []
+    # ── AWARENESS BLOCK: Cached per awareness TTL (~2 min) ──────────
+    awareness_sections: list[str] = []
 
     # Awareness snapshot (~300-500t, always — the peripheral vision)
-    dynamic_sections.append(format_awareness_snapshot(awareness))
+    awareness_sections.append(format_awareness_snapshot(awareness))
 
     # Next actions from intelligence engine (~0-150t)
-    # These are the exact NEXT ACTIONS cards the consultant sees in the UI
+    # Filter by page's primary entity type for relevance
     if next_actions:
+        filtered_actions = next_actions
+        if page_context:
+            from app.context.chat_modes import get_chat_mode
+
+            mode = get_chat_mode(page_context)
+            if mode.primary_entity_type:
+                pet = mode.primary_entity_type.replace("_", " ")
+                filtered = [a for a in next_actions if pet in a.lower()]
+                filtered_actions = filtered or next_actions[:2]
+
         lines = ["# Current Priorities (visible to consultant as Next Actions cards)"]
-        for i, sentence in enumerate(next_actions, 1):
+        for i, sentence in enumerate(filtered_actions, 1):
             lines.append(f"{i}. {sentence}")
-        lines.append("When the consultant asks about one of these, help them knock it out — be warm and proactive.")
-        dynamic_sections.append("\n".join(lines))
+        lines.append(
+            "When the consultant asks about one of these, "
+            "help them knock it out — be warm and proactive."
+        )
+        awareness_sections.append("\n".join(lines))
 
     # Warm memory (~0-200t, cross-conversation context)
     if warm_memory:
-        dynamic_sections.append(warm_memory)
+        awareness_sections.append(warm_memory)
+
+    # ── DYNAMIC BLOCK: Per-request context ────────────────────────────
+    dynamic_sections: list[str] = []
 
     # Page guidance (~0-460t, conditional on page)
     if page_context:
@@ -466,10 +483,6 @@ def compile_prompt(
             sf_parts.append(f"# Current Step Detail\n{solution_flow_ctx.focused_step_prompt}")
         if solution_flow_ctx.cross_step_prompt:
             sf_parts.append(f"# Flow Intelligence\n{solution_flow_ctx.cross_step_prompt}")
-        if solution_flow_ctx.entity_change_delta:
-            sf_parts.append(f"# Recent Entity Changes\n{solution_flow_ctx.entity_change_delta}")
-        if solution_flow_ctx.confirmation_history:
-            sf_parts.append(f"# Step History\n{solution_flow_ctx.confirmation_history}")
         dynamic_sections.extend(sf_parts)
     elif focused_entity:
         etype = focused_entity.get("type", "entity")
@@ -483,6 +496,25 @@ def compile_prompt(
             egoal = edata.get("goal", "")
             if egoal:
                 line += f"\nGoal: {egoal}"
+            # Agent-specific context for Intelligence Workbench
+            if etype == "agent":
+                ai_config = edata.get("ai_config")
+                if ai_config:
+                    agent_type = ai_config.get("agent_type", "")
+                    role = ai_config.get("role", "")
+                    behaviors = ai_config.get("behaviors", [])
+                    data_reqs = ai_config.get("data_requirements", [])
+                    parts = [line]
+                    if agent_type:
+                        parts.append(f"Agent Type: {agent_type}")
+                    if role:
+                        parts.append(f"Role: {role}")
+                    if behaviors:
+                        parts.append(f"Behaviors: {', '.join(behaviors[:5])}")
+                    if data_reqs:
+                        sources = [d.get("source", "") for d in data_reqs[:4]]
+                        parts.append(f"Data Sources: {', '.join(sources)}")
+                    line = "\n".join(parts)
             dynamic_sections.append(line)
 
     # Conversation starter context
@@ -523,6 +555,7 @@ def compile_prompt(
 
     return CompiledPrompt(
         cached_block="\n\n".join(cached_sections),
+        awareness_block="\n\n".join(awareness_sections),
         dynamic_block="\n\n".join(dynamic_sections),
         retrieval_plan=compile_retrieval_plan(frame),
         active_frame=frame.label,

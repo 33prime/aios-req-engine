@@ -444,7 +444,7 @@ class TestCompilePrompt:
             horizon_state={},
             warm_memory="# Previous Conversations\n- Discussed onboarding flow",
         )
-        assert "Previous Conversations" in result.dynamic_block
+        assert "Previous Conversations" in result.awareness_block
 
     def test_includes_conversation_context(self):
         frame = CognitiveFrame(CognitiveMode.DISCOVER, TemporalEmphasis.PRESENT_STATE,

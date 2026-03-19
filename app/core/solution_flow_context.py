@@ -25,8 +25,6 @@ class SolutionFlowContext:
     focused_step_prompt: str = ""
     cross_step_prompt: str = ""
     retrieval_hints: list[str] = field(default_factory=list)
-    entity_change_delta: str = ""
-    confirmation_history: str = ""
 
 
 def _resolve_entity_names_batch(
@@ -426,11 +424,6 @@ async def build_solution_flow_context(
                 # Layer 4: Retrieval hints
                 ctx.retrieval_hints = _build_retrieval_hints(focused_step)
 
-                # Entity change delta — recent changes to linked entities
-                ctx.entity_change_delta = _build_entity_change_delta(focused_step)
-
-                # Confirmation history — step's own revision timeline
-                ctx.confirmation_history = _build_confirmation_history(focused_step)
             else:
                 logger.warning(f"Focused step not found in DB: {focused_step_id}")
 
@@ -443,67 +436,3 @@ async def build_solution_flow_context(
     return ctx
 
 
-def _build_entity_change_delta(step: dict[str, Any]) -> str:
-    """Build a summary of recent changes to entities linked to this step.
-
-    Uses a single batched DB query instead of per-entity sequential calls.
-    """
-    from app.db.revisions_enrichment import list_entity_revisions_batch
-
-    # Collect all linked entity IDs with their types
-    id_to_type: dict[str, str] = {}
-    for eid in (step.get("linked_feature_ids") or [])[:6]:
-        id_to_type[eid] = "feature"
-    for eid in (step.get("linked_workflow_ids") or [])[:6]:
-        id_to_type[eid] = "workflow"
-    for eid in (step.get("linked_data_entity_ids") or [])[:6]:
-        id_to_type[eid] = "data_entity"
-
-    if not id_to_type:
-        return ""
-
-    # Single batch query for all linked entities
-    all_ids = list(id_to_type.keys())[:6]  # Cap total at 6
-    try:
-        revisions_by_id = list_entity_revisions_batch(all_ids, limit_per_entity=3)
-    except Exception:
-        return ""
-
-    changes: list[str] = []
-    for eid in all_ids:
-        entity_type = id_to_type[eid]
-        for rev in revisions_by_id.get(eid, []):
-            diff = rev.get("diff_summary", "")
-            label = rev.get("entity_label", eid[:8])
-            if diff:
-                changes.append(f"- {entity_type} \"{label}\": {diff}")
-
-    return "\n".join(changes[:8]) if changes else ""
-
-
-def _build_confirmation_history(step: dict[str, Any]) -> str:
-    """Build a summary of this step's own revision history."""
-    from app.db.revisions_enrichment import list_entity_revisions
-
-    step_id = step.get("id")
-    if not step_id:
-        return ""
-
-    try:
-        revisions = list_entity_revisions("solution_flow_step", UUID(step_id), limit=5)
-    except Exception:
-        return ""
-
-    if not revisions:
-        status = step.get("confirmation_status", "ai_generated")
-        version = step.get("generation_version", 1)
-        return f"Status: {status}, generation version {version}. No revisions recorded."
-
-    lines = [f"Status: {step.get('confirmation_status', 'ai_generated')} (v{step.get('generation_version', 1)})"]
-    for rev in revisions:
-        diff = rev.get("diff_summary", "updated")
-        trigger = rev.get("trigger_event", "")
-        created_at = rev.get("created_at", "")[:16]
-        lines.append(f"- [{created_at}] {trigger}: {diff}")
-
-    return "\n".join(lines)

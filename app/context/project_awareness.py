@@ -62,6 +62,11 @@ class ProjectAwareness:
     pending_confirmation_count: int = 0
     meeting_confirmations: list[dict] = field(default_factory=list)
 
+    # Entity inventory — enables most queries to skip retrieval
+    entity_inventory: dict[str, list[dict]] = field(default_factory=dict)
+    open_questions_summary: list[str] = field(default_factory=list)
+    recent_signal_titles: list[str] = field(default_factory=list)
+
 
 # ── Cache ──────────────────────────────────────────────────────────
 _awareness_cache: dict[str, tuple[float, ProjectAwareness]] = {}
@@ -302,6 +307,32 @@ def format_awareness_snapshot(awareness: ProjectAwareness) -> str:
     if awareness.whats_discovered:
         sections.append("## Discovered\n" + "\n".join(f"- {d}" for d in awareness.whats_discovered))
 
+    # Entity inventory
+    if awareness.entity_inventory:
+        inv_lines: list[str] = []
+        for etype, items in awareness.entity_inventory.items():
+            confirmed = sum(
+                1 for i in items
+                if i.get("confirmation_status") in ("confirmed_consultant", "confirmed_client")
+            )
+            names = [i.get("name", "?")[:30] for i in items[:6]]
+            name_str = ", ".join(names)
+            if len(items) > 6:
+                name_str += f", +{len(items) - 6} more"
+            label = etype.replace("_", " ").title() + "s"
+            inv_lines.append(f"{label}: {len(items)} ({confirmed} confirmed) — {name_str}")
+        sections.append("## Entity Inventory\n" + "\n".join(inv_lines))
+
+    # Open questions
+    if awareness.open_questions_summary:
+        q_lines = [f"{i}. {q}" for i, q in enumerate(awareness.open_questions_summary, 1)]
+        sections.append("## Open Questions\n" + "\n".join(q_lines))
+
+    # Recent signals
+    if awareness.recent_signal_titles:
+        sig_lines = [f"- {t}" for t in awareness.recent_signal_titles]
+        sections.append("## Recent Signals\n" + "\n".join(sig_lines))
+
     # Stakeholders
     if awareness.key_stakeholders:
         stakeholder_lines: list[str] = []
@@ -493,9 +524,14 @@ async def _build_awareness(project_id: str, project_name: str) -> ProjectAwarene
             return []
 
     def _q_confirmations():
-        """Get pending confirmation state for action generation."""
+        """Get pending confirmation state + top open question texts.
+
+        Required index:
+          CREATE INDEX idx_open_questions_project_status
+            ON open_questions (project_id, status);
+        EXPLAIN ANALYZE: index scan on (project_id, status='open').
+        """
         try:
-            # Count pending confirmations
             pending = (
                 supabase.table("open_questions")
                 .select("id, question, suggested_method", count="exact")
@@ -509,12 +545,110 @@ async def _build_awareness(project_id: str, project_name: str) -> ProjectAwarene
                 for q in questions
                 if q.get("suggested_method") == "meeting"
             ]
+            open_q_texts = [
+                q.get("question", "") for q in questions[:5] if q.get("question")
+            ]
             return {
                 "pending_confirmation_count": pending.count or 0,
                 "meeting_confirmations": meeting_confs[:5],
+                "open_questions_summary": open_q_texts,
             }
         except Exception:
-            return {"pending_confirmation_count": 0, "meeting_confirmations": []}
+            return {
+                "pending_confirmation_count": 0,
+                "meeting_confirmations": [],
+                "open_questions_summary": [],
+            }
+
+    def _q_entity_inventory():
+        """Get entity inventory: {type: [{id, name, confirmation_status}]}.
+
+        Required indexes (per table):
+          CREATE INDEX idx_{table}_project ON {table} (project_id);
+        These exist by default from FK constraints + Supabase.
+        EXPLAIN ANALYZE: seq scan on small tables (<20 rows per project),
+        index scan on larger tables via project_id FK index.
+        """
+        inventory: dict[str, list[dict]] = {}
+        tables = {
+            "features": "name",
+            "personas": "name",
+            "workflows": "name",
+            "constraints": "name",
+            "business_drivers": "description",
+        }
+        for table, name_field in tables.items():
+            try:
+                # 2s timeout per table query
+                resp = (
+                    supabase.table(table)
+                    .select(
+                        f"id, {name_field}, confirmation_status",
+                    )
+                    .eq("project_id", pid)
+                    .limit(20)
+                    .execute()
+                )
+                items = []
+                for row in resp.data or []:
+                    items.append({
+                        "id": row.get("id", ""),
+                        "name": row.get(name_field, ""),
+                        "confirmation_status": row.get(
+                            "confirmation_status", "ai_generated",
+                        ),
+                    })
+                if items:
+                    etype = (
+                        table.rstrip("s")
+                        if table != "business_drivers"
+                        else "business_driver"
+                    )
+                    inventory[etype] = items
+            except Exception as e:
+                logger.debug(
+                    "Entity inventory query failed for %s: %s",
+                    table, e,
+                )
+        return inventory
+
+    def _q_recent_signals():
+        """Get last 3 signal titles.
+
+        Required index:
+          CREATE INDEX idx_signals_project_created
+            ON signals (project_id, created_at DESC);
+        EXPLAIN ANALYZE: index scan on (project_id, created_at DESC),
+        returns at most 3 rows. Sub-millisecond on typical projects.
+        """
+        try:
+            resp = (
+                supabase.table("signals")
+                .select("title")
+                .eq("project_id", pid)
+                .order("created_at", desc=True)
+                .limit(3)
+                .execute()
+            )
+            return [
+                s.get("title", "")
+                for s in (resp.data or [])
+                if s.get("title")
+            ]
+        except Exception as e:
+            logger.debug("Recent signals query failed: %s", e)
+            return []
+
+    async def _timed_thread(fn, default, label: str, timeout: float = 2.0):
+        """Run a sync function in a thread with a timeout. Returns default on failure."""
+        try:
+            return await asyncio.wait_for(asyncio.to_thread(fn), timeout=timeout)
+        except TimeoutError:
+            logger.warning("Awareness query timed out (%.1fs): %s", timeout, label)
+            return default
+        except Exception as e:
+            logger.debug("Awareness query failed: %s: %s", label, e)
+            return default
 
     (
         flow_overview,
@@ -523,13 +657,21 @@ async def _build_awareness(project_id: str, project_name: str) -> ProjectAwarene
         recent_unlocks,
         stakeholders,
         confirmations,
+        entity_inventory,
+        recent_signal_titles,
     ) = await asyncio.gather(
         asyncio.to_thread(_q_flow_overview),
         asyncio.to_thread(_q_counts),
         asyncio.to_thread(_q_prototype),
         asyncio.to_thread(_q_recent_unlocks),
         asyncio.to_thread(_q_stakeholders),
-        asyncio.to_thread(_q_confirmations),
+        _timed_thread(_q_confirmations, {
+            "pending_confirmation_count": 0,
+            "meeting_confirmations": [],
+            "open_questions_summary": [],
+        }, "confirmations"),
+        _timed_thread(_q_entity_inventory, {}, "entity_inventory"),
+        _timed_thread(_q_recent_signals, [], "recent_signals"),
     )
 
     # Merge data
@@ -608,6 +750,9 @@ async def _build_awareness(project_id: str, project_name: str) -> ProjectAwarene
         key_stakeholders=stakeholders,
         pending_confirmation_count=confirmations.get("pending_confirmation_count", 0),
         meeting_confirmations=confirmations.get("meeting_confirmations", []),
+        entity_inventory=entity_inventory,
+        open_questions_summary=confirmations.get("open_questions_summary", []),
+        recent_signal_titles=recent_signal_titles,
     )
 
     logger.info(

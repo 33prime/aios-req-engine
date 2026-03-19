@@ -321,10 +321,7 @@ class Settings(BaseSettings):
         default=80_000, description="Total token budget for chat context window"
     )
     CHAT_RESPONSE_BUFFER: int = Field(
-        default=4096, description="Reserved tokens for model response"
-    )
-    CHAT_RECENT_MESSAGES: int = Field(
-        default=3, description="Number of recent messages to keep verbatim"
+        default=1500, description="Reserved tokens for model response"
     )
     CHAT_MAX_SUMMARY_TOKENS: int = Field(
         default=2000, description="Max tokens for conversation summary"
