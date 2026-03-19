@@ -78,6 +78,7 @@ def create_business_driver(
     priority: int = 3,
     source_signal_id: UUID | None = None,
     revision_id: UUID | None = None,
+    confirmation_status: str | None = None,
 ) -> dict[str, Any]:
     """
     Create a new business driver.
@@ -115,6 +116,8 @@ def create_business_driver(
         data["source_signal_id"] = str(source_signal_id)
     if revision_id is not None:
         data["revision_id"] = str(revision_id)
+    if confirmation_status is not None:
+        data["confirmation_status"] = confirmation_status
 
     response = supabase.table("business_drivers").insert(data).execute()
 

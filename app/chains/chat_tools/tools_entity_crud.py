@@ -8,6 +8,16 @@ from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
 
+MAX_NAME_WORDS = 15
+
+
+def _cap_name(name: str) -> str:
+    """Limit entity names to MAX_NAME_WORDS words."""
+    words = name.split()
+    if len(words) <= MAX_NAME_WORDS:
+        return name
+    return " ".join(words[:MAX_NAME_WORDS])
+
 
 # =============================================================================
 # Unified Entity CRUD
@@ -21,7 +31,8 @@ async def _create_entity(project_id: UUID, params: dict[str, Any]) -> dict[str, 
     Supports: feature, persona, vp_step, stakeholder, data_entity, workflow.
     """
     entity_type = params.get("entity_type")
-    name = params.get("name")
+    raw_name = params.get("name")
+    name = _cap_name(raw_name) if raw_name else raw_name
     # "fields" may be explicit or the dispatcher may spread data flat into params
     fields = params.get("fields") or {
         k: v for k, v in params.items() if k not in ("entity_type", "name", "entity_id")
@@ -222,7 +233,7 @@ async def _create_feature_entity(project_id: UUID, name: str, fields: dict) -> d
         "name": name,
         "category": fields.get("category", "core"),
         "is_mvp": fields.get("is_mvp", True),
-        "confirmation_status": "ai_generated",
+        "confirmation_status": "confirmed_consultant",
         "status": "proposed",
         "confidence": fields.get("confidence", 0.7),
     }
@@ -286,7 +297,7 @@ async def _create_persona_entity(project_id: UUID, name: str, fields: dict) -> d
         goals=fields.get("goals"),
         pain_points=fields.get("pain_points"),
         description=fields.get("description"),
-        confirmation_status="ai_generated",
+        confirmation_status="confirmed_consultant",
     )
 
     return {
@@ -337,7 +348,7 @@ async def _create_vp_step_entity(project_id: UUID, name: str, fields: dict) -> d
         "time_minutes": fields.get("time_minutes"),
         "automation_level": fields.get("automation_level"),
         "operation_type": fields.get("operation_type"),
-        "confirmation_status": "ai_generated",
+        "confirmation_status": "confirmed_consultant",
     }
     # Remove None values
     step_data = {k: v for k, v in step_data.items() if v is not None}
@@ -397,7 +408,7 @@ async def _create_stakeholder_entity(project_id: UUID, name: str, fields: dict) 
         influence_level=fields.get("influence_level", "medium"),
         priorities=fields.get("priorities", []),
         concerns=fields.get("concerns", []),
-        confirmation_status="ai_generated",
+        confirmation_status="confirmed_consultant",
     )
 
     return {
@@ -443,7 +454,7 @@ async def _create_data_entity_entity(project_id: UUID, name: str, fields: dict) 
         "entity_type": fields.get("entity_type", "domain_object"),
         "fields": fields.get("fields", []),
         "description": fields.get("description"),
-        "confirmation_status": "ai_generated",
+        "confirmation_status": "confirmed_consultant",
     }
 
     entity = create_data_entity(project_id=project_id, data=data)
@@ -537,6 +548,7 @@ async def _create_business_driver_entity(project_id: UUID, description: str, fie
         measurement=fields.get("measurement"),
         timeframe=fields.get("timeframe"),
         priority=fields.get("priority", 3),
+        confirmation_status="confirmed_consultant",
     )
 
     return {

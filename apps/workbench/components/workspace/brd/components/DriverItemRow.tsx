@@ -20,15 +20,8 @@ interface DriverItemRowProps {
   onStatusClick?: () => void
 }
 
-function truncateToWords(text: string, maxWords: number): string {
-  const words = text.split(/\s+/)
-  if (words.length <= maxWords) return text
-  return words.slice(0, maxWords).join(' ') + '...'
-}
-
 function getDisplayTitle(driver: BusinessDriver): string {
-  const raw = driver.title || driver.description || ''
-  return truncateToWords(raw, 8)
+  return driver.title || driver.description || ''
 }
 
 export function DriverItemRow({
