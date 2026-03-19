@@ -1,12 +1,11 @@
 'use client'
 
-import type { SolutionFlowStepSummary, FlowLayoutPosition, FlowCardSize, PersonaSummary } from '@/types/workspace'
-import { SOLUTION_FLOW_PHASES, CONFIDENCE_DOT_COLOR } from '@/lib/solution-flow-constants'
+import type { SolutionFlowStepSummary, SolutionFlowStepDetail, PersonaSummary } from '@/types/workspace'
+import { PHASE_CARD_STYLE } from '@/lib/solution-flow-constants'
 
 interface FlowStationCardProps {
   step: SolutionFlowStepSummary
-  position: FlowLayoutPosition
-  sizeClass: FlowCardSize
+  detail?: SolutionFlowStepDetail | null
   personas: PersonaSummary[]
   isSelected: boolean
   isDimmed: boolean
@@ -14,15 +13,7 @@ interface FlowStationCardProps {
   animationDelay?: number
 }
 
-const VALUE_BADGE_STYLES = {
-  Transform: { bg: 'rgba(63,175,122,0.08)', color: '#2A8F5F', label: 'Transform' },
-  Amplify: { bg: 'rgba(4,65,89,0.06)', color: '#044159', label: 'Amplify' },
-  Connect: { bg: 'rgba(10,30,47,0.04)', color: '#0A1E2F', label: 'Connect' },
-  Unlock: { bg: 'rgba(63,175,122,0.12)', color: '#2A8F5F', label: 'Unlock' },
-} as const
-
 function getPersonaColor(name: string): string {
-  // Deterministic color from name hash — brand-safe palette
   const palette = ['#3FAF7A', '#044159', '#2D6B4A', '#0A1E2F']
   let hash = 0
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
@@ -33,148 +24,165 @@ function getInitials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
+/** Extract first sentence from a narrative string */
+function firstSentence(text: string): string {
+  const match = text.match(/^[^.!?]+[.!?]/)
+  return match ? match[0] : text.slice(0, 120)
+}
+
 export function FlowStationCard({
   step,
-  position,
-  sizeClass,
+  detail,
   personas,
   isSelected,
   isDimmed,
   onClick,
   animationDelay = 0,
 }: FlowStationCardProps) {
-  const phase = SOLUTION_FLOW_PHASES[step.phase]
-  const isHero = sizeClass === 'size-hero'
+  const style = PHASE_CARD_STYLE[step.phase] || PHASE_CARD_STYLE.admin
+  const isCore = step.phase === 'core_experience'
 
-  // Derive value badges from step data
-  const badges: (keyof typeof VALUE_BADGE_STYLES)[] = []
-  if (step.confidence_breakdown?.known) badges.push('Transform')
-  if (step.info_field_count > 4) badges.push('Connect')
+  // Blurb: first sentence of mock_data_narrative (if detail loaded), else goal
+  const blurb = detail?.mock_data_narrative
+    ? firstSentence(detail.mock_data_narrative)
+    : step.goal
 
-  // Match actors to persona data for colors
-  const actorDots = step.actors.slice(0, 4).map(actorName => {
-    const persona = personas.find(p => p.name === actorName)
-    return {
-      name: actorName,
-      color: getPersonaColor(actorName),
-      initials: getInitials(persona?.name || actorName),
-    }
-  })
+  // Transformation snippet for core cards
+  const painBefore = detail?.pain_points_addressed?.[0]
+  const beforeText = painBefore ? (typeof painBefore === 'string' ? painBefore : painBefore.text) : null
+  const afterText = detail?.goals_addressed?.[0] || detail?.success_criteria?.[0] || null
+  const showTransform = isCore && beforeText && afterText
 
-  const confidenceColor = step.confirmation_status === 'confirmed_client'
-    ? '#3FAF7A'
-    : step.confirmation_status === 'confirmed_consultant'
-      ? '#0A1E2F'
-      : '#E5E5E5'
+  // Actor dots
+  const actorDots = step.actors.slice(0, 4).map(actorName => ({
+    name: actorName,
+    color: getPersonaColor(actorName),
+    initials: getInitials(actorName),
+  }))
+
+  // Bottom badges
+  const hasAI = !!(detail?.ai_config?.role || detail?.ai_config?.ai_role)
+  const questionCount = step.open_question_count
 
   return (
     <div
-      className={`absolute bg-white border rounded-xl cursor-pointer transition-all duration-300 flex flex-col gap-1.5 ${
-        isSelected ? 'border-[#3FAF7A] shadow-[0_0_0_2px_rgba(63,175,122,0.25)]' : 'border-[#E5E5E5]'
-      } ${isDimmed ? 'opacity-25 grayscale-[40%] pointer-events-none' : ''} ${
-        isHero ? 'border-2 border-[rgba(63,175,122,0.25)] shadow-[0_2px_10px_rgba(63,175,122,0.08)]' : ''
-      }`}
+      className={`rounded-[10px] cursor-pointer transition-all duration-300 relative overflow-hidden ${
+        isSelected ? 'shadow-[0_0_0_2px_rgba(63,175,122,0.25)]' : ''
+      } ${isDimmed ? 'opacity-[0.15] grayscale-[40%] pointer-events-none' : ''}`}
       style={{
-        left: position.x,
-        top: position.y,
-        width: position.w,
-        height: position.h,
-        padding: '14px 16px',
-        borderLeftWidth: 3,
-        borderLeftColor: confidenceColor,
+        background: style.bg,
+        border: `1px solid ${isSelected ? '#3FAF7A' : style.border}`,
+        padding: isCore ? '16px 18px' : '14px 16px',
         animationDelay: `${animationDelay}ms`,
+        animation: 'fadeUp 0.4s ease backwards',
       }}
       onClick={onClick}
       onMouseEnter={e => {
         if (!isDimmed) {
-          e.currentTarget.style.borderColor = '#3FAF7A'
-          e.currentTarget.style.boxShadow = '0 6px 20px rgba(63,175,122,0.12)'
-          e.currentTarget.style.transform = 'translateY(-3px)'
+          e.currentTarget.style.transform = 'translateY(-2px)'
+          e.currentTarget.style.borderColor = style.hoverBorder
+          e.currentTarget.style.boxShadow = style.hoverShadow
         }
       }}
       onMouseLeave={e => {
         if (!isSelected) {
-          e.currentTarget.style.borderColor = isHero ? 'rgba(63,175,122,0.25)' : '#E5E5E5'
-          e.currentTarget.style.boxShadow = isHero ? '0 2px 10px rgba(63,175,122,0.08)' : 'none'
           e.currentTarget.style.transform = 'translateY(0)'
+          e.currentTarget.style.borderColor = style.border
+          e.currentTarget.style.boxShadow = 'none'
         }
       }}
     >
-      {/* Phase + Step Index */}
-      <div className="flex items-center gap-1.5">
-        {phase && (
-          <span
-            className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded"
-            style={{ background: 'rgba(63,175,122,0.08)', color: '#2A8F5F' }}
-          >
-            {phase.label}
-          </span>
-        )}
-        <span className="text-[9px] font-medium" style={{ color: '#999' }}>
-          Step {step.step_index + 1}
-        </span>
-        {/* Value badges */}
-        {badges.slice(0, 2).map(badge => (
-          <span
-            key={badge}
-            className="text-[8px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded ml-auto first:ml-auto"
-            style={{ background: VALUE_BADGE_STYLES[badge].bg, color: VALUE_BADGE_STYLES[badge].color }}
-          >
-            {badge}
-          </span>
-        ))}
-      </div>
-
-      {/* Title */}
-      <div
-        className="font-semibold leading-tight"
-        style={{
-          fontSize: isHero ? 16 : 14,
-          color: '#1D1D1F',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-        }}
-      >
-        {step.title}
-      </div>
-
-      {/* Goal (truncated) */}
-      <div
-        className="text-[11px] leading-relaxed"
-        style={{
-          color: '#7B7B7B',
-          display: '-webkit-box',
-          WebkitLineClamp: isHero ? 3 : 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-        }}
-      >
-        {step.goal}
-      </div>
-
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Footer: Personas + Field count */}
-      <div className="flex items-center justify-between pt-1.5 border-t" style={{ borderColor: '#F5F5F5' }}>
-        <div className="flex">
+      {/* Top: Index + Title + Persona dots */}
+      <div className="flex items-center gap-1.5 mb-[5px]">
+        <div
+          className="w-5 h-5 rounded-[6px] flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+          style={{ background: style.idxBg, color: style.idxColor }}
+        >
+          {step.step_index + 1}
+        </div>
+        <div
+          className="flex-1 font-semibold leading-tight min-w-0"
+          style={{
+            fontSize: isCore ? 13 : 12,
+            color: '#0A1E2F',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {step.title}
+        </div>
+        <div className="flex flex-shrink-0">
           {actorDots.map((dot, i) => (
             <div
               key={dot.name}
-              className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[7px] font-bold text-white border-2 border-white"
-              style={{ background: dot.color, marginLeft: i > 0 ? -4 : 0 }}
+              className="w-4 h-4 rounded-full flex items-center justify-center text-[6px] font-bold text-white border-2 border-white"
+              style={{ background: dot.color, marginLeft: i > 0 ? -3 : 0 }}
               title={dot.name}
             >
               {dot.initials}
             </div>
           ))}
         </div>
-        <span className="text-[9px] font-medium" style={{ color: '#999' }}>
-          {step.info_field_count} fields
-        </span>
       </div>
+
+      {/* Blurb */}
+      <div
+        className="leading-[1.5] mb-1.5"
+        style={{
+          fontSize: isCore ? 11 : 10,
+          color: isCore ? '#2D3748' : '#4A5568',
+          display: '-webkit-box',
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}
+      >
+        {blurb}
+      </div>
+
+      {/* Transformation snippet (core cards only) */}
+      {showTransform && (
+        <div
+          className="flex gap-1.5 items-center rounded-[6px] mb-1"
+          style={{ padding: '5px 9px', background: 'rgba(63,175,122,0.05)' }}
+        >
+          <span className="text-[9px] line-through" style={{ color: '#718096', textDecorationColor: 'rgba(0,0,0,0.18)' }}>
+            {beforeText}
+          </span>
+          <span className="text-[10px] font-bold" style={{ color: '#3FAF7A' }}>→</span>
+          <span className="text-[9px] font-semibold" style={{ color: '#2A8F5F' }}>
+            {afterText}
+          </span>
+        </div>
+      )}
+
+      {/* Bottom badges */}
+      <div className="flex items-center gap-1 mt-1 flex-wrap">
+        {hasAI && (
+          <span
+            className="inline-flex items-center gap-[3px] text-[8px] font-semibold px-[7px] py-[2px] rounded-[3px]"
+            style={{ background: 'rgba(4,65,89,0.05)', color: '#044159' }}
+          >
+            ◈ AI
+          </span>
+        )}
+        {questionCount > 0 && (
+          <span
+            className="inline-flex items-center gap-[3px] text-[8px] font-semibold px-[7px] py-[2px] rounded-[3px]"
+            style={{ background: 'rgba(212,160,23,0.08)', color: '#8B6914' }}
+          >
+            ? {questionCount}
+          </span>
+        )}
+      </div>
+
+      <style jsx>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }

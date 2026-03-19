@@ -27,3 +27,78 @@ export const CONFIDENCE_DOT_COLOR: Record<string, string> = {
   guess: 'bg-[#BBBBBB]',
   unknown: 'bg-[#E5E5E5]',
 }
+
+/** Phase lane config for the v3e canvas layout */
+export const LANE_CONFIG: Record<string, { label: string; subtitle: string; flex: number }> = {
+  entry: { label: 'Getting Started', subtitle: 'Setup & onboarding', flex: 1 },
+  core_experience: { label: 'The Core Experience', subtitle: 'Where the value lives', flex: 1.8 },
+  output: { label: 'What You Get', subtitle: 'Reports & deliverables', flex: 1 },
+  admin: { label: 'Keeping It Sharp', subtitle: 'Configuration & tuning', flex: 1 },
+}
+
+/** Phase-specific card styles for gradient backgrounds, borders, and index badges */
+export const PHASE_CARD_STYLE: Record<string, {
+  bg: string
+  border: string
+  hoverBorder: string
+  hoverShadow: string
+  idxBg: string
+  idxColor: string
+  laneWash: string
+  labelColor: string
+  sublabelColor: string
+}> = {
+  entry: {
+    bg: 'linear-gradient(135deg, #fff 0%, rgba(4,65,89,0.04) 100%)',
+    border: 'rgba(4,65,89,0.12)',
+    hoverBorder: '#044159',
+    hoverShadow: '0 4px 16px rgba(4,65,89,0.08)',
+    idxBg: 'rgba(4,65,89,0.08)',
+    idxColor: '#044159',
+    laneWash: 'rgba(4,65,89,0.018)',
+    labelColor: '#044159',
+    sublabelColor: 'rgba(4,65,89,0.5)',
+  },
+  core_experience: {
+    bg: 'linear-gradient(135deg, #fff 0%, rgba(63,175,122,0.05) 100%)',
+    border: 'rgba(63,175,122,0.20)',
+    hoverBorder: '#3FAF7A',
+    hoverShadow: '0 6px 20px rgba(63,175,122,0.12)',
+    idxBg: 'rgba(63,175,122,0.08)',
+    idxColor: '#2A8F5F',
+    laneWash: 'linear-gradient(180deg, rgba(63,175,122,0.025) 0%, rgba(63,175,122,0.06) 100%)',
+    labelColor: '#2A8F5F',
+    sublabelColor: 'rgba(63,175,122,0.6)',
+  },
+  output: {
+    bg: 'linear-gradient(135deg, #fff 0%, rgba(10,30,47,0.03) 100%)',
+    border: 'rgba(10,30,47,0.10)',
+    hoverBorder: '#0A1E2F',
+    hoverShadow: '0 4px 16px rgba(10,30,47,0.08)',
+    idxBg: 'rgba(10,30,47,0.06)',
+    idxColor: '#0A1E2F',
+    laneWash: 'rgba(10,30,47,0.015)',
+    labelColor: '#0A1E2F',
+    sublabelColor: 'rgba(10,30,47,0.4)',
+  },
+  admin: {
+    bg: 'linear-gradient(135deg, #fff 0%, rgba(0,0,0,0.02) 100%)',
+    border: 'rgba(0,0,0,0.08)',
+    hoverBorder: '#718096',
+    hoverShadow: '0 4px 16px rgba(0,0,0,0.06)',
+    idxBg: 'rgba(0,0,0,0.04)',
+    idxColor: '#718096',
+    laneWash: 'rgba(0,0,0,0.01)',
+    labelColor: '#718096',
+    sublabelColor: '#A0AEC0',
+  },
+}
+
+/** Maps implied_pattern to a human-readable display label */
+export const PATTERN_LABELS: Record<string, string> = {
+  dashboard: 'Dashboard',
+  table: 'Data Table',
+  wizard: 'Setup Wizard',
+  card: 'Card View',
+  form: 'Form / Input',
+}

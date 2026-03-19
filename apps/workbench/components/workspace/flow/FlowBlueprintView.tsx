@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
-import type { SolutionFlowOverview, SolutionFlowStepSummary, PersonaSummary, FlowHorizon } from '@/types/workspace'
-import { useWeightedLayout, getSizeClass, type LayoutItem } from '@/hooks/useWeightedLayout'
-import { PHASE_ORDER, SOLUTION_FLOW_PHASES } from '@/lib/solution-flow-constants'
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import type { SolutionFlowOverview, SolutionFlowStepSummary, SolutionFlowStepDetail, PersonaSummary } from '@/types/workspace'
+import { batchGetSolutionFlowSteps } from '@/lib/api/admin'
+import { PHASE_ORDER, LANE_CONFIG, PHASE_CARD_STYLE } from '@/lib/solution-flow-constants'
 import { FlowStationCard } from './FlowStationCard'
-import { FlowStepModal } from './FlowStepModal'
+import { FlowDetailPanel } from './FlowDetailPanel'
+import { FlowPreviewModal } from './FlowPreviewModal'
 import { FlowHorizonsPanel } from './FlowHorizonsPanel'
 import { FlowPresentMode } from './FlowPresentMode'
 
@@ -14,15 +15,6 @@ interface FlowBlueprintViewProps {
   flow: SolutionFlowOverview | null | undefined
   personas: PersonaSummary[]
   onGenerateFlow: () => void
-}
-
-function calcStepWeight(step: SolutionFlowStepSummary): number {
-  return (
-    step.actors.length * 10 +
-    step.info_field_count * 6 +
-    step.open_question_count * 5 +
-    (step.confidence_breakdown?.known || 0) * 3
-  )
 }
 
 function getPersonaColor(name: string): string {
@@ -42,50 +34,67 @@ export function FlowBlueprintView({
   const [activePersona, setActivePersona] = useState<number | null>(null)
   const [horizonsOpen, setHorizonsOpen] = useState(false)
   const [presentMode, setPresentMode] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+
+  // Batch-fetched step details
+  const [stepDetails, setStepDetails] = useState<Record<string, SolutionFlowStepDetail>>({})
 
   const steps = flow?.steps || []
 
-  // Build layout items: group steps by phase into columns
-  const layoutItems: LayoutItem[] = useMemo(() => {
-    if (!steps.length) return []
+  // Batch fetch all step details on mount / when steps change
+  useEffect(() => {
+    if (!steps.length) return
+    const ids = steps.map(s => s.id)
+    batchGetSolutionFlowSteps(projectId, ids)
+      .then(resp => setStepDetails(resp.steps))
+      .catch(() => {})
+  }, [projectId, steps])
 
-    // Group by phase
-    const phaseGroups: Record<string, SolutionFlowStepSummary[]> = {}
+  // Group steps by phase
+  const phaseGroups = useMemo(() => {
+    const groups: Record<string, SolutionFlowStepSummary[]> = {}
+    PHASE_ORDER.forEach(p => { groups[p] = [] })
     steps.forEach(s => {
-      if (!phaseGroups[s.phase]) phaseGroups[s.phase] = []
-      phaseGroups[s.phase].push(s)
+      if (groups[s.phase]) groups[s.phase].push(s)
     })
-
-    // Assign columns based on phase order
-    const items: LayoutItem[] = []
-    let colIndex = 0
-    PHASE_ORDER.forEach(phase => {
-      const group = phaseGroups[phase]
-      if (!group?.length) return
-      group.forEach((step, rowIndex) => {
-        items.push({
-          id: step.id,
-          weight: calcStepWeight(step),
-          column: colIndex,
-          row: rowIndex,
-        })
-      })
-      colIndex++
-    })
-
-    return items
+    return groups
   }, [steps])
 
-  const { positions, totalWidth, totalHeight, heroId } = useWeightedLayout(layoutItems)
-
   const activeStep = steps.find(s => s.id === activeStepId) || null
+  const activeDetail = activeStepId ? stepDetails[activeStepId] || null : null
   const isPersonaFiltered = activePersona !== null
 
-  const handleCloseModal = useCallback(() => setActiveStepId(null), [])
+  const handleClosePanel = useCallback(() => {
+    setPreviewOpen(false)
+    setActiveStepId(null)
+  }, [])
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewOpen(false)
+  }, [])
 
   const togglePersona = useCallback((index: number) => {
     setActivePersona(prev => prev === index ? null : index)
   }, [])
+
+  const handleDetailRefresh = useCallback((detail: SolutionFlowStepDetail) => {
+    setStepDetails(prev => ({ ...prev, [detail.id]: detail }))
+  }, [])
+
+  // ESC hierarchy: preview first, then panel
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (previewOpen) {
+          setPreviewOpen(false)
+        } else if (activeStepId) {
+          setActiveStepId(null)
+        }
+      }
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [previewOpen, activeStepId])
 
   // Unique personas from step actors
   const personaList = useMemo(() => {
@@ -104,12 +113,15 @@ export function FlowBlueprintView({
     return list
   }, [personas])
 
-  // Horizon count for button badge
-  const horizonSteps = useMemo(() => {
-    // Count steps by phase for horizon grouping
-    const h2 = steps.filter(s => s.phase === 'output').length
-    const h3 = steps.filter(s => s.phase === 'admin').length
-    return h2 + h3
+  // Value momentum: % of steps with confirmed or known confidence
+  const momentum = useMemo(() => {
+    if (!steps.length) return 0
+    const scored = steps.filter(s =>
+      s.confirmation_status === 'confirmed_client' ||
+      s.confirmation_status === 'confirmed_consultant' ||
+      (s.confidence_breakdown?.known || 0) > 0
+    ).length
+    return Math.round((scored / steps.length) * 100)
   }, [steps])
 
   // Empty state
@@ -147,7 +159,7 @@ export function FlowBlueprintView({
         className="flex-shrink-0 px-8 pt-4 pb-3"
         style={{ background: '#0A1E2F' }}
       >
-        {/* Top row: thesis (clamped) + action buttons */}
+        {/* Top row: thesis + action buttons */}
         <div className="flex items-center gap-6 mb-3">
           <div
             className="text-[13px] font-normal leading-snug flex-1 min-w-0"
@@ -224,7 +236,7 @@ export function FlowBlueprintView({
             ))}
           </div>
 
-          {/* Stats pills — bottom right */}
+          {/* Stats pills */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <span className="text-[13px] font-bold" style={{ color: '#3FAF7A' }}>{steps.length}</span>
@@ -249,54 +261,109 @@ export function FlowBlueprintView({
         }}
       />
 
-      {/* Canvas */}
+      {/* Phase Lane Canvas */}
       <div className="flex-1 overflow-auto relative">
-        <div
-          className="relative"
-          style={{ minWidth: totalWidth, minHeight: Math.max(520, totalHeight), padding: '20px 0' }}
-        >
-          {/* Waterline gradient */}
+        <div className="relative min-h-full flex flex-col">
+          {/* Phase lanes */}
+          <div className="flex flex-1 gap-px" style={{ minHeight: 480 }}>
+            {PHASE_ORDER.map(phase => {
+              const lane = LANE_CONFIG[phase]
+              const cardStyle = PHASE_CARD_STYLE[phase]
+              const stepsInPhase = phaseGroups[phase] || []
+              if (!lane) return null
+
+              return (
+                <div
+                  key={phase}
+                  className="relative flex flex-col min-w-0"
+                  style={{ flex: lane.flex, padding: '0 10px' }}
+                >
+                  {/* Lane background wash */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ background: cardStyle.laneWash }}
+                  />
+
+                  {/* Lane header */}
+                  <div className="relative z-[1] flex-shrink-0 px-1.5 pt-3.5 pb-2.5">
+                    <div
+                      className="text-[9px] font-bold uppercase tracking-widest mb-[2px]"
+                      style={{ color: cardStyle.labelColor }}
+                    >
+                      {lane.label}
+                    </div>
+                    <div className="text-[10px] leading-snug" style={{ color: cardStyle.sublabelColor }}>
+                      {lane.subtitle}
+                    </div>
+                  </div>
+
+                  {/* Cards */}
+                  <div className="relative z-[1] flex-1 flex flex-col gap-2 pb-3.5 justify-center">
+                    {stepsInPhase.map((step, i) => {
+                      const isDimmed = isPersonaFiltered && !step.actors.includes(personaList[activePersona!]?.name)
+                      return (
+                        <FlowStationCard
+                          key={step.id}
+                          step={step}
+                          detail={stepDetails[step.id] || null}
+                          personas={personas}
+                          isSelected={step.id === activeStepId}
+                          isDimmed={isDimmed}
+                          onClick={() => setActiveStepId(step.id)}
+                          animationDelay={step.step_index * 60}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Value Momentum Strip */}
           <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: 'linear-gradient(90deg, #FAFAFA 0%, rgba(63,175,122,0.015) 30%, rgba(63,175,122,0.025) 60%, rgba(63,175,122,0.04) 100%)',
-            }}
-          />
-
-          {/* Station cards */}
-          {steps.map((step, i) => {
-            const pos = positions.get(step.id)
-            if (!pos) return null
-
-            const item = layoutItems.find(li => li.id === step.id)
-            const weight = item?.weight ?? 0
-
-            const isDimmed = isPersonaFiltered && !step.actors.includes(personaList[activePersona!]?.name)
-
-            return (
-              <FlowStationCard
-                key={step.id}
-                step={step}
-                position={pos}
-                sizeClass={getSizeClass(weight, step.id === heroId)}
-                personas={personas}
-                isSelected={step.id === activeStepId}
-                isDimmed={isDimmed}
-                onClick={() => setActiveStepId(step.id)}
-                animationDelay={i * 70}
+            className="flex items-center px-8 gap-3 flex-shrink-0"
+            style={{ height: 34, background: '#fff', borderTop: '1px solid #E2E8F0' }}
+          >
+            <span className="text-[8px] font-semibold uppercase tracking-wide whitespace-nowrap" style={{ color: '#A0AEC0' }}>
+              Value Momentum
+            </span>
+            <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: '#EDF2F7' }}>
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${momentum}%`,
+                  background: 'linear-gradient(90deg, #044159 0%, #3FAF7A 100%)',
+                }}
               />
-            )
-          })}
+            </div>
+            <span className="text-[11px] font-bold" style={{ color: '#3FAF7A' }}>
+              {momentum}%
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Step Modal */}
+      {/* Detail Panel */}
       {activeStep && (
-        <FlowStepModal
+        <FlowDetailPanel
           projectId={projectId}
           step={activeStep}
+          detail={activeDetail}
           isOpen={!!activeStepId}
-          onClose={handleCloseModal}
+          onClose={handleClosePanel}
+          onPreview={() => setPreviewOpen(true)}
+          onDetailRefresh={handleDetailRefresh}
+        />
+      )}
+
+      {/* Preview Modal */}
+      {activeStep && activeDetail && previewOpen && (
+        <FlowPreviewModal
+          step={activeStep}
+          detail={activeDetail}
+          isOpen={previewOpen}
+          onClose={handleClosePreview}
           personas={personas}
         />
       )}
