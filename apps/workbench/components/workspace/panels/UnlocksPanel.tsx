@@ -399,11 +399,6 @@ function UnlockCard({
                 Promoted
               </span>
             )}
-            {unlock.status === 'curated' && (
-              <span className="px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full border border-brand-primary/30">
-                Curated
-              </span>
-            )}
           </div>
 
           {/* Title */}
@@ -483,14 +478,6 @@ function UnlockCard({
       {/* Actions */}
       {unlock.status !== 'promoted' && unlock.status !== 'dismissed' && (
         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
-          {unlock.status === 'generated' && (
-            <button
-              onClick={onCurate}
-              className="px-3 py-1 text-[11px] font-medium text-[#25785A] bg-[#E8F5E9] hover:bg-[#d0efd8] rounded-lg transition-colors"
-            >
-              Curate
-            </button>
-          )}
           <button
             onClick={onPromote}
             className="inline-flex items-center gap-1 px-3 py-1 text-[11px] font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-lg transition-colors"

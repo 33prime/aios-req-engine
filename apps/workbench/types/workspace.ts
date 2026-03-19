@@ -752,6 +752,7 @@ export interface StepAIConfig {
   guardrails?: string[]
   confidence_display?: string
   fallback?: string
+  human_value_statement?: string | null
 }
 
 export interface SolutionFlowStepDetail extends SolutionFlowStepSummary {
@@ -771,6 +772,9 @@ export interface SolutionFlowStepDetail extends SolutionFlowStepSummary {
   background_narrative?: string | null
   generation_version?: number
   preserved_from_version?: number | null
+  story_headline?: string | null
+  user_actions?: string[]
+  human_value_statement?: string | null
 }
 
 export interface SolutionFlowReadiness {
@@ -2114,6 +2118,7 @@ export interface DerivedAgent {
   rhythm?: AgentRhythm
   confidenceTiers?: ConfidenceTiers
   evolution?: EvolutionStep[]
+  humanValueStatement?: string | null
 }
 
 // Intelligence Workbench types
@@ -2149,6 +2154,9 @@ export interface AgentExampleResponse {
   agent_type: AgentType
   example_input: string
   description: string
+  key_signals: string[]
+  source_label?: string | null
+  input_type?: string | null
 }
 
 // Horizon types for Flow view

@@ -40,6 +40,9 @@ class SolutionFlowStepCreate(BaseModel):
     mock_data_narrative: str | None = None
     open_questions: list[OpenQuestion] = Field(default_factory=list)
     implied_pattern: str | None = None
+    story_headline: str | None = None
+    user_actions: list[str] = Field(default_factory=list)
+    human_value_statement: str | None = None
     step_index: int | None = None  # auto-assigned if None
     linked_workflow_ids: list[str] = Field(default_factory=list)
     linked_feature_ids: list[str] = Field(default_factory=list)
@@ -81,6 +84,9 @@ class SolutionFlowStepUpdate(BaseModel):
     mock_data_narrative: str | None = None
     open_questions: list[OpenQuestion] | None = None
     implied_pattern: str | None = None
+    story_headline: str | None = None
+    user_actions: list[str] | None = None
+    human_value_statement: str | None = None
     confirmation_status: str | None = None
     linked_workflow_ids: list[str] | None = None
     linked_feature_ids: list[str] | None = None
@@ -122,6 +128,9 @@ class SolutionFlowStepDetail(BaseModel):
     mock_data_narrative: str | None = None
     open_questions: list[OpenQuestion] = Field(default_factory=list)
     implied_pattern: str | None = None
+    story_headline: str | None = None
+    user_actions: list[str] = Field(default_factory=list)
+    human_value_statement: str | None = None
     linked_workflow_ids: list[str] = Field(default_factory=list)
     linked_feature_ids: list[str] = Field(default_factory=list)
     linked_data_entity_ids: list[str] = Field(default_factory=list)

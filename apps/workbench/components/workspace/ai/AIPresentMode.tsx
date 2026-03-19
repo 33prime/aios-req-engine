@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { DerivedAgent, PersonaSummary } from '@/types/workspace'
 import { PresentModeShell } from '@/components/workspace/shared/PresentModeShell'
+import { PresentShareToolbar } from '@/components/workspace/shared/PresentShareToolbar'
 
 interface AIPresentModeProps {
   isOpen: boolean
@@ -34,6 +35,7 @@ export function AIPresentMode({
   estTimeSaved,
 }: AIPresentModeProps) {
   const [currentSlide, setCurrentSlide] = useState(0)
+  const contentRef = useRef<HTMLDivElement>(null)
   const totalSlides = agents.length + 2 // title + agents + summary
 
   useEffect(() => {
@@ -231,8 +233,19 @@ export function AIPresentMode({
           </div>
         )}
 
+        {/* Human value statement */}
+        {agent.humanValueStatement && (
+          <div
+            className="text-[13px] leading-relaxed p-3.5 rounded-[9px] mb-4"
+            style={{ color: 'rgba(255,255,255,0.78)', background: 'rgba(63,175,122,0.08)', borderLeft: '3px solid #3FAF7A' }}
+          >
+            <span className="text-[9px] font-semibold uppercase tracking-wide block mb-1" style={{ color: '#3FAF7A' }}>Human Value</span>
+            {agent.humanValueStatement}
+          </div>
+        )}
+
         {/* Growth */}
-        {agent.growth && (
+        {agent.growth && !agent.humanValueStatement && (
           <div
             className="text-sm leading-[1.65] p-3.5 rounded-[9px] mb-4"
             style={{ color: 'rgba(255,255,255,0.65)', background: 'rgba(4,65,89,0.12)', borderLeft: '3px solid rgba(4,65,89,0.4)' }}
@@ -254,6 +267,14 @@ export function AIPresentMode({
     )
   }
 
+  const toolbar = (
+    <PresentShareToolbar
+      onDownloadPDF={() => window.print()}
+      onScreenshot={() => {}}
+      contentRef={contentRef}
+    />
+  )
+
   return (
     <PresentModeShell
       isOpen={isOpen}
@@ -268,6 +289,7 @@ export function AIPresentMode({
             ? 'Team Summary'
             : `Agent ${currentSlide} of ${agents.length}`
       }
+      toolbar={toolbar}
     >
       {renderSlide()}
     </PresentModeShell>

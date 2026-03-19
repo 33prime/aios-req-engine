@@ -173,6 +173,14 @@ def create_flow_step(
         "linked_data_entity_ids": data.get("linked_data_entity_ids", []),
     }
 
+    # UX redesign fields (migration 0189)
+    if data.get("story_headline") is not None:
+        row["story_headline"] = data["story_headline"]
+    if data.get("user_actions") is not None:
+        row["user_actions"] = data["user_actions"]
+    if data.get("human_value_statement") is not None:
+        row["human_value_statement"] = data["human_value_statement"]
+
     # v2 columns
     if data.get("confidence_impact") is not None:
         row["confidence_impact"] = data["confidence_impact"]

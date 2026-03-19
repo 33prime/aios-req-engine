@@ -41,3 +41,13 @@ class AgentExampleResponse(BaseModel):
     agent_type: AgentTypeStr = Field(..., description="The agent type")
     example_input: str = Field(..., description="Sample input text")
     description: str = Field(..., description="What this example demonstrates")
+    key_signals: list[str] = Field(
+        default_factory=list,
+        description="Key entities/signals highlighted in the example",
+    )
+    source_label: str | None = Field(
+        None, description="Source label, e.g. 'Project Data' or 'Generic'"
+    )
+    input_type: str | None = Field(
+        None, description="Input type, e.g. 'Entity List', 'Meeting Transcript'"
+    )

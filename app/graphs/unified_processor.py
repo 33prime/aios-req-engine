@@ -120,69 +120,188 @@ def _update_signal_status(
         logger.debug(f"Failed to update signal {signal_id} status to {status!r}: {e}")
 
 
-def _create_document_review_task(state: V2ProcessorState) -> None:
-    """Create a signal_review task if this signal came from a document upload.
+def _create_signal_review_task(state: V2ProcessorState) -> None:
+    """Create a signal_review task for any signal that produced entity changes.
 
+    Works for documents, meeting transcripts, chat signals, etc.
     Non-critical — failures are logged, never fatal.
     """
     try:
-        from datetime import datetime
+        from datetime import datetime, timedelta
 
         r = state.application_result
         if not r or r.total_applied == 0:
             return
 
         sb = get_supabase()
-
-        # Look up document_uploads where signal_id matches
-        doc_resp = (
-            sb.table("document_uploads")
-            .select("id, original_filename, uploaded_by")
-            .eq("signal_id", str(state.signal_id))
-            .limit(1)
-            .execute()
-        )
-
-        if not doc_resp.data:
-            return  # Not a document upload signal
-
-        doc_data = doc_resp.data[0]
-        filename = doc_data.get("original_filename", "document")
-        uploaded_by = doc_data.get("uploaded_by")
         entity_count = r.total_applied
+
+        # Derive title from signal source
+        source_label = "signal"
+        uploaded_by = None
+
+        if state.signal:
+            source_label = (
+                state.signal.get("source_label")
+                or state.signal.get("source")
+                or "signal"
+            )
+
+        # Check if document upload (for filename + uploader)
+        try:
+            doc_resp = (
+                sb.table("document_uploads")
+                .select("original_filename, uploaded_by")
+                .eq("signal_id", str(state.signal_id))
+                .limit(1)
+                .execute()
+            )
+            if doc_resp.data:
+                source_label = doc_resp.data[0].get("original_filename", source_label)
+                uploaded_by = doc_resp.data[0].get("uploaded_by")
+        except Exception:
+            pass
 
         # Build patches snapshot from application result
         patches_snapshot = None
         if r.applied:
             patches_snapshot = {
                 "total": entity_count,
+                "created": r.created_count,
+                "merged": r.merged_count,
+                "updated": r.updated_count,
                 "applied": r.applied[:50],  # Cap to avoid oversized JSONB
             }
 
+        # Build description with entity breakdown
+        created_types: dict[str, int] = {}
+        updated_types: dict[str, int] = {}
+        for a in r.applied:
+            etype = a.get("entity_type", "entity")
+            if a.get("operation") == "create":
+                created_types[etype] = created_types.get(etype, 0) + 1
+            else:
+                updated_types[etype] = updated_types.get(etype, 0) + 1
+
+        desc_parts = [f"Review and confirm entities extracted from {source_label}."]
+        if created_types:
+            breakdown = ", ".join(f"{v} {k}s" for k, v in sorted(created_types.items()))
+            desc_parts.append(f"\n\n**Created ({r.created_count}):** {breakdown}")
+        if updated_types:
+            breakdown = ", ".join(f"{v} {k}s" for k, v in sorted(updated_types.items()))
+            desc_parts.append(f"\n**Updated ({r.updated_count + r.merged_count}):** {breakdown}")
+
+        # Resolve assignee: document uploader, or signal creator
+        assignee = uploaded_by
+        if not assignee and state.signal:
+            assignee = state.signal.get("metadata", {}).get("created_by") if state.signal.get("metadata") else None
+            if not assignee:
+                assignee = state.signal.get("created_by")
+
+        # Due date: next business day
+        due = datetime.now(UTC) + timedelta(days=1)
+
         task_data: dict[str, Any] = {
             "project_id": str(state.project_id),
-            "title": f"Review {entity_count} entities extracted from {filename}",
+            "title": f"Review {entity_count} entities from {source_label}",
+            "description": "".join(desc_parts),
             "task_type": "signal_review",
-            "status": "in_progress",
+            "status": "pending",
             "source_type": "signal_processing",
             "priority": "high",
             "priority_score": 90,
-            "due_date": datetime.now(UTC).isoformat(),
+            "due_date": due.isoformat(),
             "signal_id": str(state.signal_id),
             "patches_snapshot": patches_snapshot,
         }
 
-        if uploaded_by:
-            task_data["assigned_to"] = uploaded_by
+        if assignee:
+            task_data["assigned_to"] = str(assignee)
 
         sb.table("tasks").insert(task_data).execute()
 
         logger.info(
-            f"[v2] Created review task for {filename} ({entity_count} entities)",
+            f"[v2] Created review task for {source_label} ({entity_count} entities)",
             extra={"signal_id": str(state.signal_id)},
         )
     except Exception as e:
-        logger.debug(f"[v2] Failed to create document review task: {e}")
+        logger.debug(f"[v2] Failed to create signal review task: {e}")
+
+    # Check if we should suggest unlock generation
+    _maybe_suggest_unlocks(state)
+
+
+def _maybe_suggest_unlocks(state: V2ProcessorState) -> None:
+    """Create a task suggesting unlock generation when 2+ signals exist and 0 unlocks.
+
+    The idea: project creation note alone isn't enough context for meaningful unlocks.
+    Once a second signal arrives (meeting transcript, doc upload, chat signal, etc.),
+    the system has enough data to discover strategic capabilities.
+    Non-critical — failures are logged, never fatal.
+    """
+    try:
+        sb = get_supabase()
+        pid = str(state.project_id)
+
+        # Count signals for this project
+        signal_count_resp = (
+            sb.table("signals")
+            .select("id", count="exact")
+            .eq("project_id", pid)
+            .execute()
+        )
+        signal_count = signal_count_resp.count or 0
+        if signal_count < 2:
+            return
+
+        # Check if unlocks already exist
+        unlock_resp = (
+            sb.table("unlocks")
+            .select("id", count="exact")
+            .eq("project_id", pid)
+            .execute()
+        )
+        if (unlock_resp.count or 0) > 0:
+            return
+
+        # Check if we already created this suggestion task
+        existing_resp = (
+            sb.table("tasks")
+            .select("id")
+            .eq("project_id", pid)
+            .eq("task_type", "custom")
+            .ilike("title", "%Generate strategic unlocks%")
+            .limit(1)
+            .execute()
+        )
+        if existing_resp.data:
+            return
+
+        # Create the suggestion task
+        sb.table("tasks").insert({
+            "project_id": pid,
+            "title": "Generate strategic unlocks",
+            "description": (
+                "This project now has multiple signals processed. "
+                "Generate unlocks to discover hidden capabilities — "
+                "strategic features that become possible from the "
+                "workflows, data, and pain points already captured.\n\n"
+                "Open the Unlocks panel (bottom dock) and click Generate."
+            ),
+            "task_type": "custom",
+            "status": "pending",
+            "source_type": "system_generated",
+            "priority": "medium",
+            "priority_score": 55,
+            "action_verb": "generate",
+        }).execute()
+
+        logger.info(
+            f"[v2] Created unlock suggestion task for project {pid} "
+            f"({signal_count} signals, 0 unlocks)",
+        )
+    except Exception as e:
+        logger.debug(f"[v2] Failed to check/create unlock suggestion: {e}")
 
 
 # =============================================================================
@@ -606,8 +725,8 @@ async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
         extra=extra,
     )
 
-    # Create review task if this signal came from a document upload
-    _create_document_review_task(state)
+    # Create review task for any signal that produced entity changes
+    _create_signal_review_task(state)
 
     return {"success": True}
 

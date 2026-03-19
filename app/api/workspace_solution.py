@@ -12,6 +12,26 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _clear_stale_unlocks(project_id: UUID) -> int:
+    """Delete non-promoted unlocks before regeneration.
+
+    Keeps promoted unlocks (they've become features).
+    Deletes generated, curated, and dismissed unlocks.
+    """
+    supabase = get_client()
+    resp = (
+        supabase.table("unlocks")
+        .delete()
+        .eq("project_id", str(project_id))
+        .neq("status", "promoted")
+        .execute()
+    )
+    deleted = len(resp.data) if resp.data else 0
+    if deleted:
+        logger.info(f"Cleared {deleted} stale unlocks for {project_id}")
+    return deleted
+
+
 # ============================================================================
 # Unlocks
 # ============================================================================
@@ -40,6 +60,7 @@ async def generate_unlocks_endpoint(
     background_tasks: BackgroundTasks,
 ):
     """Trigger async batch generation of strategic unlocks."""
+    import asyncio
     import uuid as uuid_mod
 
     batch_id = uuid_mod.uuid4()
@@ -49,13 +70,22 @@ async def generate_unlocks_endpoint(
         from app.db.unlocks import bulk_create_unlocks
 
         try:
+            # Clear non-promoted unlocks before regenerating
+            _clear_stale_unlocks(project_id)
+
             unlocks = await generate_unlocks(project_id)
             bulk_create_unlocks(project_id, unlocks, batch_id=batch_id)
-            logger.info(f"Unlock generation complete: {len(unlocks)} for {project_id}")
+            logger.info(
+                f"Unlock generation complete: {len(unlocks)} "
+                f"for {project_id}"
+            )
         except Exception:
-            logger.exception(f"Unlock generation failed for {project_id}")
+            logger.exception(
+                f"Unlock generation failed for {project_id}"
+            )
 
-    background_tasks.add_task(_run)
+    # Launch as a proper asyncio task to avoid background_tasks issues
+    asyncio.create_task(_run())
     return {"batch_id": str(batch_id), "status": "generating"}
 
 
@@ -93,7 +123,12 @@ async def promote_unlock_endpoint(project_id: UUID, unlock_id: UUID, body: dict 
     if not unlock:
         raise HTTPException(status_code=404, detail="Unlock not found")
 
-    priority_group = (body or {}).get("target_priority_group", "could_have")
+    if unlock.get("status") == "promoted":
+        raise HTTPException(
+            status_code=409, detail="Unlock already promoted"
+        )
+
+    priority_group = (body or {}).get("target_priority_group", "should_have")
 
     # Create feature from unlock — use feature_sketch as overview if available
     supabase = get_client()
@@ -104,7 +139,6 @@ async def promote_unlock_endpoint(project_id: UUID, unlock_id: UUID, body: dict 
         "overview": overview,
         "priority_group": priority_group,
         "confirmation_status": "ai_generated",
-        "origin": "unlock",
         "origin_unlock_id": str(unlock_id),
     }
     feat_resp = supabase.table("features").insert(feature_data).execute()

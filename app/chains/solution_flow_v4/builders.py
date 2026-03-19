@@ -94,6 +94,19 @@ STEP_DETAIL_TOOL = {
                     "required": ["question"],
                 },
             },
+            "story_headline": {
+                "type": "string",
+                "description": "One punchy sentence (max 120 chars) — the KEY MOMENT. Not a summary — the single moment that makes this screen matter.",
+            },
+            "user_actions": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "3-5 things the user can DO on this screen. Actions not data. e.g. 'Filter inventory by supplier and date range'",
+            },
+            "human_value_statement": {
+                "type": "string",
+                "description": "One sentence: what this saves the human. Be specific. e.g. 'Saves Sarah 45 minutes/day on manual supplier monitoring'",
+            },
             "ai_config": {
                 "type": "object",
                 "properties": {
@@ -135,6 +148,8 @@ STEP_DETAIL_TOOL = {
             "mock_data_narrative",
             "implied_pattern",
             "success_criteria",
+            "story_headline",
+            "user_actions",
             "ai_config",
         ],
     },
@@ -146,12 +161,15 @@ BUILDER_SYSTEM_PROMPT = """You are a product detail builder creating the DETAILE
 Fill in the details for this single step:
 1. **information_fields**: What data is captured, displayed, or computed. Use REALISTIC mock values with specific names, numbers, dates from the context.
 2. **mock_data_narrative**: A story using a specific persona: "Sarah opens her inventory screen and sees 247 items awaiting classification..."
-3. **implied_pattern**: What UI pattern fits (form, table, dashboard, wizard, card list, split-pane, etc.)
-4. **success_criteria**: 2-4 measurable, user-observable criteria
-5. **pain_points_addressed**: Which pain points this step alleviates
-6. **goals_addressed**: Which goals this step advances
-7. **open_questions**: What needs client clarification
-8. **ai_config** (REQUIRED): EVERY step has an AI intelligence layer. Name the agent distinctly (e.g. 'Onboarding Guide', 'Market Sizer', 'Pipeline Watcher'). Classify its type (classifier/matcher/predictor/watcher/generator/processor). Set automation_estimate: data processing 80-95%, creative/judgment 30-60%. Even simple steps have smart defaults, validation, or pattern recognition.
+3. **implied_pattern**: What UI pattern fits (dashboard, table, wizard, card, form, timeline, kanban, map, comparison, report, chat, calendar, gallery, tree, metrics, inbox, splitview)
+4. **story_headline**: The KEY MOMENT — one punchy sentence (max 120 chars). Not a summary. The single moment that makes this screen matter. e.g. "Sarah spots a misclassified supplier before it costs $12K"
+5. **user_actions**: 3-5 things the user can DO on this screen. Actions not data. e.g. "Filter inventory by supplier and date range", "Approve or reject flagged items", "Export filtered results to PDF"
+6. **human_value_statement**: One sentence about what this saves the human. Be specific with names and numbers. e.g. "Saves Sarah 45 minutes/day on manual supplier monitoring". Optional but strongly encouraged.
+7. **success_criteria**: 2-4 measurable, user-observable criteria
+8. **pain_points_addressed**: Which pain points this step alleviates
+9. **goals_addressed**: Which goals this step advances
+10. **open_questions**: What needs client clarification
+11. **ai_config** (REQUIRED): EVERY step has an AI intelligence layer. Name the agent distinctly (e.g. 'Onboarding Guide', 'Market Sizer', 'Pipeline Watcher'). Classify its type (classifier/matcher/predictor/watcher/generator/processor). Set automation_estimate: data processing 80-95%, creative/judgment 30-60%. Even simple steps have smart defaults, validation, or pattern recognition.
 
 ## Rules
 - Confidence levels: "known" = in BRD data, "inferred" = logically derived, "guess" = reasonable assumption, "unknown" = needs client input
@@ -255,6 +273,11 @@ Generate the detailed information_fields, mock_data_narrative, implied_pattern, 
                     # Rename goal_sentence → goal
                     if "goal_sentence" in merged and "goal" not in merged:
                         merged["goal"] = merged.pop("goal_sentence")
+
+                    # Post-process: clean implied_pattern to keyword
+                    merged = _clean_implied_pattern(merged)
+                    # Post-process: ensure ai_config exists
+                    merged = _ensure_ai_config(merged)
 
                     return merged
 
@@ -392,16 +415,90 @@ def _assemble_step_context(
     return "\n".join(parts) if parts else "No specific context for this step."
 
 
+_VALID_PATTERNS = {
+    "dashboard", "table", "wizard", "card", "form", "timeline",
+    "kanban", "map", "comparison", "report", "chat", "calendar",
+    "gallery", "tree", "metrics", "inbox", "splitview",
+}
+
+_AGENT_TYPE_FROM_KEYWORDS: list[tuple[str, list[str]]] = [
+    ("watcher", ["monitor", "alert", "track", "detect", "watch"]),
+    ("classifier", ["classify", "categoriz", "sort", "tag", "assess"]),
+    ("matcher", ["match", "search", "retriev", "find", "connect"]),
+    ("predictor", ["predict", "forecast", "estimat", "score"]),
+    ("generator", ["generate", "creat", "compil", "report", "summar"]),
+]
+
+
+def _clean_implied_pattern(step: dict) -> dict:
+    """Extract a clean pattern keyword from verbose implied_pattern text."""
+    raw = step.get("implied_pattern", "form") or "form"
+    # Try to extract the first recognizable keyword
+    raw_lower = raw.lower().strip()
+    for pattern in _VALID_PATTERNS:
+        if raw_lower.startswith(pattern) or f" {pattern}" in raw_lower:
+            step["implied_pattern"] = pattern
+            return step
+    # Fallback: take first word
+    first_word = raw_lower.split()[0].rstrip(".,;:-—")
+    if first_word in _VALID_PATTERNS:
+        step["implied_pattern"] = first_word
+    else:
+        step["implied_pattern"] = "dashboard"
+    return step
+
+
+def _ensure_ai_config(step: dict) -> dict:
+    """Ensure every step has an ai_config with agent_name and agent_type."""
+    config = step.get("ai_config")
+    if config and config.get("agent_name") and config.get("agent_type"):
+        return step
+
+    title = step.get("title", "")
+    goal = step.get("goal", step.get("goal_sentence", ""))
+    text = f"{title} {goal}".lower()
+
+    # Infer agent type from step content
+    agent_type = "processor"
+    for atype, keywords in _AGENT_TYPE_FROM_KEYWORDS:
+        if any(kw in text for kw in keywords):
+            agent_type = atype
+            break
+
+    # Build a short agent name from the step title
+    words = title.split()[:3]
+    agent_name = " ".join(words) if len(words) >= 2 else title[:30]
+    # Make it agent-like: "Checklist Review" → "Checklist Reviewer"
+    if not agent_name.endswith(("er", "or", "ar")):
+        agent_name = f"{agent_name} Agent"
+
+    if not config:
+        config = {}
+
+    config.setdefault("role", goal[:200] if goal else f"AI assistant for {title}")
+    config.setdefault("agent_name", agent_name)
+    config.setdefault("agent_type", agent_type)
+    config.setdefault("behaviors", [f"Assists with {title.lower()}"])
+    config.setdefault("automation_estimate", 60)
+
+    step["ai_config"] = config
+    return step
+
+
 def _skeleton_to_fallback(skeleton: dict) -> dict[str, Any]:
     """Convert skeleton to a minimal step when builder fails."""
+    title = skeleton.get("title", "this step")
     return {
         **skeleton,
         "goal": skeleton.get("goal_sentence", skeleton.get("goal", "")),
         "information_fields": [],
-        "mock_data_narrative": f"The {', '.join(skeleton.get('actors', ['user']))} completes {skeleton.get('title', 'this step')}.",
+        "mock_data_narrative": f"The {', '.join(skeleton.get('actors', ['user']))} completes {title}.",
         "implied_pattern": "form",
-        "success_criteria": [f"{skeleton.get('title', 'Step')} completes successfully"],
+        "success_criteria": [f"{title} completes successfully"],
         "open_questions": [],
+        "story_headline": f"The user completes {title}.",
+        "user_actions": [],
+        "human_value_statement": None,
     }
 
 

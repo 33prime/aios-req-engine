@@ -815,6 +815,14 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                     flow={brdData?.solution_flow ?? null}
                     personas={canvasData.personas}
                     onGenerateFlow={loadData}
+                    projectName={brdData?.business_context?.company_name ?? undefined}
+                    brdFeatures={brdData ? [
+                      ...(brdData.requirements?.must_have || []),
+                      ...(brdData.requirements?.should_have || []),
+                      ...(brdData.requirements?.could_have || []),
+                    ] : undefined}
+                    brdWorkflows={brdData?.workflows}
+                    brdDataEntities={brdData?.data_entities}
                   />
                 )}
                 {discoveryViewMode === 'ai' && (

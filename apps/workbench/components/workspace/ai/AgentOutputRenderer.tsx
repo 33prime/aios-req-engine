@@ -13,6 +13,7 @@ interface Props {
   agentType: AgentType
   output: Record<string, unknown>
   executionTimeMs: number
+  hideFooter?: boolean
 }
 
 // ── Confidence badge ────────────────────────────────────────────
@@ -386,7 +387,7 @@ const RENDERERS: Record<AgentType, React.FC<{ output: Record<string, unknown> }>
   processor: ProcessorOutput,
 }
 
-export function AgentOutputRenderer({ agentType, output, executionTimeMs }: Props) {
+export function AgentOutputRenderer({ agentType, output, executionTimeMs, hideFooter }: Props) {
   const Renderer = RENDERERS[agentType]
 
   if (!Renderer) {
@@ -409,14 +410,16 @@ export function AgentOutputRenderer({ agentType, output, executionTimeMs }: Prop
   return (
     <div>
       <Renderer output={output} />
-      <div className="mt-3 pt-2 border-t border-[rgba(0,0,0,0.06)] flex items-center justify-between">
-        <span className="text-[10px] text-[#A0AEC0]">
-          Processed in {executionTimeMs}ms
-        </span>
-        <span className="text-[10px] text-[#A0AEC0]">
-          Haiku 4.5
-        </span>
-      </div>
+      {!hideFooter && (
+        <div className="mt-3 pt-2 border-t border-[rgba(0,0,0,0.06)] flex items-center justify-between">
+          <span className="text-[10px] text-[#A0AEC0]">
+            Processed in {executionTimeMs}ms
+          </span>
+          <span className="text-[10px] text-[#A0AEC0]">
+            Readytogo Agents
+          </span>
+        </div>
+      )}
     </div>
   )
 }

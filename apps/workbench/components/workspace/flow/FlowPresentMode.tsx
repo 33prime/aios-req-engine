@@ -1,9 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import type { SolutionFlowStepSummary, SolutionFlowStepDetail, PersonaSummary } from '@/types/workspace'
-import { SOLUTION_FLOW_PHASES } from '@/lib/solution-flow-constants'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import type { SolutionFlowStepSummary, SolutionFlowStepDetail, PersonaSummary, DerivedAgent } from '@/types/workspace'
+import { PHASE_ORDER, SOLUTION_FLOW_PHASES, LANE_CONFIG } from '@/lib/solution-flow-constants'
 import { PresentModeShell } from '@/components/workspace/shared/PresentModeShell'
+import { PresentShareToolbar } from '@/components/workspace/shared/PresentShareToolbar'
+import { OnePagerView } from '@/components/workspace/shared/OnePagerView'
+import {
+  HeroSlide, SplitSlide, DataSlide, AgentSpotlightSlide, DefaultSlide,
+  classifySlideTemplate, PhaseTransitionSlide,
+} from '@/components/workspace/shared/present-slides'
+import type { SlideData } from '@/components/workspace/shared/present-slides'
 import { getSolutionFlowStep } from '@/lib/api/admin'
 
 interface FlowPresentModeProps {
@@ -13,6 +20,20 @@ interface FlowPresentModeProps {
   personas: PersonaSummary[]
   flowSummary: string
   projectId: string
+  variant?: 'walkthrough' | 'onepager'
+  agents?: DerivedAgent[]
+  avgAutomation?: number
+  projectName?: string
+  stepDetailsMap?: Map<string, SolutionFlowStepDetail>
+  starredStepIds?: Set<string>
+}
+
+const SLIDE_TEMPLATES = {
+  hero: HeroSlide,
+  split: SplitSlide,
+  data: DataSlide,
+  agent_spotlight: AgentSpotlightSlide,
+  default: DefaultSlide,
 }
 
 export function FlowPresentMode({
@@ -22,17 +43,24 @@ export function FlowPresentMode({
   personas,
   flowSummary,
   projectId,
+  variant = 'walkthrough',
+  agents,
+  avgAutomation = 0,
+  projectName,
+  stepDetailsMap: externalDetails,
+  starredStepIds,
 }: FlowPresentModeProps) {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [stepDetails, setStepDetails] = useState<Map<string, SolutionFlowStepDetail>>(new Map())
   const [fetching, setFetching] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
 
-  // Total: title + steps + summary
-  const totalSlides = steps.length + 2
+  // Use external details if provided, else fetch
+  const details = externalDetails && externalDetails.size > 0 ? externalDetails : stepDetails
 
-  // Fetch all step details on open
+  // Fetch step details on open (if no external details)
   useEffect(() => {
-    if (!isOpen || stepDetails.size > 0 || fetching) return
+    if (!isOpen || (externalDetails && externalDetails.size > 0) || stepDetails.size > 0 || fetching) return
     setFetching(true)
     Promise.allSettled(
       steps.map(s => getSolutionFlowStep(projectId, s.id))
@@ -44,27 +72,113 @@ export function FlowPresentMode({
       setStepDetails(map)
       setFetching(false)
     })
-  }, [isOpen, steps, projectId, stepDetails.size, fetching])
+  }, [isOpen, steps, projectId, stepDetails.size, fetching, externalDetails])
 
   // Reset slide on close
   useEffect(() => {
     if (!isOpen) {
       setCurrentSlide(0)
-      setStepDetails(new Map())
+      if (!externalDetails) setStepDetails(new Map())
     }
-  }, [isOpen])
+  }, [isOpen, externalDetails])
+
+  // Build slide array with phase transitions
+  const slides = useMemo(() => {
+    const result: Array<{ type: 'title' | 'transition' | 'step' | 'summary'; data?: unknown }> = []
+
+    // Title slide
+    result.push({ type: 'title' })
+
+    // Steps grouped by phase with transitions
+    let lastPhase = ''
+    for (const step of steps) {
+      if (step.phase !== lastPhase) {
+        const phaseSteps = steps.filter(s => s.phase === step.phase)
+        result.push({
+          type: 'transition',
+          data: {
+            phase: step.phase,
+            stepCount: phaseSteps.length,
+            phaseIndex: PHASE_ORDER.indexOf(step.phase as typeof PHASE_ORDER[number]),
+          },
+        })
+        lastPhase = step.phase
+      }
+      result.push({ type: 'step', data: step })
+    }
+
+    // Summary slide
+    result.push({ type: 'summary' })
+
+    return result
+  }, [steps])
+
+  const totalSlides = slides.length
 
   const navigate = (dir: 1 | -1) => {
     setCurrentSlide(prev => Math.max(0, Math.min(totalSlides - 1, prev + dir)))
   }
 
+  const handleDownloadPDF = useCallback(() => {
+    // Switch to onepager and print (if already in onepager, just print)
+    if (variant === 'onepager') {
+      window.print()
+    } else {
+      // Close walkthrough and re-open as onepager
+      // For simplicity, just call window.print on current view
+      window.print()
+    }
+  }, [variant])
+
+  const handleScreenshot = useCallback(() => {
+    // Handled by PresentShareToolbar internally
+  }, [])
+
+  const toolbar = (
+    <PresentShareToolbar
+      onDownloadPDF={handleDownloadPDF}
+      onScreenshot={handleScreenshot}
+      contentRef={contentRef}
+    />
+  )
+
+  // One-Pager mode
+  if (variant === 'onepager') {
+    return (
+      <PresentModeShell
+        isOpen={isOpen}
+        onClose={onClose}
+        totalSlides={0}
+        currentSlide={0}
+        onNavigate={() => {}}
+        counterLabel={projectName ? `${projectName} — Solution Blueprint` : 'Solution Blueprint'}
+        variant="onepager"
+        toolbar={toolbar}
+      >
+        <OnePagerView
+          steps={steps}
+          stepDetails={details}
+          agents={agents}
+          personas={personas}
+          flowSummary={flowSummary}
+          projectName={projectName}
+          onClose={onClose}
+        />
+      </PresentModeShell>
+    )
+  }
+
+  // Walkthrough mode
   const renderSlide = () => {
+    const slide = slides[currentSlide]
+    if (!slide) return null
+
     // Title slide
-    if (currentSlide === 0) {
+    if (slide.type === 'title') {
       return (
         <div className="text-center">
           <h1 className="text-[42px] font-bold text-white mb-2.5" style={{ letterSpacing: '-0.02em' }}>
-            Living Blueprint
+            {projectName ? `${projectName}` : 'Living Blueprint'}
           </h1>
           <p className="text-lg leading-relaxed mb-9 max-w-[600px] mx-auto" style={{ color: 'rgba(255,255,255,0.5)' }}>
             {flowSummary || `${steps.length} solution steps across ${new Set(steps.map(s => s.phase)).size} phases`}
@@ -72,25 +186,42 @@ export function FlowPresentMode({
           <div className="flex justify-center gap-7 mb-9">
             <Stat value={String(steps.length)} label="Steps" />
             <Stat value={String(personas.length)} label="Personas" />
-            <Stat value={String(new Set(steps.map(s => s.phase)).size)} label="Phases" />
+            {agents && agents.length > 0 && <Stat value={String(agents.length)} label="AI Agents" />}
+            {avgAutomation > 0 && <Stat value={`${avgAutomation}%`} label="Automated" />}
           </div>
           <p className="text-[13px]" style={{ color: 'rgba(255,255,255,0.2)' }}>
-            Press → to begin
+            Press &rarr; to begin
           </p>
         </div>
       )
     }
 
+    // Phase transition
+    if (slide.type === 'transition') {
+      const { phase, stepCount, phaseIndex } = slide.data as { phase: string; stepCount: number; phaseIndex: number }
+      const lane = LANE_CONFIG[phase]
+      return (
+        <PhaseTransitionSlide
+          phaseName={phase}
+          phaseLabel={lane?.label || phase}
+          subtitle={lane?.subtitle || ''}
+          stepCount={stepCount}
+          phaseIndex={phaseIndex}
+        />
+      )
+    }
+
     // Summary slide
-    if (currentSlide === totalSlides - 1) {
+    if (slide.type === 'summary') {
       return (
         <div className="text-center">
           <h2 className="text-[32px] font-bold text-white mb-7" style={{ letterSpacing: '-0.01em' }}>
-            Flow Summary
+            {projectName ? `${projectName} — Summary` : 'Flow Summary'}
           </h2>
           <div className="grid grid-cols-3 gap-3 mb-8 text-left">
             {steps.map(s => {
               const phase = SOLUTION_FLOW_PHASES[s.phase]
+              const d = details.get(s.id)
               return (
                 <div
                   key={s.id}
@@ -105,7 +236,7 @@ export function FlowPresentMode({
                   </span>
                   <div className="text-sm font-semibold text-white mb-1">{s.title}</div>
                   <div className="text-[11px] leading-snug" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                    {s.actors.join(', ')}
+                    {d?.story_headline || s.goal}
                   </div>
                 </div>
               )
@@ -120,107 +251,31 @@ export function FlowPresentMode({
       )
     }
 
-    // Step slide
-    const stepIndex = currentSlide - 1
-    const s = steps[stepIndex]
-    const d = stepDetails.get(s.id)
-    const phase = SOLUTION_FLOW_PHASES[s.phase]
+    // Step slide — use template classification
+    const stepData = slide.data as SolutionFlowStepSummary
+    const d = details.get(stepData.id)
+    const stepIdx = steps.indexOf(stepData)
+    const template = classifySlideTemplate(stepData, d ?? null)
+    const SlideComponent = SLIDE_TEMPLATES[template]
 
-    const painBefore = d?.pain_points_addressed?.[0]
-    const beforeText = painBefore ? (typeof painBefore === 'string' ? painBefore : painBefore.text) : null
-    const afterText = d?.goals_addressed?.[0] || d?.success_criteria?.[0] || null
+    const slideData: SlideData = {
+      step: stepData,
+      detail: d ?? null,
+      stepIndex: stepIdx,
+      totalSteps: steps.length,
+    }
 
-    return (
-      <div>
-        {/* Step header */}
-        <div className="flex items-center gap-3 mb-2">
-          <span
-            className="text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded"
-            style={{ background: 'rgba(63,175,122,0.1)', color: '#3FAF7A' }}
-          >
-            {phase?.label}
-          </span>
-          <span className="text-[12px] font-medium" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            Step {s.step_index + 1} of {steps.length}
-          </span>
-        </div>
-
-        <h2 className="text-[34px] font-bold text-white mb-2" style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-          {s.title}
-        </h2>
-        <p className="text-[15px] leading-relaxed mb-5" style={{ color: 'rgba(255,255,255,0.45)' }}>
-          {s.goal}
-        </p>
-
-        {/* Narrative */}
-        {d?.mock_data_narrative && (
-          <div
-            className="text-[15px] leading-[1.7] rounded-[10px] p-4.5 mb-5"
-            style={{
-              color: 'rgba(255,255,255,0.78)',
-              background: 'rgba(255,255,255,0.035)',
-              borderLeft: '3px solid #3FAF7A',
-            }}
-          >
-            {d.mock_data_narrative}
-          </div>
-        )}
-
-        {/* Before / After */}
-        {(beforeText || afterText) && (
-          <div
-            className="grid overflow-hidden rounded-[9px] mb-5"
-            style={{ gridTemplateColumns: '1fr auto 1fr', border: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <div className="p-3.5" style={{ background: 'rgba(4,65,89,0.15)' }}>
-              <div className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Before</div>
-              <div className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{beforeText || '—'}</div>
-            </div>
-            <div className="flex items-center justify-center px-2.5 text-lg" style={{ background: 'rgba(255,255,255,0.02)', color: '#3FAF7A' }}>→</div>
-            <div className="p-3.5" style={{ background: 'rgba(63,175,122,0.08)' }}>
-              <div className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: '#3FAF7A' }}>After</div>
-              <div className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{afterText || '—'}</div>
-            </div>
-          </div>
-        )}
-
-        {/* Actors */}
-        <div className="flex gap-2 mb-4">
-          {s.actors.map(name => (
-            <div
-              key={name}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
-            >
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-                style={{ background: '#3FAF7A' }}
-              >
-                {name.split(' ').map(w => w[0]).join('').slice(0, 2)}
-              </div>
-              <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>{name}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* AI Role */}
-        {(d?.ai_config?.role || d?.ai_config?.ai_role) && (
-          <div
-            className="text-[13px] leading-relaxed p-3.5 rounded-[9px]"
-            style={{
-              color: 'rgba(255,255,255,0.55)',
-              fontStyle: 'italic',
-              background: 'rgba(255,255,255,0.02)',
-              border: '1px solid rgba(255,255,255,0.04)',
-            }}
-          >
-            <span style={{ color: '#3FAF7A', fontWeight: 600, fontStyle: 'normal' }}>AI: </span>
-            {d?.ai_config?.role || d?.ai_config?.ai_role}
-          </div>
-        )}
-      </div>
-    )
+    return <SlideComponent {...slideData} />
   }
+
+  const currentSlideData = slides[currentSlide]
+  const counterLabel = currentSlideData?.type === 'title'
+    ? (projectName || 'Living Blueprint')
+    : currentSlideData?.type === 'summary'
+      ? 'Summary'
+      : currentSlideData?.type === 'transition'
+        ? 'Phase Transition'
+        : `Step ${slides.slice(0, currentSlide + 1).filter(s => s.type === 'step').length} of ${steps.length}`
 
   return (
     <PresentModeShell
@@ -229,13 +284,8 @@ export function FlowPresentMode({
       totalSlides={totalSlides}
       currentSlide={currentSlide}
       onNavigate={navigate}
-      counterLabel={
-        currentSlide === 0
-          ? 'Living Blueprint'
-          : currentSlide === totalSlides - 1
-            ? 'Summary'
-            : `Step ${currentSlide} of ${steps.length}`
-      }
+      counterLabel={counterLabel}
+      toolbar={toolbar}
     >
       {renderSlide()}
     </PresentModeShell>

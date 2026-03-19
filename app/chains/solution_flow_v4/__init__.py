@@ -102,12 +102,16 @@ async def generate_solution_flow_v4(
         confirmed_steps=confirmed_steps,
         metadata=ctx.metadata,
         project_id=project_id,
+        ctx=ctx,
     )
     phase2_s = time.monotonic() - t0
 
     skeletons = architecture.get("step_skeletons", [])
     flow_thesis = architecture.get("flow_thesis", "")
     logger.info(f"v4 Phase 2 done in {phase2_s:.1f}s: {len(skeletons)} steps planned")
+
+    # Coverage check — warn on unlinked must_have features or workflows
+    _log_coverage_gaps(ctx, skeletons, confirmed_steps)
 
     if not skeletons and not confirmed_steps:
         return {"error": "No steps planned", "steps": []}
@@ -270,6 +274,55 @@ async def generate_solution_flow_v4(
             "value_unlock_chain": insights.get("value_unlock_chain", ""),
         },
     }
+
+
+def _log_coverage_gaps(
+    ctx: Any,
+    skeletons: list[dict],
+    confirmed_steps: list[dict],
+) -> None:
+    """Log warnings for must_have features or workflows not linked to any step."""
+    # Collect all linked IDs across skeletons + confirmed
+    all_steps = skeletons + confirmed_steps
+    linked_features: set[str] = set()
+    linked_workflows: set[str] = set()
+    for step in all_steps:
+        for fid in step.get("linked_feature_ids") or []:
+            linked_features.add(fid)
+        for wid in step.get("linked_workflow_ids") or []:
+            linked_workflows.add(wid)
+
+    # Check must_have + should_have features
+    critical_features = [
+        f for f in ctx.features
+        if f.get("priority_group") in ("must_have", "should_have")
+    ]
+    unlinked_features = [
+        f for f in critical_features
+        if f["id"] not in linked_features
+    ]
+    if unlinked_features:
+        names = [f.get("name", "?")[:50] for f in unlinked_features]
+        logger.warning(
+            f"Coverage gap: {len(unlinked_features)} must/should_have "
+            f"features not linked to any step: {names}"
+        )
+
+    # Check future-state workflows
+    future_wfs = [
+        w for w in ctx.workflows
+        if w.get("state_type") == "future"
+    ]
+    unlinked_wfs = [
+        w for w in future_wfs
+        if w["id"] not in linked_workflows
+    ]
+    if unlinked_wfs:
+        names = [w.get("name", "?")[:50] for w in unlinked_wfs]
+        logger.warning(
+            f"Coverage gap: {len(unlinked_wfs)} future workflows "
+            f"not linked to any step: {names}"
+        )
 
 
 # =============================================================================

@@ -158,20 +158,33 @@ Given the project BRD and intelligence insights, design step SKELETONS:
 - Where AI plays a role
 - What complexity level each step needs (simple/moderate/rich)
 
-## Rules
+## CRITICAL RULES — Feature & Workflow Coverage
 
-1. Each future-state workflow should map to 1-3 steps
-2. MERGE related workflows when they share data entities or serve the same persona journey
-3. Order steps by PERSONA JOURNEY, not just by phase
-4. If intelligence insights reveal missing capabilities, create steps for them
-5. If tension points exist, note them on the relevant step
-6. The data_thread should explain the golden thread connecting all steps
-7. Each step's goal_sentence should be actionable: "Identify which..." not "View the..."
-8. Link to actual entity IDs from the project context — don't invent IDs
-9. Assign horizons based on feature priority and unlock intelligence:
-   - H1: must_have features, core capabilities
-   - H2: should_have features, enhancement capabilities
-   - H3: could_have features, future vision
+1. **EVERY must_have feature MUST appear in at least one step's linked_feature_ids.** This is non-negotiable. If a must_have feature is not linked to any step, the solution is incomplete.
+2. **EVERY should_have feature SHOULD appear in at least one step's linked_feature_ids.** These are validated capabilities — usually from promoted unlocks.
+3. **EVERY future-state workflow MUST map to at least one step's linked_workflow_ids.** No workflow should be orphaned. Related workflows can merge into the same step, but every workflow must be accounted for.
+4. **Constraints shape the solution.** If a constraint says "HIPAA compliance required", that must influence how data-handling steps are designed. If "mobile-first", entry steps should reflect that. Reference specific constraints in tension_notes or insight_notes.
+
+## Architecture Rules
+
+5. MERGE related workflows when they share data entities or serve the same persona journey
+6. Order steps by PERSONA JOURNEY, not just by phase
+7. If intelligence insights reveal missing capabilities, create steps for them
+8. If tension points exist, note them on the relevant step
+9. The data_thread should explain the golden thread connecting all steps
+10. Each step's goal_sentence should be actionable: "Identify which..." not "View the..."
+11. Link to actual entity IDs from the project context — don't invent IDs
+12. Assign horizons based on feature priority and unlock intelligence:
+    - H1: must_have features, core capabilities
+    - H2: should_have features, enhancement capabilities
+    - H3: could_have features, future vision
+
+## Unlock-Informed Design
+
+If unlocks are present, use them to enrich the flow:
+- Promoted unlocks are now should_have features — ensure they have a home in the flow
+- H2/H3 unlocks may suggest steps in the output or admin phases
+- The unlock_sequence field should describe how H1 steps enable H2 capabilities which enable H3 possibilities
 """
 
 
@@ -181,6 +194,7 @@ async def plan_architecture(
     confirmed_steps: list[dict],
     metadata: dict[str, Any],
     project_id: UUID,
+    ctx: Any = None,
 ) -> dict[str, Any]:
     """Phase 2: Sonnet plans the flow structure.
 
@@ -230,6 +244,9 @@ async def plan_architecture(
     insights_section = _format_insights_for_architecture(insights)
     confirmed_section = _format_confirmed_constraints(confirmed_steps)
 
+    # Build explicit entity checklists so the LLM can't miss them
+    checklist_section = _build_entity_checklist(ctx) if ctx else ""
+
     user_prompt = f"""Design the Solution Flow architecture for this project.
 
 ## Complexity Signal
@@ -240,18 +257,21 @@ Target: {target_min}-{target_max} steps.
 
 {confirmed_section}
 
+{checklist_section}
+
 ## Instructions
 - Plan {target_min}-{target_max} step skeletons
 - Link steps to actual IDs from the project context
 - Explain the data thread connecting all steps
 - Note any tension points or intelligence insights on relevant steps
-- Assign horizons (H1/H2/H3) based on feature priority and value sequence"""
+- Assign horizons (H1/H2/H3) based on feature priority and value sequence
+- VERIFY: every feature and workflow in the checklist above MUST appear in at least one step's linked IDs"""
 
     try:
         t0 = time.monotonic()
         async with client.messages.stream(
             model=_MODEL,
-            max_tokens=8000,
+            max_tokens=16000,
             system=system_blocks,
             messages=[{"role": "user", "content": user_prompt}],
             temperature=0,
@@ -260,6 +280,13 @@ Target: {target_min}-{target_max} steps.
         ) as stream:
             response = await stream.get_final_message()
         elapsed_ms = int((time.monotonic() - t0) * 1000)
+
+        # Check for truncation
+        if response.stop_reason == "max_tokens":
+            logger.warning(
+                f"Phase 2 architecture TRUNCATED (hit max_tokens). "
+                f"Output tokens: {response.usage.output_tokens}"
+            )
 
         for block in response.content:
             if block.type == "tool_use" and block.name == "submit_flow_architecture":
@@ -300,6 +327,62 @@ Target: {target_min}-{target_max} steps.
     except (APIConnectionError, APITimeoutError, InternalServerError, RateLimitError) as e:
         logger.error(f"Architecture planning failed: {e}")
         return {"step_skeletons": [], "flow_thesis": "", "data_thread": ""}
+
+
+def _build_entity_checklist(ctx: Any) -> str:
+    """Build explicit feature/workflow checklist for the architecture prompt.
+
+    Forces the LLM to account for every critical entity.
+    """
+    parts = ["## Entity Coverage Checklist"]
+    parts.append(
+        "EVERY item below MUST appear in at least one step's "
+        "linked_feature_ids or linked_workflow_ids."
+    )
+
+    # Must-have features
+    must_have = [
+        f for f in ctx.features
+        if f.get("priority_group") == "must_have"
+    ]
+    if must_have:
+        parts.append("\n### MUST HAVE Features (all required)")
+        for f in must_have:
+            parts.append(f"- [ ] {f.get('name', '?')} (id:{f['id']})")
+
+    # Should-have features
+    should_have = [
+        f for f in ctx.features
+        if f.get("priority_group") == "should_have"
+    ]
+    if should_have:
+        parts.append("\n### SHOULD HAVE Features (all expected)")
+        for f in should_have:
+            parts.append(f"- [ ] {f.get('name', '?')} (id:{f['id']})")
+
+    # Future-state workflows
+    future_wfs = [
+        w for w in ctx.workflows
+        if w.get("state_type") == "future"
+    ]
+    if future_wfs:
+        parts.append("\n### Future-State Workflows (all required)")
+        for w in future_wfs:
+            step_count = len(w.get("steps", []))
+            parts.append(
+                f"- [ ] {w.get('name', '?')} (id:{w['id']}, "
+                f"{step_count} steps)"
+            )
+
+    # Constraints (for awareness, not linking)
+    if ctx.constraints:
+        parts.append("\n### Constraints (must influence step design)")
+        for c in ctx.constraints:
+            ctype = c.get("constraint_type", "general")
+            desc = c.get("title") or c.get("description", "?")
+            parts.append(f"- {ctype}: {desc[:100]}")
+
+    return "\n".join(parts) if len(parts) > 2 else ""
 
 
 def _format_insights_for_architecture(insights: dict[str, Any]) -> str:

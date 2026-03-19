@@ -4,14 +4,16 @@
  * WorkbenchDetailPanel — Slide-in panel (520px right) for the Intelligence Workbench.
  *
  * Layout: detail content (scrollable top), chat (fixed bottom).
- * Try It: input in chat area, output opens as modal to the LEFT of the panel.
+ * Try It: 3-state input (empty / example / custom), processing animation, centered output modal.
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import type { DerivedAgent, AgentExecuteResponse } from '@/types/workspace'
+import type { DerivedAgent, AgentExecuteResponse, AgentExampleResponse } from '@/types/workspace'
 import { useChat, type ChatMessage } from '@/lib/useChat'
 import { executeAgent, getAgentExample } from '@/lib/api/workspace'
-import { AgentOutputRenderer } from './AgentOutputRenderer'
+import { AgentOutputModal } from './AgentOutputModal'
+import { ExampleInputCard } from './ExampleInputCard'
+import { ProcessingAnimation } from './ProcessingAnimation'
 
 interface Props {
   agent: DerivedAgent
@@ -19,6 +21,8 @@ interface Props {
   projectId: string
   onClose: () => void
 }
+
+type InputMode = 'empty' | 'example' | 'custom'
 
 const TECHNIQUE_LABELS: Record<string, string> = {
   llm: 'Large Language Model',
@@ -42,10 +46,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function WorkbenchDetailPanel({ agent, agents, projectId, onClose }: Props) {
   // Try It state
   const [tryInput, setTryInput] = useState('')
+  const [inputMode, setInputMode] = useState<InputMode>('empty')
   const [isRunning, setIsRunning] = useState(false)
   const [isLoadingExample, setIsLoadingExample] = useState(false)
+  const [exampleData, setExampleData] = useState<AgentExampleResponse | null>(null)
   const [outputResult, setOutputResult] = useState<AgentExecuteResponse | null>(null)
   const [outputOpen, setOutputOpen] = useState(false)
+  const [runStartedAt, setRunStartedAt] = useState<number | null>(null)
 
   // Chat
   const { messages, sendMessage, isLoading } = useChat({
@@ -79,7 +86,9 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose }: Prop
     setIsLoadingExample(true)
     try {
       const example = await getAgentExample(projectId, agent.type)
+      setExampleData(example)
       setTryInput(example.example_input)
+      setInputMode('example')
     } catch { /* ignore */ }
     setIsLoadingExample(false)
   }, [projectId, agent.type])
@@ -87,6 +96,7 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose }: Prop
   const handleRun = useCallback(async () => {
     if (!tryInput.trim()) return
     setIsRunning(true)
+    setRunStartedAt(Date.now())
     try {
       const response = await executeAgent(projectId, {
         agent_type: agent.type,
@@ -98,7 +108,23 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose }: Prop
       setOutputOpen(true)
     } catch { /* ignore */ }
     setIsRunning(false)
+    setRunStartedAt(null)
   }, [projectId, agent, tryInput])
+
+  const handleSwitchToCustom = useCallback(() => {
+    setInputMode('custom')
+    setTryInput('')
+    setExampleData(null)
+  }, [])
+
+  const handleSwitchToExample = useCallback(() => {
+    if (exampleData) {
+      setInputMode('example')
+      setTryInput(exampleData.example_input)
+    } else {
+      handleLoadExample()
+    }
+  }, [exampleData, handleLoadExample])
 
   const handleSend = () => {
     if (!chatInput.trim() || isLoading) return
@@ -124,7 +150,7 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose }: Prop
 
   return (
     <>
-      {/* Backdrop — only covers left of panel */}
+      {/* Backdrop */}
       <div
         className="fixed top-0 left-0 bottom-0 z-[190]"
         style={{ right: 520, background: 'rgba(10,30,47,0.15)' }}
@@ -158,7 +184,7 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose }: Prop
             </span>
             <span className="text-[10px] text-[#718096]">{agent.automationRate}% auto</span>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[rgba(0,0,0,0.04)] transition-colors text-[#718096]">✕</button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[rgba(0,0,0,0.04)] transition-colors text-[#718096]">&#x2715;</button>
         </div>
 
         {/* Scrollable detail content */}
@@ -166,48 +192,78 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose }: Prop
           {/* Try It section */}
           <Section title="Try It">
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] text-[#4A5568]">Test {agent.name} with real data</p>
-                <button
-                  onClick={handleLoadExample}
-                  disabled={isLoadingExample}
-                  className="text-[11px] font-medium"
-                  style={{ color: '#3FAF7A' }}
-                >
-                  {isLoadingExample ? 'Loading...' : 'Load project example'}
-                </button>
-              </div>
-              <textarea
-                value={tryInput}
-                onChange={e => setTryInput(e.target.value)}
-                placeholder="Paste a meeting transcript, email, or any text..."
-                className="w-full rounded-lg p-2.5 text-[11px] text-[#2D3748] leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-[#3FAF7A]"
-                style={{
-                  background: 'rgba(0,0,0,0.02)',
-                  border: '1px solid rgba(10,30,47,0.10)',
-                  minHeight: 80,
-                  maxHeight: 140,
-                }}
-              />
-              <button
-                onClick={handleRun}
-                disabled={isRunning || !tryInput.trim()}
-                className="w-full rounded-lg py-2 text-[11px] font-semibold text-white transition-all"
-                style={{
-                  background: isRunning || !tryInput.trim() ? '#A0AEC0' : '#3FAF7A',
-                  cursor: isRunning || !tryInput.trim() ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {isRunning ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Running...
-                  </span>
-                ) : (
-                  `Run ${agent.name}`
-                )}
-              </button>
-              {outputResult && !outputOpen && (
+              {/* Processing animation (when running) */}
+              {isRunning && (
+                <ProcessingAnimation
+                  agentType={agent.type}
+                  agentName={agent.name}
+                  isRunning={isRunning}
+                  startedAt={runStartedAt}
+                />
+              )}
+
+              {/* Input modes (when not running) */}
+              {!isRunning && inputMode === 'example' && exampleData && (
+                <ExampleInputCard
+                  example={exampleData}
+                  agentName={agent.name}
+                  onRun={handleRun}
+                  onSwitchToCustom={handleSwitchToCustom}
+                  isRunning={isRunning}
+                />
+              )}
+
+              {!isRunning && inputMode !== 'example' && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] text-[#4A5568]">Test {agent.name} with real data</p>
+                    {inputMode === 'custom' ? (
+                      <button
+                        onClick={handleSwitchToExample}
+                        className="text-[11px] font-medium"
+                        style={{ color: '#3FAF7A' }}
+                      >
+                        Use example instead
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleLoadExample}
+                        disabled={isLoadingExample}
+                        className="text-[11px] font-medium"
+                        style={{ color: '#3FAF7A' }}
+                      >
+                        {isLoadingExample ? 'Loading...' : 'Load project example'}
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    value={tryInput}
+                    onChange={e => setTryInput(e.target.value)}
+                    placeholder="Paste a meeting transcript, email, or any text..."
+                    className="w-full rounded-lg p-2.5 text-[11px] text-[#2D3748] leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-[#3FAF7A]"
+                    style={{
+                      background: 'rgba(0,0,0,0.02)',
+                      border: '1px solid rgba(10,30,47,0.10)',
+                      minHeight: 80,
+                      maxHeight: 140,
+                    }}
+                  />
+                  <button
+                    onClick={handleRun}
+                    disabled={!tryInput.trim()}
+                    className="w-full rounded-lg py-2 text-[11px] font-semibold text-white transition-all"
+                    style={{
+                      background: !tryInput.trim() ? '#A0AEC0' : '#3FAF7A',
+                      cursor: !tryInput.trim() ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Run {agent.name}
+                  </button>
+                </>
+              )}
+
+              {/* View last output button */}
+              {outputResult && !outputOpen && !isRunning && (
                 <button
                   onClick={() => setOutputOpen(true)}
                   className="w-full rounded-lg py-2 text-[11px] font-medium transition-all"
@@ -273,7 +329,7 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose }: Prop
                 {evolution.map((step, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <span className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[10px] mt-0.5" style={{ background: step.done ? '#3FAF7A' : 'rgba(0,0,0,0.06)', color: step.done ? '#fff' : '#A0AEC0' }}>
-                      {step.done ? '✓' : i + 1}
+                      {step.done ? '\u2713' : i + 1}
                     </span>
                     <p className="text-[11px] leading-snug" style={{ color: step.done ? '#4A5568' : '#A0AEC0' }}>{step.label}</p>
                   </div>
@@ -321,7 +377,7 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose }: Prop
           )}
         </div>
 
-        {/* Chat — always fixed at bottom */}
+        {/* Chat */}
         <div
           className="flex-shrink-0 flex flex-col"
           style={{ borderTop: '1px solid rgba(10,30,47,0.08)', height: 200, background: '#FAFAFA' }}
@@ -384,57 +440,14 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose }: Prop
         </div>
       </div>
 
-      {/* Output Modal — opens to the LEFT of the panel */}
-      {outputOpen && outputResult && (
-        <>
-          <div
-            className="fixed top-0 left-0 bottom-0 z-[200]"
-            style={{ right: 520, background: 'rgba(10,30,47,0.35)' }}
-            onClick={() => setOutputOpen(false)}
-          />
-          <div
-            className="fixed z-[205] flex flex-col bg-white rounded-xl shadow-2xl overflow-hidden"
-            style={{
-              top: '5%',
-              bottom: '5%',
-              right: 536,
-              width: 520,
-              maxWidth: 'calc(100vw - 560px)',
-              animation: 'wbOutputIn 0.25s ease',
-            }}
-          >
-            <style>{`@keyframes wbOutputIn { from { opacity: 0; transform: translateX(12px) scale(0.97); } to { opacity: 1; transform: translateX(0) scale(1); } }`}</style>
-
-            {/* Modal header */}
-            <div
-              className="flex items-center gap-3 px-5 py-3 flex-shrink-0"
-              style={{ borderBottom: '1px solid rgba(10,30,47,0.08)', background: 'linear-gradient(135deg, #FAFAFA 0%, rgba(63,175,122,0.03) 100%)' }}
-            >
-              <span className="text-lg">{agent.icon}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-semibold text-[#0A1E2F]">{agent.name} Output</p>
-                <p className="text-[10px] text-[#718096]">
-                  Processed in {outputResult.execution_time_ms}ms
-                </p>
-              </div>
-              <button
-                onClick={() => setOutputOpen(false)}
-                className="p-1 rounded-lg hover:bg-[rgba(0,0,0,0.04)] transition-colors text-[#718096] text-[12px]"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Output content */}
-            <div className="flex-1 overflow-y-auto px-5 py-4">
-              <AgentOutputRenderer
-                agentType={outputResult.agent_type}
-                output={outputResult.output}
-                executionTimeMs={outputResult.execution_time_ms}
-              />
-            </div>
-          </div>
-        </>
+      {/* Centered Output Modal */}
+      {outputResult && (
+        <AgentOutputModal
+          agent={agent}
+          result={outputResult}
+          isOpen={outputOpen}
+          onClose={() => setOutputOpen(false)}
+        />
       )}
     </>
   )

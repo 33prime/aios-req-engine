@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 
 interface PresentModeShellProps {
   isOpen: boolean
@@ -10,6 +10,8 @@ interface PresentModeShellProps {
   onNavigate: (direction: 1 | -1) => void
   counterLabel: string
   children: React.ReactNode
+  variant?: 'walkthrough' | 'onepager'
+  toolbar?: React.ReactNode
 }
 
 export function PresentModeShell({
@@ -20,12 +22,17 @@ export function PresentModeShell({
   onNavigate,
   counterLabel,
   children,
+  variant = 'walkthrough',
+  toolbar,
 }: PresentModeShellProps) {
+  const contentRef = useRef<HTMLDivElement>(null)
+
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
       if (!isOpen) return
       if (e.key === 'Escape') onClose()
-      else if (e.key === 'ArrowRight' || e.key === ' ') {
+      if (variant === 'onepager') return // no slide nav in onepager
+      if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
         if (currentSlide < totalSlides - 1) onNavigate(1)
       } else if (e.key === 'ArrowLeft') {
@@ -33,7 +40,7 @@ export function PresentModeShell({
         if (currentSlide > 0) onNavigate(-1)
       }
     },
-    [isOpen, onClose, onNavigate, currentSlide, totalSlides]
+    [isOpen, onClose, onNavigate, currentSlide, totalSlides, variant]
   )
 
   useEffect(() => {
@@ -43,6 +50,49 @@ export function PresentModeShell({
 
   if (!isOpen) return null
 
+  // One-Pager: light scrollable document
+  if (variant === 'onepager') {
+    return (
+      <div className="fixed inset-0 z-[1000] flex flex-col" style={{ background: '#FFFFFF' }}>
+        {/* Sticky header */}
+        <div
+          className="flex items-center justify-between px-8 py-3 flex-shrink-0 print:hidden"
+          style={{ borderBottom: '1px solid #E2E8F0' }}
+        >
+          <span className="text-xs font-medium" style={{ color: '#718096' }}>
+            {counterLabel}
+          </span>
+          <div className="flex items-center gap-2">
+            {toolbar}
+            <button
+              onClick={onClose}
+              className="px-3.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors"
+              style={{ border: '1px solid #E2E8F0', color: '#718096' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#F7FAFC'; e.currentTarget.style.color = '#0A1E2F' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#718096' }}
+            >
+              ESC &middot; Close
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto" ref={contentRef} data-present-content>
+          <div className="max-w-[900px] w-full mx-auto px-8 py-8">
+            {children}
+          </div>
+        </div>
+
+        <style jsx>{`
+          @media print {
+            .print\\:hidden { display: none !important; }
+          }
+        `}</style>
+      </div>
+    )
+  }
+
+  // Walkthrough: dark fullscreen slides
   return (
     <div className="fixed inset-0 z-[1000] flex flex-col" style={{ background: '#0A1E2F' }}>
       {/* Header */}
@@ -50,30 +100,37 @@ export function PresentModeShell({
         <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>
           {counterLabel}
         </span>
-        <button
-          onClick={onClose}
-          className="px-3.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors"
-          style={{
-            border: '1px solid rgba(255,255,255,0.12)',
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.45)',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-            e.currentTarget.style.color = '#fff'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'transparent'
-            e.currentTarget.style.color = 'rgba(255,255,255,0.45)'
-          }}
-        >
-          ESC &middot; Exit
-        </button>
+        <div className="flex items-center gap-2">
+          {toolbar}
+          <button
+            onClick={onClose}
+            className="px-3.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors"
+            style={{
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'transparent',
+              color: 'rgba(255,255,255,0.45)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+              e.currentTarget.style.color = '#fff'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = 'rgba(255,255,255,0.45)'
+            }}
+          >
+            ESC &middot; Exit
+          </button>
+        </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 flex items-center justify-center px-20 pb-9 overflow-y-auto">
-        <div className="max-w-[820px] w-full animate-in fade-in slide-in-from-bottom-4 duration-450">
+        <div
+          ref={contentRef}
+          data-present-content
+          className="max-w-[820px] w-full animate-in fade-in slide-in-from-bottom-4 duration-450"
+        >
           {children}
         </div>
       </div>
@@ -103,12 +160,12 @@ export function PresentModeShell({
           &larr; Previous
         </button>
 
-        {/* Dots */}
-        <div className="flex items-center gap-1">
+        {/* Dots — collapse to scrollable when many slides */}
+        <div className="flex items-center gap-1 max-w-[300px] overflow-hidden">
           {Array.from({ length: totalSlides }).map((_, i) => (
             <div
               key={i}
-              className="rounded-full transition-all duration-300"
+              className="rounded-full transition-all duration-300 flex-shrink-0"
               style={{
                 width: i === currentSlide ? 18 : 6,
                 height: 6,

@@ -229,6 +229,7 @@ export function useAgentDerivation(
         dailyWork: detail?.mock_data_narrative || '',
         growth: config.learning_trajectory || detail?.background_narrative || '',
         insight: detail?.background_narrative || '',
+        humanValueStatement: config.human_value_statement || detail?.human_value_statement || null,
         // Workbench extensions
         technique: inferTechnique(type, config.behaviors || []),
         rhythm: inferRhythm(index, role, config.behaviors || []),

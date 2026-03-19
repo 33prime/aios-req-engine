@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect } from 'react'
-import type { SolutionFlowOverview, SolutionFlowStepSummary, SolutionFlowStepDetail, PersonaSummary } from '@/types/workspace'
-import { batchGetSolutionFlowSteps } from '@/lib/api/admin'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import type { SolutionFlowOverview, SolutionFlowStepSummary, SolutionFlowStepDetail, PersonaSummary, FeatureBRDSummary, VpStepBRDSummary, DataEntityBRDSummary } from '@/types/workspace'
+import { batchGetSolutionFlowSteps, generateSolutionFlow } from '@/lib/api/admin'
 import { PHASE_ORDER, LANE_CONFIG, PHASE_CARD_STYLE } from '@/lib/solution-flow-constants'
+import { useAgentDerivation } from '@/hooks/useAgentDerivation'
 import { FlowStationCard } from './FlowStationCard'
 import { FlowDetailPanel } from './FlowDetailPanel'
 import { FlowPreviewModal } from './FlowPreviewModal'
@@ -15,6 +16,10 @@ interface FlowBlueprintViewProps {
   flow: SolutionFlowOverview | null | undefined
   personas: PersonaSummary[]
   onGenerateFlow: () => void
+  projectName?: string
+  brdFeatures?: FeatureBRDSummary[]
+  brdWorkflows?: VpStepBRDSummary[]
+  brdDataEntities?: DataEntityBRDSummary[]
 }
 
 function getPersonaColor(name: string): string {
@@ -29,12 +34,22 @@ export function FlowBlueprintView({
   flow,
   personas,
   onGenerateFlow,
+  projectName,
+  brdFeatures,
+  brdWorkflows,
+  brdDataEntities,
 }: FlowBlueprintViewProps) {
   const [activeStepId, setActiveStepId] = useState<string | null>(null)
   const [activePersona, setActivePersona] = useState<number | null>(null)
   const [horizonsOpen, setHorizonsOpen] = useState(false)
   const [presentMode, setPresentMode] = useState(false)
+  const [presentVariant, setPresentVariant] = useState<'walkthrough' | 'onepager'>('walkthrough')
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [presentMenuOpen, setPresentMenuOpen] = useState(false)
+  const [starredStepIds, setStarredStepIds] = useState<Set<string>>(new Set())
+  const [highlightReelOpen, setHighlightReelOpen] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
 
   // Batch-fetched step details
   const [stepDetails, setStepDetails] = useState<Record<string, SolutionFlowStepDetail>>({})
@@ -81,6 +96,23 @@ export function FlowBlueprintView({
     setStepDetails(prev => ({ ...prev, [detail.id]: detail }))
   }, [])
 
+  // Agent derivation for combined present mode
+  const stepDetailsMap = useMemo(() => {
+    const map = new Map<string, SolutionFlowStepDetail>()
+    Object.entries(stepDetails).forEach(([id, d]) => map.set(id, d))
+    return map
+  }, [stepDetails])
+  const { agents, avgAutomation } = useAgentDerivation(flow, stepDetailsMap)
+
+  const toggleStar = useCallback((stepId: string) => {
+    setStarredStepIds(prev => {
+      const next = new Set(prev)
+      if (next.has(stepId)) next.delete(stepId)
+      else next.add(stepId)
+      return next
+    })
+  }, [])
+
   // ESC hierarchy: preview first, then panel
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -124,29 +156,68 @@ export function FlowBlueprintView({
     return Math.round((scored / steps.length) * 100)
   }, [steps])
 
+  const handleGenerate = useCallback(async () => {
+    setIsGenerating(true)
+    setGenerateError(null)
+    try {
+      await generateSolutionFlow(projectId)
+      onGenerateFlow() // triggers data refetch
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Generation failed'
+      // Parse 422 readiness errors
+      if (msg.includes('not ready') || msg.includes('422')) {
+        setGenerateError('Not enough confirmed data yet. Confirm more features, workflows, and personas in the BRD first.')
+      } else {
+        setGenerateError(msg)
+      }
+    } finally {
+      setIsGenerating(false)
+    }
+  }, [projectId, onGenerateFlow])
+
   // Empty state
   if (!flow || !steps.length) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-0">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center text-2xl" style={{ background: 'rgba(63,175,122,0.08)' }}>
-            🌊
+            {isGenerating ? '' : ''}
           </div>
           <h3 className="text-lg font-semibold mb-2" style={{ color: '#1D1D1F' }}>
-            Living Blueprint
+            {isGenerating ? 'Generating your Living Blueprint...' : 'Living Blueprint'}
           </h3>
-          <p className="text-sm mb-6" style={{ color: '#7B7B7B' }}>
-            Generate your Solution Flow to see the Living Blueprint — a visual journey map of your solution steps flowing left-to-right as weighted stations.
-          </p>
-          <button
-            onClick={onGenerateFlow}
-            className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors"
-            style={{ background: '#3FAF7A' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#33a06d' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#3FAF7A' }}
-          >
-            Generate Solution Flow
-          </button>
+          {isGenerating ? (
+            <div className="space-y-3">
+              <p className="text-sm" style={{ color: '#7B7B7B' }}>
+                Analyzing workflows, features, constraints, and intelligence data...
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[#3FAF7A] animate-pulse" />
+                <span className="text-xs" style={{ color: '#A0AEC0' }}>This takes about 20 seconds</span>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm mb-4" style={{ color: '#7B7B7B' }}>
+                Generate your Solution Flow to see the Living Blueprint — a visual journey map showing how every feature, workflow, and persona comes together.
+              </p>
+              {generateError && (
+                <div className="mb-4 px-4 py-2.5 rounded-lg text-[12px] text-left" style={{ background: 'rgba(220,80,80,0.06)', border: '1px solid rgba(220,80,80,0.15)', color: '#9B2C2C' }}>
+                  {generateError}
+                </div>
+              )}
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors"
+                style={{ background: '#3FAF7A' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#33a06d' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#3FAF7A' }}
+              >
+                Generate Solution Flow
+              </button>
+            </>
+          )}
         </div>
       </div>
     )
@@ -188,26 +259,73 @@ export function FlowBlueprintView({
               Horizons
             </button>
 
-            {/* Present button */}
-            <button
-              onClick={() => setPresentMode(true)}
-              className="px-4 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
-              style={{
-                border: '1px solid rgba(63,175,122,0.35)',
-                background: 'rgba(63,175,122,0.08)',
-                color: '#3FAF7A',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(63,175,122,0.18)'
-                e.currentTarget.style.borderColor = '#3FAF7A'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(63,175,122,0.08)'
-                e.currentTarget.style.borderColor = 'rgba(63,175,122,0.35)'
-              }}
-            >
-              Present
-            </button>
+            {/* Present dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setPresentMenuOpen(!presentMenuOpen)}
+                className="px-4 py-1.5 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1.5"
+                style={{
+                  border: '1px solid rgba(63,175,122,0.35)',
+                  background: 'rgba(63,175,122,0.08)',
+                  color: '#3FAF7A',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(63,175,122,0.18)'
+                  e.currentTarget.style.borderColor = '#3FAF7A'
+                }}
+                onMouseLeave={e => {
+                  if (!presentMenuOpen) {
+                    e.currentTarget.style.background = 'rgba(63,175,122,0.08)'
+                    e.currentTarget.style.borderColor = 'rgba(63,175,122,0.35)'
+                  }
+                }}
+              >
+                Present
+                <span className="text-[9px]">{presentMenuOpen ? '\u25B4' : '\u25BE'}</span>
+              </button>
+              {presentMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-[50]" onClick={() => setPresentMenuOpen(false)} />
+                  <div
+                    className="absolute right-0 top-full mt-1 z-[51] rounded-lg overflow-hidden"
+                    style={{ background: 'rgba(10,30,47,0.95)', border: '1px solid rgba(255,255,255,0.10)', minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}
+                  >
+                    <button
+                      onClick={() => { setPresentVariant('walkthrough'); setPresentMode(true); setPresentMenuOpen(false) }}
+                      className="w-full text-left px-3.5 py-2.5 text-[11px] transition-colors"
+                      style={{ color: 'rgba(255,255,255,0.7)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <div className="font-semibold mb-0.5">Walkthrough</div>
+                      <div className="text-[9px]" style={{ color: 'rgba(255,255,255,0.35)' }}>Full slide deck, one step at a time</div>
+                    </button>
+                    <button
+                      onClick={() => { setPresentVariant('onepager'); setPresentMode(true); setPresentMenuOpen(false) }}
+                      className="w-full text-left px-3.5 py-2.5 text-[11px] transition-colors"
+                      style={{ color: 'rgba(255,255,255,0.7)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <div className="font-semibold mb-0.5">One-Pager</div>
+                      <div className="text-[9px]" style={{ color: 'rgba(255,255,255,0.35)' }}>Printable overview, downloadable as PDF</div>
+                    </button>
+                    {starredStepIds.size > 0 && (
+                      <button
+                        onClick={() => { setHighlightReelOpen(true); setPresentMenuOpen(false) }}
+                        className="w-full text-left px-3.5 py-2.5 text-[11px] transition-colors"
+                        style={{ color: 'rgba(255,255,255,0.7)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                      >
+                        <div className="font-semibold mb-0.5">Highlight Reel <span className="text-[9px] ml-1 px-1.5 py-0.5 rounded" style={{ background: 'rgba(63,175,122,0.15)', color: '#3FAF7A' }}>{starredStepIds.size}</span></div>
+                        <div className="text-[9px]" style={{ color: 'rgba(255,255,255,0.35)' }}>Starred steps only</div>
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -311,6 +429,8 @@ export function FlowBlueprintView({
                           isDimmed={isDimmed}
                           onClick={() => setActiveStepId(step.id)}
                           animationDelay={step.step_index * 60}
+                          isStarred={starredStepIds.has(step.id)}
+                          onToggleStar={() => toggleStar(step.id)}
                         />
                       )
                     })}
@@ -354,6 +474,9 @@ export function FlowBlueprintView({
           onClose={handleClosePanel}
           onPreview={() => setPreviewOpen(true)}
           onDetailRefresh={handleDetailRefresh}
+          brdFeatures={brdFeatures}
+          brdWorkflows={brdWorkflows}
+          brdDataEntities={brdDataEntities}
         />
       )}
 
@@ -365,6 +488,7 @@ export function FlowBlueprintView({
           isOpen={previewOpen}
           onClose={handleClosePreview}
           personas={personas}
+          projectName={projectName}
         />
       )}
 
@@ -376,7 +500,31 @@ export function FlowBlueprintView({
         personas={personas}
         flowSummary={flow.summary || ''}
         projectId={projectId}
+        variant={presentVariant}
+        agents={agents}
+        avgAutomation={avgAutomation}
+        projectName={projectName}
+        stepDetailsMap={stepDetailsMap}
+        starredStepIds={starredStepIds}
       />
+
+      {/* Highlight Reel */}
+      {highlightReelOpen && (
+        <FlowPresentMode
+          isOpen={highlightReelOpen}
+          onClose={() => setHighlightReelOpen(false)}
+          steps={steps.filter(s => starredStepIds.has(s.id))}
+          personas={personas}
+          flowSummary="Highlight Reel"
+          projectId={projectId}
+          variant="walkthrough"
+          agents={agents}
+          avgAutomation={avgAutomation}
+          projectName={projectName}
+          stepDetailsMap={stepDetailsMap}
+          starredStepIds={starredStepIds}
+        />
+      )}
     </div>
   )
 }

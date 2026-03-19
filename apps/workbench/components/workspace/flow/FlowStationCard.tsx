@@ -11,6 +11,8 @@ interface FlowStationCardProps {
   isDimmed: boolean
   onClick: () => void
   animationDelay?: number
+  isStarred?: boolean
+  onToggleStar?: () => void
 }
 
 function getPersonaColor(name: string): string {
@@ -38,14 +40,15 @@ export function FlowStationCard({
   isDimmed,
   onClick,
   animationDelay = 0,
+  isStarred = false,
+  onToggleStar,
 }: FlowStationCardProps) {
   const style = PHASE_CARD_STYLE[step.phase] || PHASE_CARD_STYLE.admin
   const isCore = step.phase === 'core_experience'
 
-  // Blurb: first sentence of mock_data_narrative (if detail loaded), else goal
-  const blurb = detail?.mock_data_narrative
-    ? firstSentence(detail.mock_data_narrative)
-    : step.goal
+  // Blurb: prefer story_headline, then first sentence of mock_data_narrative, then goal
+  const blurb = detail?.story_headline
+    || (detail?.mock_data_narrative ? firstSentence(detail.mock_data_narrative) : step.goal)
 
   // Transformation snippet for core cards
   const painBefore = detail?.pain_points_addressed?.[0]
@@ -112,7 +115,7 @@ export function FlowStationCard({
         >
           {step.title}
         </div>
-        <div className="flex flex-shrink-0">
+        <div className="flex items-center flex-shrink-0 gap-1">
           {actorDots.map((dot, i) => (
             <div
               key={dot.name}
@@ -123,6 +126,16 @@ export function FlowStationCard({
               {dot.initials}
             </div>
           ))}
+          {onToggleStar && (
+            <button
+              onClick={e => { e.stopPropagation(); onToggleStar() }}
+              className="w-4 h-4 flex items-center justify-center text-[10px] transition-all ml-0.5"
+              style={{ color: isStarred ? '#D4A017' : 'rgba(0,0,0,0.15)' }}
+              title={isStarred ? 'Remove from highlights' : 'Add to highlights'}
+            >
+              {isStarred ? '\u2605' : '\u2606'}
+            </button>
+          )}
         </div>
       </div>
 
