@@ -2109,6 +2109,46 @@ export interface DerivedAgent {
   dailyWork: string
   growth: string
   insight: string
+  // Workbench extensions (optional for backward compat)
+  technique?: AgentTechnique
+  rhythm?: AgentRhythm
+  confidenceTiers?: ConfidenceTiers
+  evolution?: EvolutionStep[]
+}
+
+// Intelligence Workbench types
+export type AgentTechnique = 'llm' | 'classification' | 'embeddings' | 'rules' | 'hybrid'
+export type AgentRhythm = 'triggered' | 'always_on' | 'on_demand' | 'periodic'
+
+export interface ConfidenceTiers {
+  high: number
+  medium: number
+  low: number
+}
+
+export interface EvolutionStep {
+  label: string
+  done: boolean
+}
+
+export interface AgentExecuteRequest {
+  agent_type: AgentType
+  agent_name: string
+  input_text: string
+  step_id?: string
+}
+
+export interface AgentExecuteResponse {
+  output: Record<string, unknown>
+  execution_time_ms: number
+  model: string
+  agent_type: AgentType
+}
+
+export interface AgentExampleResponse {
+  agent_type: AgentType
+  example_input: string
+  description: string
 }
 
 // Horizon types for Flow view

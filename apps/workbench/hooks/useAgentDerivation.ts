@@ -6,6 +6,10 @@ import type {
   AgentType,
   AgentMaturity,
   AgentDataNeed,
+  AgentTechnique,
+  AgentRhythm,
+  ConfidenceTiers,
+  EvolutionStep,
 } from '@/types/workspace'
 
 const AGENT_TYPE_KEYWORDS: Array<[AgentType, string[]]> = [
@@ -23,6 +27,65 @@ const AGENT_ICONS: Record<AgentType, string> = {
   watcher: '◉',
   generator: '◆',
   processor: '⬡',
+}
+
+const TECHNIQUE_MAP: Record<AgentType, AgentTechnique> = {
+  classifier: 'classification',
+  matcher: 'embeddings',
+  predictor: 'llm',
+  watcher: 'rules',
+  generator: 'llm',
+  processor: 'hybrid',
+}
+
+const RHYTHM_KEYWORDS: Array<[AgentRhythm, string[]]> = [
+  ['always_on', ['monitor', 'watch', 'continuous', 'real-time', 'stream']],
+  ['periodic', ['daily', 'weekly', 'scheduled', 'batch', 'periodic']],
+  ['triggered', ['trigger', 'event', 'signal', 'ingest', 'on change']],
+]
+
+function inferTechnique(type: AgentType, behaviors: string[]): AgentTechnique {
+  const text = behaviors.join(' ').toLowerCase()
+  if (text.includes('embed') || text.includes('vector') || text.includes('similarity')) return 'embeddings'
+  if (text.includes('rule') || text.includes('threshold') || text.includes('regex')) return 'rules'
+  if (text.includes('hybrid') || text.includes('multi-model')) return 'hybrid'
+  if (text.includes('classify') || text.includes('categoriz')) return 'classification'
+  return TECHNIQUE_MAP[type] || 'llm'
+}
+
+function inferRhythm(phase: number, role: string, behaviors: string[]): AgentRhythm {
+  const text = [...behaviors, role].join(' ').toLowerCase()
+  for (const [rhythm, keywords] of RHYTHM_KEYWORDS) {
+    if (keywords.some(k => text.includes(k))) return rhythm
+  }
+  // Early steps tend to be triggered, later steps on-demand
+  if (phase <= 2) return 'triggered'
+  return 'on_demand'
+}
+
+function parseConfidenceTiers(breakdown: Record<string, number>): ConfidenceTiers {
+  const total = Object.values(breakdown).reduce((s, v) => s + v, 0) || 1
+  return {
+    high: Math.round(((breakdown.known || 0) / total) * 100),
+    medium: Math.round(((breakdown.partially_known || 0) / total) * 100),
+    low: Math.round(((breakdown.unknown || 0) / total) * 100),
+  }
+}
+
+function parseEvolution(trajectory: string | undefined | null): EvolutionStep[] {
+  if (!trajectory) return []
+  // Split trajectory on common separators: periods, semicolons, numbered items
+  const parts = trajectory
+    .split(/[.;]|\d+\)|\d+\./)
+    .map(s => s.trim())
+    .filter(s => s.length > 5 && s.length < 120)
+    .slice(0, 5)
+
+  // First half marked done, rest pending
+  return parts.map((label, i) => ({
+    label,
+    done: i < Math.ceil(parts.length / 2),
+  }))
 }
 
 function inferAgentType(behaviors: string[], role: string): AgentType {
@@ -166,6 +229,11 @@ export function useAgentDerivation(
         dailyWork: detail?.mock_data_narrative || '',
         growth: config.learning_trajectory || detail?.background_narrative || '',
         insight: detail?.background_narrative || '',
+        // Workbench extensions
+        technique: inferTechnique(type, config.behaviors || []),
+        rhythm: inferRhythm(index, role, config.behaviors || []),
+        confidenceTiers: parseConfidenceTiers(summary.confidence_breakdown || {}),
+        evolution: parseEvolution(config.learning_trajectory),
       }
     })
 

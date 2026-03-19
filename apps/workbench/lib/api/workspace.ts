@@ -1012,3 +1012,24 @@ export const getValuePathStepDetail = (projectId: string, stepIndex: number) =>
   apiRequest<import('@/types/workspace').ValuePathStepDetail>(
     `/projects/${projectId}/workspace/canvas/value-path-steps/${stepIndex}/detail`
   )
+
+// ============================================
+// Intelligence Workbench APIs
+// ============================================
+
+export const executeAgent = (
+  projectId: string,
+  data: import('@/types/workspace').AgentExecuteRequest
+) =>
+  apiRequest<import('@/types/workspace').AgentExecuteResponse>(
+    `/projects/${projectId}/workspace/agents/execute`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  )
+
+export const getAgentExample = (projectId: string, agentType: string) =>
+  apiRequest<import('@/types/workspace').AgentExampleResponse>(
+    `/projects/${projectId}/workspace/agents/examples/${agentType}`
+  )
