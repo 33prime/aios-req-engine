@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intelligence Pipeline — Agent Studio</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --green:#3FAF7A;--green-dim:rgba(63,175,122,0.10);--green-glow:rgba(63,175,122,0.15);
+    --navy:#0A1E2F;--accent:#044159;
+    --bg:#FAFAFA;--card:#fff;
+    --border:rgba(10,30,47,0.10);--border-active:rgba(63,175,122,0.4);
+    --text:#0A1E2F;--text-body:#4A5568;--text-muted:#718096;--text-light:#A0AEC0;
+    --amber:#D4A017;--amber-bg:rgba(212,160,23,0.08);
+    --purple:#5B21B6;--purple-bg:rgba(91,33,182,0.08);
+    --red:#DC5050;--red-bg:rgba(220,80,80,0.06);
+  }
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+  /* ═══ Shell ═══ */
+  .shell{display:grid;grid-template-columns:240px 1fr;flex:1;overflow:hidden}
+
+  /* ═══ Controls ═══ */
+  .controls{background:var(--navy);color:rgba(255,255,255,0.88);padding:16px 14px;overflow-y:auto;border-right:1px solid rgba(255,255,255,0.06)}
+  .ctrl-logo{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+  .ctrl-logo-icon{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--green),#2D9B6A);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white}
+  .ctrl-logo-text{font-size:12px;font-weight:700}
+  .ctrl-logo-sub{font-size:9px;color:rgba(255,255,255,0.25);margin-top:1px}
+  .ctrl-section{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.25);margin:14px 0 6px}
+  .ctrl-desc{font-size:10px;color:rgba(255,255,255,0.25);line-height:1.5;margin-bottom:8px}
+  .ctrl-divider{height:1px;background:rgba(255,255,255,0.06);margin:10px 0}
+  .ctrl-stack{display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
+  .ctrl-btn{padding:7px 10px;border:1px solid rgba(255,255,255,0.06);border-radius:6px;background:transparent;color:rgba(255,255,255,0.45);font:500 10px 'Inter',sans-serif;cursor:pointer;transition:all 0.15s;text-align:left}
+  .ctrl-btn:hover{background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.8)}
+  .ctrl-btn.active{background:var(--green-dim);border-color:var(--border-active);color:var(--green)}
+  .ctrl-toggle{display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer}
+  .ctrl-toggle input{display:none}
+  .ctrl-toggle .track{width:26px;height:14px;border-radius:7px;background:rgba(255,255,255,0.1);position:relative;transition:0.2s;flex-shrink:0}
+  .ctrl-toggle input:checked+.track{background:var(--green)}
+  .ctrl-toggle .track::after{content:'';position:absolute;width:10px;height:10px;border-radius:50%;background:white;top:2px;left:2px;transition:0.2s}
+  .ctrl-toggle input:checked+.track::after{transform:translateX(12px)}
+  .ctrl-toggle span{font-size:10px;color:rgba(255,255,255,0.45)}
+
+  /* ═══ Main ═══ */
+  .main{display:flex;flex-direction:column;overflow:hidden}
+  .pipeline-header{flex-shrink:0;padding:14px 28px 12px;background:var(--navy);display:flex;align-items:start;gap:16px}
+  .ph-thesis{font-size:13px;color:rgba(255,255,255,0.7);line-height:1.5;flex:1}
+  .ph-thesis em{font-style:normal;font-weight:600;color:var(--green)}
+  .ph-stats{display:flex;gap:10px;flex-shrink:0}
+  .ph-stat{display:flex;flex-direction:column;align-items:center;padding:5px 12px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07)}
+  .ph-stat-val{font-size:16px;font-weight:800;line-height:1.2;color:var(--green)}
+  .ph-stat-label{font-size:8px;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.3);font-weight:600}
+
+  .canvas-wrap{flex:1;overflow:auto;position:relative}
+  .canvas{position:relative;min-height:100%;padding:24px 36px;background:linear-gradient(135deg,#FAFAFA 0%,rgba(4,65,89,0.015) 30%,rgba(63,175,122,0.02) 60%,rgba(4,65,89,0.025) 100%)}
+  .edge-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible}
+
+  /* ═══ Agent Nodes ═══ */
+  .node{position:absolute;background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all 0.2s;width:230px;z-index:1;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+  .node:hover{border-color:rgba(10,30,47,0.18);transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,0.06);z-index:2}
+  .node.selected{border-color:var(--green);box-shadow:0 4px 20px var(--green-glow);z-index:3}
+  .node.dimmed{opacity:0.2;pointer-events:none;filter:grayscale(0.6)}
+  .node.validated{border-left:3px solid var(--green)}
+
+  .n-top{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+  .n-icon{font-size:16px;flex-shrink:0}
+  .n-name{font-size:12px;font-weight:600;color:var(--text);flex:1;line-height:1.3}
+  .n-badge{font-size:7px;font-weight:600;padding:2px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:0.04em;flex-shrink:0}
+  .n-validated{width:16px;height:16px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:9px;color:white;flex-shrink:0}
+  .n-role{font-size:10px;color:var(--text-body);line-height:1.5;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+  /* Tools row */
+  .n-tools{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px}
+  .n-tool{font-size:8px;padding:2px 6px;border-radius:4px;background:rgba(0,0,0,0.03);color:var(--text-muted);border:1px solid rgba(10,30,47,0.06)}
+
+  /* Autonomy bar */
+  .n-autonomy{margin-bottom:6px}
+  .n-autonomy-bar{height:4px;border-radius:2px;background:rgba(0,0,0,0.04);overflow:hidden}
+  .n-autonomy-fill{height:100%;border-radius:2px;background:var(--green);transition:width 0.3s}
+  .n-autonomy-label{display:flex;justify-content:space-between;margin-top:2px}
+  .n-autonomy-text{font-size:8px;color:var(--text-light)}
+
+  /* Human partner */
+  .n-partner{display:flex;align-items:center;gap:5px;padding-top:6px;border-top:1px solid rgba(10,30,47,0.06)}
+  .n-partner-dot{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:white;flex-shrink:0}
+  .n-partner-name{font-size:9px;color:var(--text-muted)}
+  .n-partner-rel{font-size:8px;color:var(--text-light);margin-left:auto}
+
+  /* ═══ Detail Panel ═══ */
+  .detail-overlay{position:fixed;top:0;right:0;bottom:0;width:520px;z-index:100;background:white;border-left:1px solid rgba(10,30,47,0.08);transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.23,1,0.32,1);display:flex;flex-direction:column;overflow:hidden;box-shadow:-12px 0 40px rgba(0,0,0,0.08)}
+  .detail-overlay.open{transform:translateX(0)}
+  .detail-backdrop{position:fixed;top:0;left:0;bottom:0;z-index:90;background:rgba(10,30,47,0.08);opacity:0;pointer-events:none;transition:opacity 0.3s}
+  .detail-backdrop.open{opacity:1;pointer-events:auto;right:520px}
+
+  .d-header{padding:14px 18px;border-bottom:1px solid rgba(10,30,47,0.08);display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .d-close{width:28px;height:28px;border-radius:6px;border:1px solid rgba(10,30,47,0.08);background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:0.15s}
+  .d-close:hover{background:rgba(0,0,0,0.03)}
+  .d-title{font-size:14px;font-weight:700;flex:1}
+  .d-tabs{display:flex;gap:1px;background:rgba(0,0,0,0.04);border-radius:7px;padding:2px;flex-shrink:0}
+  .d-tab{padding:4px 12px;border-radius:5px;font:500 10px 'Inter',sans-serif;color:var(--text-muted);cursor:pointer;border:none;background:none;transition:0.15s}
+  .d-tab:hover{color:var(--text)}
+  .d-tab.active{background:white;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+
+  .d-body{flex:1;overflow-y:auto;padding:0}
+  .d-section{padding:0 18px;margin-bottom:16px}
+  .d-section:first-child{padding-top:16px}
+  .d-section-title{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);margin-bottom:6px}
+
+  /* Tools grid */
+  .tools-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .tool-card{padding:8px 10px;border-radius:8px;background:rgba(0,0,0,0.015);border:1px solid rgba(10,30,47,0.06)}
+  .tool-icon{font-size:14px;margin-bottom:3px}
+  .tool-name{font-size:10px;font-weight:600;color:var(--text);margin-bottom:1px}
+  .tool-desc{font-size:9px;color:var(--text-muted);line-height:1.4}
+  .tool-card{cursor:pointer;transition:all 0.2s}
+  .tool-card:hover{background:rgba(0,0,0,0.03);border-color:rgba(10,30,47,0.12)}
+  .tool-card.expanded{grid-column:1/-1;border-color:var(--border-active);background:rgba(63,175,122,0.02)}
+  .tool-expand{display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(10,30,47,0.06)}
+  .tool-card.expanded .tool-expand{display:block}
+  .tool-example{background:rgba(0,0,0,0.02);border-radius:6px;padding:8px 10px;margin-top:6px}
+  .tool-example-label{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-light);margin-bottom:3px}
+  .tool-example-text{font-size:10px;color:var(--text-body);line-height:1.5}
+  .tool-data-row{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--text-muted);padding:2px 0}
+  .tool-data-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+  .tool-reliability{display:flex;align-items:center;gap:6px;margin-top:6px}
+  .tool-reliability-bar{flex:1;height:3px;border-radius:2px;background:rgba(0,0,0,0.04);overflow:hidden}
+  .tool-reliability-fill{height:100%;border-radius:2px;background:var(--green)}
+  .tool-reliability-label{font-size:9px;color:var(--text-muted);min-width:24px;text-align:right}
+
+  /* Processing step with tool indicator */
+  .proc-tool{display:flex;align-items:center;gap:4px;margin-left:auto;opacity:0;transition:opacity 0.3s}
+  .proc-step.step-active .proc-tool,.proc-step.step-done .proc-tool{opacity:1}
+  .proc-tool-icon{font-size:10px}
+  .proc-tool-name{font-size:8px;font-weight:500;color:var(--text-light)}
+  .proc-step.step-active .proc-tool-name{color:var(--green);font-weight:600}
+  .proc-step.step-done .proc-tool-name{color:var(--text-muted)}
+
+  /* Data sources */
+  .data-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(10,30,47,0.04)}
+  .data-row:last-child{border-bottom:none}
+  .data-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+  .data-name{font-size:10px;color:var(--text-body);flex:1}
+  .data-access{font-size:8px;font-weight:500;padding:1px 5px;border-radius:3px}
+
+  /* Autonomy detail */
+  .autonomy-section{margin-bottom:8px}
+  .autonomy-heading{font-size:9px;font-weight:600;margin-bottom:4px}
+  .autonomy-heading.can{color:#1B6B3A}
+  .autonomy-heading.needs{color:var(--amber)}
+  .autonomy-heading.cant{color:var(--red)}
+  .autonomy-items{display:flex;flex-wrap:wrap;gap:3px}
+  .autonomy-pill{font-size:9px;padding:2px 7px;border-radius:4px}
+  .autonomy-pill.can{background:rgba(63,175,122,0.06);color:#1B6B3A}
+  .autonomy-pill.needs{background:var(--amber-bg);color:#8B6914}
+  .autonomy-pill.cant{background:var(--red-bg);color:#9B2C2C}
+
+  /* Human partner detail */
+  .partner-card{display:flex;gap:12px;padding:12px;border-radius:10px;background:rgba(4,65,89,0.03);border:1px solid rgba(4,65,89,0.08)}
+  .partner-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;flex-shrink:0}
+  .partner-info{flex:1}
+  .partner-role{font-size:11px;font-weight:600;color:var(--text)}
+  .partner-relationship{font-size:10px;color:var(--text-body);line-height:1.5;margin-top:2px}
+  .partner-escalation{font-size:9px;color:var(--text-muted);margin-top:4px;padding-top:4px;border-top:1px solid rgba(4,65,89,0.06)}
+
+  /* ═══ Chat Tab ═══ */
+  .chat-wrap{display:flex;flex-direction:column;height:100%;padding:0}
+  .chat-messages{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+  .chat-msg{max-width:85%;border-radius:12px;padding:8px 12px;font-size:11px;line-height:1.6}
+  .chat-msg.agent{background:rgba(0,0,0,0.03);color:var(--text-body);align-self:flex-start;border-bottom-left-radius:4px}
+  .chat-msg.user{background:var(--green);color:white;align-self:flex-end;border-bottom-right-radius:4px}
+  .chat-msg.system{background:rgba(63,175,122,0.06);color:#1B6B3A;align-self:center;text-align:center;font-size:10px;padding:6px 14px;border-radius:20px}
+  .chat-suggestions{display:flex;flex-wrap:wrap;gap:4px;padding:4px 0}
+  .chat-sug{font:400 10px 'Inter',sans-serif;padding:5px 10px;border-radius:6px;background:rgba(4,65,89,0.04);color:var(--accent);border:1px solid rgba(4,65,89,0.08);cursor:pointer;transition:0.15s}
+  .chat-sug:hover{background:rgba(4,65,89,0.08)}
+  .chat-input-row{padding:10px 18px;border-top:1px solid rgba(10,30,47,0.06);display:flex;gap:6px;flex-shrink:0}
+  .chat-input{flex:1;border:1px solid rgba(10,30,47,0.10);border-radius:8px;padding:8px 10px;font:400 11px 'Inter',sans-serif;color:var(--text);resize:none}
+  .chat-input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 2px var(--green-dim)}
+  .chat-send{padding:8px 14px;border-radius:8px;background:var(--green);color:white;border:none;font:600 11px 'Inter',sans-serif;cursor:pointer;transition:0.15s;flex-shrink:0}
+  .chat-send:hover{background:#2D9B6A}
+  .chat-send:disabled{background:var(--text-light);cursor:not-allowed}
+
+  /* ═══ Try It Tab ═══ */
+  .tryit-wrap{padding:16px 18px;display:flex;flex-direction:column;gap:12px;height:100%;overflow-y:auto}
+  .tryit-input{width:100%;border-radius:8px;padding:10px 12px;font:400 11px 'Inter',sans-serif;color:var(--text);background:white;border:1px solid rgba(10,30,47,0.10);resize:none;line-height:1.6;min-height:80px}
+  .tryit-input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 2px var(--green-dim)}
+  .tryit-run{width:100%;padding:10px;border-radius:8px;font:600 11px 'Inter',sans-serif;color:white;background:var(--green);border:none;cursor:pointer;transition:0.2s}
+  .tryit-run:hover{background:#2D9B6A}
+  .tryit-run:disabled{background:var(--text-light);cursor:not-allowed}
+
+  /* Processing animation */
+  .proc-step{display:flex;align-items:center;gap:8px;padding:3px 0}
+  .proc-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px}
+  .proc-dot.done{background:var(--green);color:white}
+  .proc-dot.active{background:var(--green);animation:pulse-p 1s ease-in-out infinite}
+  .proc-dot.pending{background:#E2E8F0}
+  .proc-label{font-size:11px}
+  .proc-label.done{color:var(--text)}
+  .proc-label.active{color:var(--text);font-weight:600}
+  .proc-label.pending{color:var(--text-light)}
+  @keyframes pulse-p{0%,100%{opacity:0.5;transform:scale(0.85)}50%{opacity:1;transform:scale(1.1)}}
+
+  /* Output card */
+  .output-card{background:rgba(63,175,122,0.03);border:1px solid rgba(63,175,122,0.12);border-radius:10px;overflow:hidden}
+  .output-hdr{padding:8px 12px;background:rgba(63,175,122,0.05);border-bottom:1px solid rgba(63,175,122,0.08);display:flex;align-items:center;gap:6px}
+  .output-hdr-label{font-size:9px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:0.06em}
+  .output-hdr-time{font-size:9px;color:var(--text-light);margin-left:auto}
+  .output-body{padding:12px}
+  .output-row{display:flex;gap:8px;margin-bottom:8px;align-items:start}
+  .output-row:last-child{margin-bottom:0}
+  .output-key{font-size:10px;font-weight:600;color:var(--text-muted);min-width:80px;flex-shrink:0;padding-top:1px}
+  .output-val{font-size:11px;color:var(--text);line-height:1.5}
+  .output-badge{display:inline-block;font-size:8px;font-weight:600;padding:1px 5px;border-radius:3px;margin-right:3px}
+  .output-badge.high{background:var(--red-bg);color:#9B2C2C}
+  .output-badge.moderate{background:var(--amber-bg);color:#8B6914}
+  .output-badge.low,.output-badge.recommended{background:var(--green-dim);color:#1B6B3A}
+  .output-list{list-style:none;padding:0}
+  .output-list li{font-size:10px;color:var(--text-body);padding:2px 0;display:flex;align-items:start;gap:5px;line-height:1.5}
+  .output-list li::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:5px}
+  .output-divider{height:1px;background:rgba(63,175,122,0.08);margin:8px 0}
+
+  /* Validation bar */
+  .validate-bar{display:flex;gap:6px;padding:12px 0}
+  .validate-btn{flex:1;padding:9px;border-radius:8px;font:600 10px 'Inter',sans-serif;cursor:pointer;transition:0.2s;text-align:center;border:none}
+  .validate-btn.confirm{background:var(--green);color:white}
+  .validate-btn.confirm:hover{background:#2D9B6A}
+  .validate-btn.adjust{background:rgba(0,0,0,0.03);color:var(--text-body);border:1px solid var(--border)}
+  .validate-btn.adjust:hover{background:rgba(0,0,0,0.06)}
+
+  /* Cascade alert */
+  .cascade-alert{background:rgba(212,160,23,0.04);border:1px solid rgba(212,160,23,0.15);border-radius:8px;padding:10px 12px;margin-top:8px}
+  .cascade-title{font-size:9px;font-weight:600;color:var(--amber);margin-bottom:4px}
+  .cascade-item{font-size:10px;color:var(--text-body);padding:2px 0;display:flex;align-items:center;gap:5px}
+  .cascade-arrow{color:var(--amber);font-size:9px;font-weight:600}
+
+  /* ═══ Prompt Bar ═══ */
+  .prompt-bar{flex-shrink:0;padding:8px 16px;background:var(--navy);border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px}
+  .prompt-text{flex:1;font:10px 'Inter',sans-serif;color:rgba(255,255,255,0.3);line-height:1.5;max-height:36px;overflow-y:auto}
+  .prompt-copy{padding:5px 12px;border-radius:5px;background:var(--green-dim);border:1px solid var(--border-active);color:var(--green);font:600 10px 'Inter',sans-serif;cursor:pointer;transition:0.2s;white-space:nowrap}
+  .prompt-copy:hover{background:var(--green);color:white}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="controls">
+    <div class="ctrl-logo">
+      <div class="ctrl-logo-icon">IL</div>
+      <div><div class="ctrl-logo-text">Intelligence Layer</div><div class="ctrl-logo-sub">Agent Studio</div></div>
+    </div>
+    <div class="ctrl-section">Scenario</div>
+    <div class="ctrl-desc">Explore how autonomous agents work behind the scenes.</div>
+    <div class="ctrl-stack" id="scenarioBtns"></div>
+    <div class="ctrl-divider"></div>
+    <div class="ctrl-section">Display</div>
+    <label class="ctrl-toggle"><input type="checkbox" id="togTools" checked onchange="updateAll()"><div class="track"></div><span>Tools & capabilities</span></label>
+    <label class="ctrl-toggle"><input type="checkbox" id="togAutonomy" checked onchange="updateAll()"><div class="track"></div><span>Autonomy level</span></label>
+    <label class="ctrl-toggle"><input type="checkbox" id="togPartner" checked onchange="updateAll()"><div class="track"></div><span>Human partners</span></label>
+    <label class="ctrl-toggle"><input type="checkbox" id="togDeps" checked onchange="updateAll()"><div class="track"></div><span>Dependency lines</span></label>
+  </div>
+
+  <div class="main">
+    <div class="pipeline-header">
+      <p class="ph-thesis" id="headerThesis"></p>
+      <div class="ph-stats" id="headerStats"></div>
+    </div>
+    <div class="canvas-wrap"><div class="canvas" id="canvas"><svg class="edge-layer" id="edgeLayer"></svg></div></div>
+    <div class="prompt-bar">
+      <div class="prompt-text" id="promptText">Select a scenario to explore.</div>
+      <button class="prompt-copy" onclick="copyPrompt()">Copy Prompt</button>
+    </div>
+  </div>
+</div>
+
+<div class="detail-backdrop" id="detailBackdrop" onclick="closeDetail()"></div>
+<div class="detail-overlay" id="detailPanel">
+  <div class="d-header">
+    <button class="d-close" onclick="closeDetail()">&#x2715;</button>
+    <span id="dIcon" style="font-size:18px"></span>
+    <span class="d-title" id="dTitle"></span>
+    <div class="d-tabs">
+      <button class="d-tab active" id="tabProfile" onclick="switchTab('profile')">Profile</button>
+      <button class="d-tab" id="tabChat" onclick="switchTab('chat')">Talk to Agent</button>
+      <button class="d-tab" id="tabTry" onclick="switchTab('try')">See in Action</button>
+    </div>
+  </div>
+  <div class="d-body" id="dBody"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// SCENARIOS
+// ═══════════════════════════════════════════════
+const SCENARIOS = {
+  vault: {
+    name: 'Estate Vault',
+    subtitle: 'Estate planning document management',
+    thesis: '<em>Your AI Team</em>: 4 agents manage your vault — classifying documents, monitoring compliance, building client profiles, and assembling estate plans. Each knows its limits and <em>escalates to the right person</em>.',
+    nodes: [
+      {
+        id: 'docguard', name: 'DocGuard', icon: '🛡️',
+        role: 'Monitors your document vault. Classifies uploads, checks compliance, flags stale documents, and ensures nothing falls through the cracks.',
+        tools: [
+          { icon: '📂', name: 'Document Scanner', desc: 'Reads and parses uploaded files', reliability: 96, dataTouches: ['File storage', 'OCR engine'], example: 'Scans a 42-page trust document → extracts text, identifies 8 signature blocks, detects notary stamps on pages 3 and 41' },
+          { icon: '📋', name: 'Compliance Checklist', desc: 'State-specific requirements database', reliability: 99, dataTouches: ['State regulation DB', 'Document type rules'], example: 'Checks California trust requirements → confirms all 7 mandatory provisions present, flags missing pour-over will reference' },
+          { icon: '⚖️', name: 'Legal Database', desc: 'State regulation lookup and validation', reliability: 92, dataTouches: ['50-state regulation index', 'Case law updates'], example: 'Looks up CA Probate Code §4400 → confirms POA format requirements, notes 2024 amendment to witness rules' },
+          { icon: '🔔', name: 'Notification System', desc: 'Alerts the right people at the right time', reliability: 100, dataTouches: ['Team directory', 'Alert preferences'], example: 'Sends priority alert to Estate Attorney JM: "Stale POA detected for Margaret Chen — names ex-husband as agent"' },
+        ],
+        dataSources: [
+          { name: 'Document library', access: 'read', color: 'var(--green)' },
+          { name: 'Client profiles', access: 'read', color: 'var(--green)' },
+          { name: 'State regulations', access: 'query', color: 'var(--amber)' },
+        ],
+        autonomy: {
+          level: 85,
+          canDo: ['Classify documents', 'Tag metadata', 'Flag age issues', 'Check completeness'],
+          needsApproval: ['Archive documents', 'Notify client', 'Change classification'],
+          cannotDo: ['Delete files', 'Share externally', 'Override attorney decisions'],
+        },
+        partner: {
+          role: 'Estate Attorney', initials: 'JM', color: 'var(--accent)',
+          relationship: 'DocGuard handles scanning and flagging. The attorney makes judgment calls on edge cases. Over time, DocGuard learns what the attorney always approves.',
+          escalations: 'Uncertain classification, compliance gaps, stale document decisions',
+        },
+        dependsOn: [], feedsInto: ['profile-compass', 'vault-architect'],
+        chatIntro: "Hi, I'm DocGuard. I keep your document vault organized and compliant. I can classify any document you upload, check it against state requirements, and flag anything that needs attention. Want to test me with a scenario?",
+        chatSuggestions: ['What would you do with a 3-year-old trust amendment?', 'How do you handle documents you can\'t classify?', 'What happens when state law changes?', 'Show me how you\'d flag a missing notarization'],
+        procSteps: [
+          { label: 'Scanning document', tool: '📂', toolName: 'Document Scanner' },
+          { label: 'Identifying document type', tool: '⚖️', toolName: 'Legal Database' },
+          { label: 'Checking compliance', tool: '📋', toolName: 'Compliance Checklist' },
+          { label: 'Validating signatures', tool: '📂', toolName: 'Document Scanner' },
+          { label: 'Preparing assessment', tool: '🔔', toolName: 'Notification System' },
+        ],
+        sampleInput: 'A client uploads a Durable Financial Power of Attorney from 2022, California, with a notarization stamp.',
+        sampleOutput: [
+          { key: 'Identified as', val: 'Durable Financial Power of Attorney' },
+          { key: 'State', val: 'California' },
+          { key: 'Dated', val: '2022 — over 2 years old', badge: 'moderate' },
+          { key: 'Notarization', val: 'Present but may be stale — California requires re-notarization for POA changes after 2 years', badge: 'moderate' },
+          { key: 'Compliance', val: 'Meets CA Probate Code §4400 requirements for durable POA format' },
+          { key: 'Action needed', val: 'Flagging for attorney review: confirm notarization is still valid', badge: 'high' },
+          { key: 'Auto-tagged', val: 'legal, power-of-attorney, california, durable, financial' },
+        ],
+        cascadeEffects: [
+          { target: 'Profile Compass', effect: 'Will update client risk profile with stale document flag' },
+          { target: 'Vault Architect', effect: 'Will move to "Needs Attention" section in vault layout' },
+        ],
+      },
+      {
+        id: 'profile-compass', name: 'Profile Compass', icon: '🧭',
+        role: 'Builds and maintains a living profile of each client — family structure, assets, risk factors, planning priorities — by synthesizing signals from all other agents.',
+        tools: [
+          { icon: '👥', name: 'Family Mapper', desc: 'Tracks relationships and beneficiaries', reliability: 94, dataTouches: ['Client intake forms', 'Document mentions'], example: 'Maps Margaret Chen\'s family: spouse (divorced 2023), 2 adult children, 1 minor grandchild → identifies 4 beneficiary relationships' },
+          { icon: '📊', name: 'Risk Calculator', desc: 'Computes estate planning risk scores', reliability: 88, dataTouches: ['Document vault status', 'Family complexity', 'Asset types'], example: 'Calculates risk score: 78/100 (HIGH) — driven by stale POA naming ex-spouse + no successor agent + minor beneficiary' },
+          { icon: '🔗', name: 'Cross-Reference', desc: 'Links documents to family members', reliability: 91, dataTouches: ['Document entities', 'Family tree'], example: 'Links POA → Margaret (principal), Trust → references same POA, Beneficiary forms → already updated post-divorce' },
+        ],
+        dataSources: [
+          { name: 'DocGuard findings', access: 'subscribe', color: 'var(--green)' },
+          { name: 'Client intake data', access: 'read', color: 'var(--green)' },
+          { name: 'Public records', access: 'query', color: 'var(--amber)' },
+        ],
+        autonomy: {
+          level: 75,
+          canDo: ['Update profile fields', 'Calculate risk scores', 'Detect family changes'],
+          needsApproval: ['Flag major life events', 'Suggest plan changes', 'Contact client'],
+          cannotDo: ['Modify estate plans', 'Make legal recommendations'],
+        },
+        partner: {
+          role: 'Estate Planner', initials: 'SR', color: '#2D6B4A',
+          relationship: 'Profile Compass surfaces insights and changes. The planner decides which ones matter for the estate plan and when to act on them.',
+          escalations: 'Major life events detected, risk score spikes, document contradictions',
+        },
+        dependsOn: ['docguard'], feedsInto: ['plan-assembler'],
+        chatIntro: "I'm Profile Compass. I maintain a living profile of each client by watching what DocGuard finds and connecting the dots. I track family structure, assets, risk factors — and surface anything that might affect their estate plan.",
+        chatSuggestions: ['How do you detect family changes?', 'What makes a client high-risk?', 'How do you handle contradicting information?', 'What triggers a plan review alert?'],
+        procSteps: [
+          { label: 'Loading client profile', tool: '👥', toolName: 'Family Mapper' },
+          { label: 'Cross-referencing documents', tool: '🔗', toolName: 'Cross-Reference' },
+          { label: 'Updating risk scores', tool: '📊', toolName: 'Risk Calculator' },
+          { label: 'Checking for plan impacts', tool: '🔗', toolName: 'Cross-Reference' },
+          { label: 'Preparing insights', tool: '📊', toolName: 'Risk Calculator' },
+        ],
+        sampleInput: 'DocGuard flagged a stale POA for client Margaret Chen. Profile Compass checks for plan impacts.',
+        sampleOutput: [
+          { key: 'Client', val: 'Margaret Chen — Family Trust established 2019' },
+          { key: 'Impact', val: 'The stale POA names her ex-husband as agent. Divorce was finalized 2023.', badge: 'high' },
+          { key: 'Risk score', val: 'Increased from 42 to 78 — needs immediate attention' },
+          { key: 'Related docs', list: ['Revocable Living Trust (2019) — references same POA', 'Beneficiary designations (2020) — already updated post-divorce'] },
+          { key: 'Recommendation', val: 'New POA needed. Current one may name unauthorized agent.' },
+        ],
+        cascadeEffects: [
+          { target: 'Plan Assembler', effect: 'Will flag estate plan as needing POA update' },
+        ],
+      },
+      {
+        id: 'vault-architect', name: 'Vault Architect', icon: '🏗️',
+        role: 'Organizes the document vault layout — decides where documents live, how they\'re grouped, and ensures the vault structure matches the client\'s estate planning needs.',
+        tools: [
+          { icon: '📁', name: 'Folder Engine', desc: 'Creates and manages vault structure', reliability: 98, dataTouches: ['Vault folder tree', 'Category rules'], example: 'Creates "Powers of Attorney" subfolder under Margaret Chen → moves 3 related documents, sets priority sort' },
+          { icon: '🏷️', name: 'Smart Tagger', desc: 'Auto-categorizes by document relationships', reliability: 93, dataTouches: ['Document metadata', 'Cross-references'], example: 'Tags POA with: matter=Chen-Estate, type=power-of-attorney, status=needs-attention, related=trust-2019' },
+          { icon: '📐', name: 'Layout Optimizer', desc: 'Ensures nothing is buried or misplaced', reliability: 97, dataTouches: ['Access patterns', 'Priority flags'], example: 'Promotes stale POA to top of vault view → ensures attorney sees it in morning brief before other documents' },
+        ],
+        dataSources: [
+          { name: 'DocGuard classifications', access: 'subscribe', color: 'var(--green)' },
+          { name: 'Vault structure', access: 'read/write', color: 'var(--amber)' },
+        ],
+        autonomy: {
+          level: 95,
+          canDo: ['Create folders', 'Move documents', 'Reorganize layout', 'Set priority flags'],
+          needsApproval: ['Delete empty folders', 'Merge categories'],
+          cannotDo: ['Delete documents', 'Change access permissions'],
+        },
+        partner: {
+          role: 'Client Admin', initials: 'KT', color: '#0A1E2F',
+          relationship: 'Vault Architect handles organization autonomously. The admin is notified of major restructuring and can override layout decisions.',
+          escalations: 'Major vault restructuring, conflicting categorization',
+        },
+        dependsOn: ['docguard'], feedsInto: [],
+        chatIntro: "I'm Vault Architect. I organize your document vault so everything is exactly where you'd expect it. When DocGuard classifies a new document, I decide where it lives and how it connects to everything else.",
+        chatSuggestions: ['How do you decide where a document goes?', 'What happens when a document fits multiple categories?', 'Can you show me how you\'d reorganize after a major life event?'],
+        procSteps: [
+          { label: 'Analyzing document metadata', tool: '🏷️', toolName: 'Smart Tagger' },
+          { label: 'Checking vault structure', tool: '📁', toolName: 'Folder Engine' },
+          { label: 'Computing optimal placement', tool: '📐', toolName: 'Layout Optimizer' },
+          { label: 'Updating categories', tool: '🏷️', toolName: 'Smart Tagger' },
+          { label: 'Confirming organization', tool: '📁', toolName: 'Folder Engine' },
+        ],
+        sampleInput: 'DocGuard flagged the stale POA. Vault Architect updates its placement.',
+        sampleOutput: [
+          { key: 'Action', val: 'Moved from "Active Documents" to "Needs Attention"' },
+          { key: 'Priority', val: 'Elevated to urgent — appears at top of vault view', badge: 'high' },
+          { key: 'Related grouping', val: 'Linked to Margaret Chen\'s Power of Attorney section alongside 2019 trust' },
+          { key: 'Notification', val: 'Vault summary updated — attorney will see this in their morning brief' },
+        ],
+        cascadeEffects: [],
+      },
+      {
+        id: 'plan-assembler', name: 'Plan Assembler', icon: '📑',
+        role: 'Generates draft estate plan documents by pulling together client profiles, document analysis, and state requirements into structured planning narratives.',
+        tools: [
+          { icon: '📝', name: 'Document Drafter', desc: 'Generates plan sections from templates', reliability: 82, dataTouches: ['Plan templates', 'Client profile data'], example: 'Drafts new Durable Financial POA section → fills in Margaret Chen as principal, adds standard California provisions, leaves agent designation blank for attorney' },
+          { icon: '🔍', name: 'Gap Analyzer', desc: 'Finds missing pieces in the plan', reliability: 90, dataTouches: ['Plan requirements', 'Document inventory'], example: 'Scans estate plan → finds: no successor agent in POA, healthcare directive not reviewed since 2019, no digital asset provisions' },
+          { icon: '📊', name: 'State Compliance', desc: 'Validates against jurisdiction rules', reliability: 95, dataTouches: ['50-state requirements', 'Recent law changes'], example: 'Validates against CA Probate Code → all format requirements met, notes new 2024 witness rule that applies' },
+        ],
+        dataSources: [
+          { name: 'Client profiles', access: 'read', color: 'var(--green)' },
+          { name: 'Document vault', access: 'read', color: 'var(--green)' },
+          { name: 'Plan templates', access: 'read', color: 'var(--green)' },
+          { name: 'State law database', access: 'query', color: 'var(--amber)' },
+        ],
+        autonomy: {
+          level: 45,
+          canDo: ['Draft plan sections', 'Identify gaps', 'Check state compliance'],
+          needsApproval: ['Every generated section', 'Client communications', 'Filing recommendations'],
+          cannotDo: ['Finalize plans', 'File documents', 'Give legal advice'],
+        },
+        partner: {
+          role: 'Estate Attorney', initials: 'JM', color: 'var(--accent)',
+          relationship: 'Plan Assembler drafts. The attorney reviews every section, adds legal judgment, and decides what goes to the client. This agent never acts alone on final output.',
+          escalations: 'Every draft section requires review. No autonomous client-facing output.',
+        },
+        dependsOn: ['profile-compass'], feedsInto: [],
+        chatIntro: "I'm Plan Assembler. I draft estate plan documents by pulling together everything the other agents know about a client — their profile, their documents, their state's requirements. Every section I write gets reviewed by an attorney before anyone sees it.",
+        chatSuggestions: ['What sections can you draft?', 'How do you handle state-specific requirements?', 'What do you do when information is missing?', 'Walk me through drafting a trust amendment'],
+        procSteps: [
+          { label: 'Loading client profile', tool: '🔍', toolName: 'Gap Analyzer' },
+          { label: 'Analyzing document inventory', tool: '🔍', toolName: 'Gap Analyzer' },
+          { label: 'Checking state requirements', tool: '📊', toolName: 'State Compliance' },
+          { label: 'Drafting plan sections', tool: '📝', toolName: 'Document Drafter' },
+          { label: 'Identifying gaps', tool: '🔍', toolName: 'Gap Analyzer' },
+          { label: 'Preparing for review', tool: '📝', toolName: 'Document Drafter' },
+        ],
+        sampleInput: 'Profile Compass flagged that Margaret Chen needs a new POA. Plan Assembler drafts the update plan.',
+        sampleOutput: [
+          { key: 'Plan update', val: 'Estate Plan Amendment — Power of Attorney Replacement' },
+          { key: 'Sections drafted', list: ['New Durable Financial POA — agent designation updated', 'Healthcare Directive review — confirm agent is still correct', 'Trust cross-reference — POA reference in trust needs update'] },
+          { key: 'Gaps found', list: ['No successor agent designated in new POA', 'Healthcare directive not reviewed since 2019'] },
+          { key: 'State compliance', val: 'CA Probate Code §4400-4465 — all format requirements met', badge: 'low' },
+          { key: 'Status', val: 'Draft ready for attorney review. 3 sections, 2 gaps to discuss.' },
+        ],
+        cascadeEffects: [],
+      },
+    ],
+  },
+
+  aios: {
+    name: 'AIOS Discovery',
+    subtitle: 'Requirements engineering intelligence',
+    thesis: '<em>Your AI Team</em>: 4 agents process every signal — extracting requirements, detecting blind spots, tracking evolving beliefs, and preparing session briefings. Every insight traces back to <em>the original conversation</em>.',
+    nodes: [
+      {
+        id: 'signal-proc', name: 'Signal Processor', icon: '📡',
+        role: 'Reads incoming signals — meeting transcripts, emails, research docs — and extracts structured requirements, stakeholders, and constraints.',
+        tools: [
+          { icon: '📄', name: 'Document Parser', desc: 'Reads PDFs, DOCX, transcripts', reliability: 97, dataTouches: ['File uploads', 'OCR engine'], example: 'Parses 45-minute meeting transcript → identifies 12 speaker turns, 23 requirement-bearing statements, 4 decision points' },
+          { icon: '🔬', name: 'Entity Extractor', desc: 'Identifies features, personas, constraints', reliability: 89, dataTouches: ['Parsed text', 'Project ontology'], example: 'Extracts from "we need Shopify sync" → Feature: Real-time Inventory Sync (92%), Constraint: Shopify Required (94%)' },
+          { icon: '🔗', name: 'Source Linker', desc: 'Traces every entity to its source text', reliability: 95, dataTouches: ['Entity graph', 'Signal archive'], example: 'Links "Barcode Scanner Integration" → source: "warehouse team uses barcode scanners" (transcript, 14:23)' },
+        ],
+        dataSources: [
+          { name: 'Raw signal text', access: 'read', color: 'var(--green)' },
+          { name: 'Project context', access: 'read', color: 'var(--green)' },
+          { name: 'Entity graph', access: 'read/write', color: 'var(--amber)' },
+        ],
+        autonomy: { level: 70, canDo: ['Extract entities', 'Score confidence', 'Classify signal weight'], needsApproval: ['Confirm entities into project', 'Merge duplicates'], cannotDo: ['Delete existing entities', 'Auto-confirm'] },
+        partner: { role: 'Consultant', initials: 'MC', color: 'var(--accent)', relationship: 'Signal Processor extracts. The consultant reviews and confirms what goes into the project. Nothing becomes "real" without human confirmation.', escalations: 'Low-confidence extractions, potential duplicates, contradictions' },
+        dependsOn: [], feedsInto: ['gap-detect', 'belief-track'],
+        chatIntro: "I'm Signal Processor. I read every transcript, email, and document you feed me and extract structured requirements. I trace every entity back to the exact words that inspired it.",
+        chatSuggestions: ['How do you handle contradicting signals?', 'What\'s your confidence threshold?', 'How do you avoid duplicates?', 'Test me with a transcript snippet'],
+        procSteps: [
+          { label: 'Reading signal', tool: '📄', toolName: 'Document Parser' },
+          { label: 'Extracting entities', tool: '🔬', toolName: 'Entity Extractor' },
+          { label: 'Scoring confidence', tool: '🔬', toolName: 'Entity Extractor' },
+          { label: 'Checking for duplicates', tool: '🔗', toolName: 'Source Linker' },
+          { label: 'Preparing proposals', tool: '🔗', toolName: 'Source Linker' },
+        ],
+        sampleInput: 'Meeting transcript: "We need real-time inventory sync with Shopify, and the warehouse team uses barcode scanners that sometimes work offline."',
+        sampleOutput: [
+          { key: 'Entities found', val: '4 new items from this signal' },
+          { key: 'Features', list: ['Real-time Inventory Sync — 92% confidence — "real-time inventory sync with Shopify"', 'Barcode Scanner Integration — 87% confidence — "warehouse team uses barcode scanners"'] },
+          { key: 'Stakeholder', val: 'Warehouse Team (end users) — 95% confidence' },
+          { key: 'Constraint', val: 'Shopify integration required — 94% confidence' },
+          { key: 'Signal weight', val: 'Heavyweight — full extraction pipeline' },
+        ],
+        cascadeEffects: [{ target: 'Gap Detector', effect: 'Will scan for blind spots around inventory and offline scenarios' }, { target: 'Belief Tracker', effect: 'Will check if any existing beliefs are contradicted' }],
+      },
+      {
+        id: 'gap-detect', name: 'Gap Detector', icon: '🔍',
+        role: 'Analyzes all project knowledge and finds blind spots — topics nobody has discussed, questions that need answers, areas with thin signal coverage.',
+        tools: [
+          { icon: '🗺️', name: 'Coverage Mapper', desc: 'Maps which areas have signals vs. gaps', reliability: 86, dataTouches: ['Entity graph', 'Signal history'], example: 'Maps coverage: Authentication=4 signals, Data Migration=0 signals, Integrations=2 signals → flags Migration as blind spot' },
+          { icon: '🎯', name: 'Question Generator', desc: 'Creates discovery questions from gaps', reliability: 83, dataTouches: ['Gap clusters', 'Domain templates'], example: 'From "no migration strategy" gap → generates: "How will existing inventory data migrate to the new system?"' },
+          { icon: '📊', name: 'Pattern Matcher', desc: 'Uses domain patterns to find missing pieces', reliability: 91, dataTouches: ['Industry patterns DB', 'Similar projects'], example: 'E-commerce projects typically need: payment gateway, shipping calc, tax engine → checks which are missing' },
+        ],
+        dataSources: [
+          { name: 'All project entities', access: 'read', color: 'var(--green)' },
+          { name: 'Signal history', access: 'read', color: 'var(--green)' },
+          { name: 'Domain patterns', access: 'query', color: 'var(--amber)' },
+        ],
+        autonomy: { level: 60, canDo: ['Detect gaps', 'Cluster themes', 'Generate questions'], needsApproval: ['Surface gaps to client', 'Prioritize for session'], cannotDo: ['Answer its own questions', 'Create entities from guesses'] },
+        partner: { role: 'Consultant', initials: 'MC', color: 'var(--accent)', relationship: 'Gap Detector finds blind spots. The consultant decides which ones matter and when to bring them up with the client.', escalations: 'High-priority clusters, total blind spots' },
+        dependsOn: ['signal-proc'], feedsInto: ['briefing'],
+        chatIntro: "I'm Gap Detector. I look at everything you know about a project and find what's missing. I cluster gaps into themes and generate questions to fill them.",
+        chatSuggestions: ['What areas are we blind to right now?', 'How do you prioritize gaps?', 'What domain patterns do you use?', 'What questions should we ask next?'],
+        procSteps: [
+          { label: 'Scanning entity graph', tool: '🗺️', toolName: 'Coverage Mapper' },
+          { label: 'Computing coverage map', tool: '🗺️', toolName: 'Coverage Mapper' },
+          { label: 'Matching domain patterns', tool: '📊', toolName: 'Pattern Matcher' },
+          { label: 'Generating questions', tool: '🎯', toolName: 'Question Generator' },
+          { label: 'Prioritizing themes', tool: '🗺️', toolName: 'Coverage Mapper' },
+        ],
+        sampleInput: '23 features, 4 personas, 8 flow steps confirmed. Checking for blind spots.',
+        sampleOutput: [
+          { key: 'Gaps found', val: '7 knowledge gaps across 3 themes' },
+          { key: 'Data Migration', val: 'No migration strategy discussed. Legacy format unknown. Volume estimates missing.', badge: 'high' },
+          { key: 'Offline Support', val: 'Warehouse connectivity assumptions untested. Sync conflict resolution undefined.', badge: 'moderate' },
+          { key: 'Questions', list: ['How will existing inventory data migrate?', 'What happens when a scan occurs offline?'] },
+          { key: 'Coverage', val: '72% — migration is the biggest blind spot' },
+        ],
+        cascadeEffects: [{ target: 'Briefing Engine', effect: 'Will include migration as top priority for next session' }],
+      },
+      {
+        id: 'belief-track', name: 'Belief Tracker', icon: '🧠',
+        role: 'Monitors how understanding evolves — catches timeline shifts, priority changes, and contradictions between what different stakeholders have said.',
+        tools: [
+          { icon: '📈', name: 'Confidence Monitor', desc: 'Tracks belief strength over time', reliability: 90, dataTouches: ['Belief database', 'Signal weights'], example: 'Tracks "Shopify is primary channel" — evidence count: 1→2→3, confidence: 72%→88%→96% across 3 sessions' },
+          { icon: '⚡', name: 'Contradiction Detector', desc: 'Flags conflicting statements', reliability: 85, dataTouches: ['All signals', 'Belief state'], example: 'Detects: Kickoff said "Q3 launch" but CEO said "March" → flags timeline contradiction, marks as NEEDS_DISCUSSION' },
+          { icon: '📅', name: 'Timeline Tracker', desc: 'Watches for deadline and priority shifts', reliability: 93, dataTouches: ['Date mentions', 'Priority signals'], example: 'Detects timeline acceleration: Q3→March = 4 months earlier. Checks which features are affected by shorter runway.' },
+        ],
+        dataSources: [
+          { name: 'Signal stream', access: 'subscribe', color: 'var(--green)' },
+          { name: 'Belief database', access: 'read/write', color: 'var(--amber)' },
+        ],
+        autonomy: { level: 55, canDo: ['Track belief changes', 'Detect contradictions', 'Update confidence'], needsApproval: ['Surface contradictions to client', 'Mark beliefs as resolved'], cannotDo: ['Resolve contradictions autonomously', 'Override consultant decisions'] },
+        partner: { role: 'Consultant', initials: 'MC', color: 'var(--accent)', relationship: 'Belief Tracker watches for changes. The consultant decides how to handle contradictions — some are real conflicts, others are context-dependent.', escalations: 'Contradictions, major timeline shifts, confidence drops' },
+        dependsOn: ['signal-proc'], feedsInto: ['briefing'],
+        chatIntro: "I'm Belief Tracker. I watch every signal for changes in understanding — timeline shifts, priority changes, contradictions. I keep a living map of what we believe to be true and how confident we are.",
+        chatSuggestions: ['What beliefs have changed recently?', 'Are there any active contradictions?', 'How confident are we about the timeline?', 'What happens when two stakeholders disagree?'],
+        procSteps: [
+          { label: 'Loading belief state', tool: '📈', toolName: 'Confidence Monitor' },
+          { label: 'Comparing new signals', tool: '⚡', toolName: 'Contradiction Detector' },
+          { label: 'Checking for contradictions', tool: '⚡', toolName: 'Contradiction Detector' },
+          { label: 'Tracking timeline shifts', tool: '📅', toolName: 'Timeline Tracker' },
+          { label: 'Updating confidence', tool: '📈', toolName: 'Confidence Monitor' },
+        ],
+        sampleInput: 'New signal: CEO says "we need this live by March." Existing belief: "Q3 target discussed in kickoff."',
+        sampleOutput: [
+          { key: 'Contradiction', val: 'Launch date conflict — kickoff said Q3, CEO now says March', badge: 'high' },
+          { key: 'Updated belief', val: 'Timeline accelerated from Q3 2026 to March 2026 (CEO interview)' },
+          { key: 'Strengthened', val: '"Shopify is primary channel" — now 3 sources, 96% confidence' },
+          { key: 'Inventory', val: '34 beliefs tracked: 28 high-confidence, 6 need validation' },
+        ],
+        cascadeEffects: [{ target: 'Briefing Engine', effect: 'Will add timeline contradiction as must-resolve topic' }],
+      },
+      {
+        id: 'briefing', name: 'Briefing Engine', icon: '📝',
+        role: 'Prepares the consultant for each session — assembles gaps, contradictions, and open questions into a structured briefing with discussion cards.',
+        tools: [
+          { icon: '📋', name: 'Session Planner', desc: 'Structures optimal session agendas', reliability: 87, dataTouches: ['Gap clusters', 'Session history'], example: 'Plans Session #3: 45 min, 3 priority topics ordered by urgency, 5 discussion cards, estimated coverage improvement: +15%' },
+          { icon: '🃏', name: 'Card Builder', desc: 'Creates discussion cards from insights', reliability: 84, dataTouches: ['Gaps', 'Contradictions', 'Open questions'], example: 'Builds "Timeline Conflict" card: type=RESOLVE, shows both dates, suggests direct question, links to source signals' },
+          { icon: '📊', name: 'Readiness Scorer', desc: 'Measures preparation completeness', reliability: 92, dataTouches: ['All agent outputs', 'Session goals'], example: 'Scores session readiness: 68% — penalized for: migration cluster (0 signals), unresolved contradiction (timeline)' },
+        ],
+        dataSources: [
+          { name: 'Knowledge gaps', access: 'read', color: 'var(--green)' },
+          { name: 'Belief state', access: 'read', color: 'var(--green)' },
+          { name: 'Session history', access: 'read', color: 'var(--green)' },
+        ],
+        autonomy: { level: 40, canDo: ['Draft briefing', 'Generate discussion cards', 'Score readiness'], needsApproval: ['Every briefing before session', 'Topic ordering', 'Client-facing content'], cannotDo: ['Run sessions autonomously', 'Contact clients directly'] },
+        partner: { role: 'Consultant', initials: 'MC', color: 'var(--accent)', relationship: 'Briefing Engine drafts. The consultant reviews, reorders, and decides what to actually bring up. Every briefing is a suggestion, not an agenda.', escalations: 'Low readiness scores, critical unresolved contradictions' },
+        dependsOn: ['gap-detect', 'belief-track'], feedsInto: [],
+        chatIntro: "I'm Briefing Engine. I take everything the other agents know — gaps, contradictions, open questions — and structure it into a session briefing. I suggest what to discuss and in what order, but you always have the final say.",
+        chatSuggestions: ['What should we cover in the next session?', 'How ready are we for the client meeting?', 'What\'s the most important unresolved topic?', 'Build me a briefing for session #3'],
+        procSteps: [
+          { label: 'Gathering gap analysis', tool: '📋', toolName: 'Session Planner' },
+          { label: 'Loading belief state', tool: '📋', toolName: 'Session Planner' },
+          { label: 'Reviewing session history', tool: '📊', toolName: 'Readiness Scorer' },
+          { label: 'Structuring priority topics', tool: '📋', toolName: 'Session Planner' },
+          { label: 'Building discussion cards', tool: '🃏', toolName: 'Card Builder' },
+          { label: 'Scoring readiness', tool: '📊', toolName: 'Readiness Scorer' },
+        ],
+        sampleInput: 'Preparing for Session #3. 7 gaps detected, 1 contradiction, 4 open questions.',
+        sampleOutput: [
+          { key: 'Session title', val: 'Migration & Timeline Alignment' },
+          { key: 'Priority topics', list: ['Resolve: Launch date conflict — CEO said March vs Q3 from kickoff', 'Explore: Data migration — 3 gaps, zero signals so far', 'Validate: Offline warehouse ops — assuming connected, risk if wrong'] },
+          { key: 'Discussion cards', val: '5 cards — 2 resolve, 2 explore, 1 validate' },
+          { key: 'Readiness', val: '68% — migration cluster needs most attention' },
+        ],
+        cascadeEffects: [],
+      },
+    ],
+  },
+};
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+const state = { scenario: 'vault', selectedNode: null, activeTab: 'profile', validatedNodes: new Set(), seededNodes: new Set(), processingNode: null, chatHistories: {} };
+
+// ═══════════════════════════════════════════════
+// INIT + RENDER
+// ═══════════════════════════════════════════════
+function init() {
+  const c = document.getElementById('scenarioBtns');
+  Object.entries(SCENARIOS).forEach(([key, s]) => {
+    const btn = document.createElement('button');
+    btn.className = 'ctrl-btn' + (key === state.scenario ? ' active' : '');
+    btn.textContent = s.name; btn.dataset.key = key;
+    btn.onclick = () => { state.scenario = key; state.selectedNode = null; state.validatedNodes.clear(); state.seededNodes.clear(); state.chatHistories = {}; closeDetail(); updateAll(); };
+    c.appendChild(btn);
+  });
+  updateAll();
+}
+
+function updateAll() {
+  document.querySelectorAll('#scenarioBtns .ctrl-btn').forEach(b => b.classList.toggle('active', b.dataset.key === state.scenario));
+  const sc = SCENARIOS[state.scenario];
+  document.getElementById('headerThesis').innerHTML = sc.thesis;
+  const validated = sc.nodes.filter(n => state.validatedNodes.has(n.id)).length;
+  document.getElementById('headerStats').innerHTML = `
+    <div class="ph-stat"><span class="ph-stat-val">${sc.nodes.length}</span><span class="ph-stat-label">Agents</span></div>
+    <div class="ph-stat"><span class="ph-stat-val">${validated}/${sc.nodes.length}</span><span class="ph-stat-label">Validated</span></div>
+  `;
+  renderCanvas(sc);
+  updatePrompt();
+}
+
+function renderCanvas(sc) {
+  const canvas = document.getElementById('canvas');
+  canvas.querySelectorAll('.node').forEach(n => n.remove());
+  const showTools = document.getElementById('togTools').checked;
+  const showAutonomy = document.getElementById('togAutonomy').checked;
+  const showPartner = document.getElementById('togPartner').checked;
+  const showDeps = document.getElementById('togDeps').checked;
+
+  const depthMap = {};
+  function getDepth(n, v = new Set()) { if (depthMap[n.id] !== undefined) return depthMap[n.id]; if (v.has(n.id)) return 0; v.add(n.id); if (!n.dependsOn.length) { depthMap[n.id] = 0; return 0; } depthMap[n.id] = Math.max(...n.dependsOn.map(id => { const p = sc.nodes.find(x => x.id === id); return p ? getDepth(p, v) : -1; })) + 1; return depthMap[n.id]; }
+  sc.nodes.forEach(n => getDepth(n));
+
+  const columns = {};
+  sc.nodes.forEach(n => { const c = depthMap[n.id]; if (!columns[c]) columns[c] = []; columns[c].push(n); });
+  const nodePos = {};
+  Object.entries(columns).forEach(([col, nodes]) => { const c = parseInt(col); nodes.forEach((node, i) => { nodePos[node.id] = { x: 24 + c * 270, y: 16 + i * (showPartner ? 240 : 200) }; }); });
+
+  sc.nodes.forEach(node => {
+    const pos = nodePos[node.id];
+    const el = document.createElement('div');
+    el.className = 'node' + (state.selectedNode === node.id ? ' selected' : '') + (state.validatedNodes.has(node.id) ? ' validated' : '');
+    if (state.selectedNode && state.selectedNode !== node.id) {
+      const sel = sc.nodes.find(n => n.id === state.selectedNode);
+      if (sel && !sel.feedsInto.includes(node.id) && !sel.dependsOn.includes(node.id) && !node.feedsInto.includes(state.selectedNode) && !node.dependsOn.includes(state.selectedNode)) el.classList.add('dimmed');
+    }
+    el.style.left = pos.x + 'px'; el.style.top = pos.y + 'px';
+
+    let html = `<div class="n-top"><span class="n-icon">${node.icon}</span><span class="n-name">${node.name}</span>`;
+    if (state.validatedNodes.has(node.id)) html += '<div class="n-validated">&#x2713;</div>';
+    html += `</div><div class="n-role">${node.role}</div>`;
+
+    if (showTools) {
+      html += '<div class="n-tools">';
+      node.tools.slice(0, 3).forEach(t => { html += `<span class="n-tool">${t.icon} ${t.name}</span>`; });
+      if (node.tools.length > 3) html += `<span class="n-tool">+${node.tools.length - 3}</span>`;
+      html += '</div>';
+    }
+
+    if (showAutonomy) {
+      html += `<div class="n-autonomy"><div class="n-autonomy-bar"><div class="n-autonomy-fill" style="width:${node.autonomy.level}%"></div></div><div class="n-autonomy-label"><span class="n-autonomy-text">Autonomy</span><span class="n-autonomy-text">${node.autonomy.level}%</span></div></div>`;
+    }
+
+    if (showPartner) {
+      html += `<div class="n-partner"><div class="n-partner-dot" style="background:${node.partner.color}">${node.partner.initials}</div><span class="n-partner-name">${node.partner.role}</span><span class="n-partner-rel">partner</span></div>`;
+    }
+
+    el.innerHTML = html;
+    el.onclick = () => selectNode(node.id);
+    canvas.appendChild(el);
+  });
+
+  const maxY = Math.max(...Object.values(nodePos).map(p => p.y)) + 280;
+  canvas.style.minHeight = Math.max(maxY, 480) + 'px';
+
+  // Edges
+  const svg = document.getElementById('edgeLayer');
+  svg.innerHTML = '';
+  if (!showDeps) return;
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  marker.setAttribute('id', 'arr'); marker.setAttribute('viewBox', '0 0 8 8'); marker.setAttribute('refX', '7'); marker.setAttribute('refY', '4'); marker.setAttribute('markerWidth', '5'); marker.setAttribute('markerHeight', '5'); marker.setAttribute('orient', 'auto');
+  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  poly.setAttribute('points', '0 1, 6 4, 0 7'); poly.setAttribute('fill', 'rgba(63,175,122,0.35)');
+  marker.appendChild(poly); defs.appendChild(marker); svg.appendChild(defs);
+
+  sc.nodes.forEach(node => node.feedsInto.forEach(tid => {
+    const from = nodePos[node.id], to = nodePos[tid];
+    if (!from || !to) return;
+    const isActive = state.selectedNode && (state.selectedNode === node.id || state.selectedNode === tid);
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const fx = from.x + 230, fy = from.y + 60, tx = to.x, ty = to.y + 60, mx = (fx + tx) / 2;
+    path.setAttribute('d', `M${fx},${fy} C${mx},${fy} ${mx},${ty} ${tx},${ty}`);
+    path.setAttribute('fill', 'none'); path.setAttribute('stroke', isActive ? 'rgba(63,175,122,0.5)' : 'rgba(63,175,122,0.2)');
+    path.setAttribute('stroke-width', isActive ? '2' : '1.5'); path.setAttribute('stroke-dasharray', '6,4');
+    path.setAttribute('marker-end', 'url(#arr)'); svg.appendChild(path);
+  }));
+}
+
+// ═══════════════════════════════════════════════
+// DETAIL PANEL
+// ═══════════════════════════════════════════════
+function selectNode(id) { state.selectedNode = state.selectedNode === id ? null : id; state.activeTab = 'profile'; if (state.selectedNode) openDetail(id); else closeDetail(); updateAll(); }
+
+function switchTab(tab) { state.activeTab = tab; if (state.selectedNode) openDetail(state.selectedNode); }
+
+function openDetail(nodeId) {
+  const sc = SCENARIOS[state.scenario];
+  const node = sc.nodes.find(n => n.id === nodeId);
+  if (!node) return;
+  document.getElementById('dIcon').textContent = node.icon;
+  document.getElementById('dTitle').textContent = node.name;
+  ['tabProfile', 'tabChat', 'tabTry'].forEach(id => document.getElementById(id).classList.toggle('active', id === 'tab' + state.activeTab.charAt(0).toUpperCase() + state.activeTab.slice(1)));
+  document.getElementById('tabChat').textContent = `Talk to ${node.name}`;
+
+  const body = document.getElementById('dBody');
+  if (state.activeTab === 'profile') body.innerHTML = renderProfile(node, sc);
+  else if (state.activeTab === 'chat') body.innerHTML = renderChat(node);
+  else body.innerHTML = renderTryIt(node);
+
+  document.getElementById('detailPanel').classList.add('open');
+  document.getElementById('detailBackdrop').classList.add('open');
+
+  if (state.activeTab === 'chat') { const msgs = document.getElementById('chatMessages'); if (msgs) msgs.scrollTop = msgs.scrollHeight; }
+}
+
+function closeDetail() { document.getElementById('detailPanel').classList.remove('open'); document.getElementById('detailBackdrop').classList.remove('open'); if (state.selectedNode) { state.selectedNode = null; updateAll(); } }
+
+// ── Profile Tab ──
+function renderProfile(node, sc) {
+  const upstream = sc.nodes.filter(n => node.dependsOn.includes(n.id));
+  const downstream = sc.nodes.filter(n => node.feedsInto.includes(n.id));
+
+  let html = `<div class="d-section" style="padding-top:16px"><div class="d-section-title">What ${node.name} Does</div><p style="font-size:12px;color:var(--text-body);line-height:1.6">${node.role}</p></div>`;
+
+  html += `<div class="d-section"><div class="d-section-title">Tools & Capabilities</div><div class="tools-grid" id="toolsGrid">`;
+  node.tools.forEach((t, i) => {
+    html += `<div class="tool-card" id="tool-${i}" onclick="toggleTool(${i})">
+      <div class="tool-icon">${t.icon}</div>
+      <div class="tool-name">${t.name}</div>
+      <div class="tool-desc">${t.desc}</div>
+      <div class="tool-expand">
+        <div class="tool-example">
+          <div class="tool-example-label">Example</div>
+          <div class="tool-example-text">${t.example || ''}</div>
+        </div>
+        ${t.dataTouches ? `<div style="margin-top:6px"><div class="tool-example-label">Data it touches</div>${t.dataTouches.map(d => `<div class="tool-data-row"><div class="tool-data-dot" style="background:var(--green)"></div>${d}</div>`).join('')}</div>` : ''}
+        ${t.reliability ? `<div class="tool-reliability"><span style="font-size:9px;color:var(--text-muted)">Reliability</span><div class="tool-reliability-bar"><div class="tool-reliability-fill" style="width:${t.reliability}%"></div></div><span class="tool-reliability-label">${t.reliability}%</span></div>` : ''}
+      </div>
+    </div>`;
+  });
+  html += '</div></div>';
+
+  html += `<div class="d-section"><div class="d-section-title">Data Access</div>`;
+  node.dataSources.forEach(d => { html += `<div class="data-row"><div class="data-dot" style="background:${d.color}"></div><span class="data-name">${d.name}</span><span class="data-access" style="background:rgba(0,0,0,0.03);color:var(--text-muted)">${d.access}</span></div>`; });
+  html += '</div>';
+
+  html += `<div class="d-section"><div class="d-section-title">Autonomy Level — ${node.autonomy.level}%</div>`;
+  html += `<div style="height:6px;border-radius:3px;background:rgba(0,0,0,0.04);margin-bottom:10px;overflow:hidden"><div style="height:100%;width:${node.autonomy.level}%;background:var(--green);border-radius:3px"></div></div>`;
+  html += `<div class="autonomy-section"><div class="autonomy-heading can">Can act alone</div><div class="autonomy-items">${node.autonomy.canDo.map(a => `<span class="autonomy-pill can">${a}</span>`).join('')}</div></div>`;
+  html += `<div class="autonomy-section"><div class="autonomy-heading needs">Needs approval</div><div class="autonomy-items">${node.autonomy.needsApproval.map(a => `<span class="autonomy-pill needs">${a}</span>`).join('')}</div></div>`;
+  html += `<div class="autonomy-section"><div class="autonomy-heading cant">Cannot do</div><div class="autonomy-items">${node.autonomy.cannotDo.map(a => `<span class="autonomy-pill cant">${a}</span>`).join('')}</div></div>`;
+  html += '</div>';
+
+  html += `<div class="d-section"><div class="d-section-title">Human Partner</div><div class="partner-card"><div class="partner-avatar" style="background:${node.partner.color}">${node.partner.initials}</div><div class="partner-info"><div class="partner-role">${node.partner.role}</div><div class="partner-relationship">${node.partner.relationship}</div><div class="partner-escalation"><strong>Escalates when:</strong> ${node.partner.escalations}</div></div></div></div>`;
+
+  if (upstream.length || downstream.length) {
+    html += '<div class="d-section"><div class="d-section-title">Pipeline Connections</div>';
+    upstream.forEach(n => { html += `<div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-body);padding:3px 0"><span style="color:var(--amber);font-weight:600">← from</span>${n.icon} ${n.name}</div>`; });
+    downstream.forEach(n => { html += `<div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-body);padding:3px 0"><span style="color:var(--green);font-weight:600">feeds →</span>${n.icon} ${n.name}</div>`; });
+    html += '</div>';
+  }
+  return html;
+}
+
+// ── Chat Tab ──
+function renderChat(node) {
+  const key = state.scenario + ':' + node.id;
+  if (!state.chatHistories[key]) state.chatHistories[key] = [{ role: 'agent', text: node.chatIntro }];
+  const msgs = state.chatHistories[key];
+
+  let html = '<div class="chat-wrap">';
+  html += `<div class="chat-messages" id="chatMessages">`;
+  msgs.forEach(m => { html += `<div class="chat-msg ${m.role}">${m.text}</div>`; });
+
+  if (msgs.length === 1) {
+    html += '<div class="chat-suggestions">';
+    node.chatSuggestions.forEach(s => { html += `<button class="chat-sug" onclick="sendChatMsg('${node.id}',this.textContent)">${s}</button>`; });
+    html += '</div>';
+  }
+  html += '</div>';
+  html += `<div class="chat-input-row"><input class="chat-input" id="chatInput" placeholder="Ask ${node.name} anything..." onkeydown="if(event.key==='Enter'){event.preventDefault();sendChatFromInput('${node.id}')}"><button class="chat-send" onclick="sendChatFromInput('${node.id}')">Send</button></div>`;
+  html += '</div>';
+  return html;
+}
+
+function sendChatFromInput(nodeId) { const inp = document.getElementById('chatInput'); if (inp && inp.value.trim()) { sendChatMsg(nodeId, inp.value.trim()); } }
+
+function sendChatMsg(nodeId, text) {
+  const key = state.scenario + ':' + nodeId;
+  if (!state.chatHistories[key]) state.chatHistories[key] = [];
+  state.chatHistories[key].push({ role: 'user', text });
+
+  const sc = SCENARIOS[state.scenario];
+  const node = sc.nodes.find(n => n.id === nodeId);
+  // Simulate response
+  setTimeout(() => {
+    const responses = [
+      `Great question. Based on my current configuration, I would handle that by ${node.autonomy.canDo[0].toLowerCase()} first, then checking against my ${node.tools[0].name.toLowerCase()}. If I'm not confident enough, I'd escalate to ${node.partner.role}.`,
+      `That's exactly the kind of scenario I'm built for. I'd use my ${node.tools[1]?.name || node.tools[0].name} to analyze it, then cross-reference with ${node.dataSources[0].name}. My current autonomy level (${node.autonomy.level}%) means I'd handle the routine part myself and flag the edge case.`,
+      `Good instinct to test that. Here's what I'd do: First, ${node.autonomy.canDo[0].toLowerCase()}. Then I'd check if this falls into something I need approval for — specifically "${node.autonomy.needsApproval[0].toLowerCase()}." If so, ${node.partner.role} gets notified. Want me to walk through a specific example?`,
+    ];
+    state.chatHistories[key].push({ role: 'agent', text: responses[Math.floor(Math.random() * responses.length)] });
+    openDetail(nodeId);
+  }, 800);
+  openDetail(nodeId);
+}
+
+// ── Try It Tab ──
+function renderTryIt(node) {
+  let html = '<div class="tryit-wrap">';
+  html += `<div><p style="font-size:10px;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Sample Scenario</p>
+    <textarea class="tryit-input" id="tryInput">${node.sampleInput}</textarea>
+    <button class="tryit-run" id="tryBtn" onclick="runAgent('${node.id}')">Run ${node.name}</button></div>`;
+
+  html += `<div id="procArea"></div>`;
+
+  if (state.seededNodes.has(node.id)) {
+    html += renderOutput(node);
+    html += renderValidation(node);
+  } else {
+    html += `<div style="text-align:center;padding:20px;color:var(--text-light);font-size:11px;font-style:italic">Click Run to see ${node.name} in action</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function toggleTool(idx) {
+  const el = document.getElementById('tool-' + idx);
+  if (!el) return;
+  // Close others
+  document.querySelectorAll('.tool-card.expanded').forEach(c => { if (c !== el) c.classList.remove('expanded'); });
+  el.classList.toggle('expanded');
+}
+
+function runAgent(nodeId) {
+  if (state.processingNode) return;
+  state.processingNode = nodeId;
+  const sc = SCENARIOS[state.scenario]; const node = sc.nodes.find(n => n.id === nodeId);
+  const btn = document.getElementById('tryBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Running...'; }
+  const procArea = document.getElementById('procArea');
+
+  const steps = node.procSteps;
+  let html = '<div style="padding:4px 0">';
+  steps.forEach((s, i) => {
+    const step = typeof s === 'string' ? { label: s } : s;
+    html += `<div class="proc-step" id="ps${i}">
+      <div class="proc-dot pending" id="pd${i}"></div>
+      <span class="proc-label pending" id="pl${i}">${step.label}</span>
+      ${step.tool ? `<div class="proc-tool"><span class="proc-tool-icon">${step.tool}</span><span class="proc-tool-name">${step.toolName}</span></div>` : ''}
+    </div>`;
+  });
+  html += '</div>';
+  procArea.innerHTML = html;
+
+  let stepIdx = 0;
+  const iv = setInterval(() => {
+    if (stepIdx > 0) {
+      const ps = document.getElementById('ps' + (stepIdx - 1));
+      const d = document.getElementById('pd' + (stepIdx - 1));
+      const l = document.getElementById('pl' + (stepIdx - 1));
+      if (ps) ps.className = 'proc-step step-done';
+      if (d) { d.className = 'proc-dot done'; d.innerHTML = '&#x2713;'; }
+      if (l) l.className = 'proc-label done';
+    }
+    if (stepIdx < steps.length) {
+      const ps = document.getElementById('ps' + stepIdx);
+      const d = document.getElementById('pd' + stepIdx);
+      const l = document.getElementById('pl' + stepIdx);
+      if (ps) ps.className = 'proc-step step-active';
+      if (d) d.className = 'proc-dot active';
+      if (l) l.className = 'proc-label active';
+    }
+    stepIdx++;
+    if (stepIdx > steps.length) { clearInterval(iv); setTimeout(() => { state.seededNodes.add(nodeId); state.processingNode = null; openDetail(nodeId); }, 200); }
+  }, 400);
+}
+
+function renderOutput(node) {
+  let html = `<div class="output-card"><div class="output-hdr"><span class="output-hdr-label">&#x2713; Output</span><span class="output-hdr-time">${(0.8 + Math.random() * 1.4).toFixed(1)}s</span></div><div class="output-body">`;
+  node.sampleOutput.forEach((row, i) => {
+    if (i > 0) html += '<div class="output-divider"></div>';
+    html += '<div class="output-row"><div class="output-key">' + row.key + '</div><div class="output-val">';
+    if (row.list) { html += '<ul class="output-list">' + row.list.map(item => `<li>${item}</li>`).join('') + '</ul>'; }
+    else if (row.badge) { html += `<span class="output-badge ${row.badge}">${row.badge.toUpperCase()}</span> ${row.val}`; }
+    else { html += row.val; }
+    html += '</div></div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
+function renderValidation(node) {
+  let html = '<div class="validate-bar"><button class="validate-btn confirm" onclick="validateAgent(\'' + node.id + '\',true)">&#x2713; This is exactly right</button><button class="validate-btn adjust" onclick="switchTab(\'chat\')">I\'d adjust this</button></div>';
+  if (node.cascadeEffects.length) {
+    html += '<div class="cascade-alert"><div class="cascade-title">&#x26A0; This agent feeds others</div>';
+    node.cascadeEffects.forEach(c => { html += `<div class="cascade-item"><span class="cascade-arrow">→</span><strong>${c.target}</strong>: ${c.effect}</div>`; });
+    html += '</div>';
+  }
+  return html;
+}
+
+function validateAgent(nodeId, confirmed) {
+  if (confirmed) { state.validatedNodes.add(nodeId); const sc = SCENARIOS[state.scenario]; const key = state.scenario + ':' + nodeId; if (!state.chatHistories[key]) state.chatHistories[key] = []; state.chatHistories[key].push({ role: 'system', text: '&#x2713; Agent behavior validated' }); }
+  updateAll(); openDetail(nodeId);
+}
+
+// ═══════════════════════════════════════════════
+// PROMPT + UTILS
+// ═══════════════════════════════════════════════
+function updatePrompt() {
+  const sc = SCENARIOS[state.scenario]; const validated = sc.nodes.filter(n => state.validatedNodes.has(n.id)).map(n => n.name);
+  let parts = [`Intelligence Layer for "${sc.name}" — ${sc.nodes.length} agents.`];
+  sc.nodes.forEach(n => { parts.push(`${n.icon} ${n.name}: ${n.role.split('.')[0]}. Tools: ${n.tools.map(t => t.name).join(', ')}. Autonomy: ${n.autonomy.level}%. Partner: ${n.partner.role}.`); });
+  if (validated.length) parts.push(`Validated: ${validated.join(', ')}.`);
+  document.getElementById('promptText').textContent = parts.join(' ');
+}
+
+function copyPrompt() { navigator.clipboard.writeText(document.getElementById('promptText').textContent).then(() => { const btn = document.querySelector('.prompt-copy'); btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy Prompt', 1500); }); }
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+init();
+</script>
+</body>
+</html>

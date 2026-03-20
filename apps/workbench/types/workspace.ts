@@ -2159,6 +2159,114 @@ export interface AgentExampleResponse {
   input_type?: string | null
 }
 
+// ============================================
+// Intelligence Layer (DB-backed agents)
+// ============================================
+
+export interface AgentTool {
+  id: string
+  agent_id: string
+  name: string
+  icon: string
+  description: string
+  example: string | null
+  data_touches: string[]
+  reliability: number
+  display_order: number
+}
+
+export interface AgentDataSource {
+  name: string
+  access: 'read' | 'read/write' | 'query' | 'subscribe'
+  color?: string
+}
+
+export interface SampleOutputRow {
+  key: string
+  val?: string
+  list?: string[]
+  badge?: 'high' | 'moderate' | 'low' | 'recommended' | 'conditional'
+}
+
+export interface ProcessingStep {
+  label: string
+  tool_icon?: string
+  tool_name?: string
+}
+
+export interface CascadeEffect {
+  target_agent_name: string
+  effect_description: string
+}
+
+export interface IntelLayerAgent {
+  id: string
+  project_id: string
+  source_step_id: string | null
+  name: string
+  icon: string
+  agent_type: AgentType
+  role_description: string
+  autonomy_level: number
+  can_do: string[]
+  needs_approval: string[]
+  cannot_do: string[]
+  partner_role: string | null
+  partner_name: string | null
+  partner_initials: string | null
+  partner_color: string | null
+  partner_relationship: string | null
+  partner_escalations: string | null
+  data_sources: AgentDataSource[]
+  depends_on_agent_ids: string[]
+  feeds_agent_ids: string[]
+  maturity: AgentMaturity
+  technique: AgentTechnique
+  rhythm: AgentRhythm
+  automation_rate: number
+  daily_work_narrative: string | null
+  growth_narrative: string | null
+  consultant_insight: string | null
+  transform_before: string | null
+  transform_after: string | null
+  chat_intro: string | null
+  chat_suggestions: string[]
+  sample_input: string | null
+  sample_output: SampleOutputRow[]
+  processing_steps: ProcessingStep[]
+  cascade_effects: CascadeEffect[]
+  validation_status: 'unvalidated' | 'validated' | 'needs_review'
+  validated_at: string | null
+  validated_behaviors: Record<string, unknown>[]
+  confidence_high: number
+  confidence_medium: number
+  confidence_low: number
+  display_order: number
+  created_at: string
+  updated_at: string
+  tools: AgentTool[]
+}
+
+export interface IntelLayerResponse {
+  agents: IntelLayerAgent[]
+  agent_count: number
+  validated_count: number
+}
+
+export interface AgentChatMessage {
+  id: string
+  role: 'user' | 'agent' | 'system'
+  content: string
+  created_at: string
+}
+
+export interface AgentExecutionResult {
+  execution_id: string
+  output: SampleOutputRow[]
+  execution_time_ms: number
+  model: string
+}
+
 // Horizon types for Flow view
 export interface FlowHorizon {
   id: string
