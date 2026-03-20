@@ -14,37 +14,35 @@ interface Props {
 
 function OutputRow({ row }: { row: SampleOutputRow }) {
   return (
-    <div className="py-2" style={{ borderBottom: '1px solid rgba(10,30,47,0.04)' }}>
-      <div className="flex items-start gap-2">
-        <p className="text-[10px] font-medium min-w-[80px] flex-shrink-0 pt-0.5" style={{ color: '#A0AEC0' }}>
+    <div className="py-2.5" style={{ borderBottom: '1px solid rgba(10,30,47,0.04)' }}>
+      <div className="flex items-center gap-2 mb-1">
+        <p className="text-[10px] font-medium" style={{ color: '#A0AEC0' }}>
           {row.key}
         </p>
-        <div className="flex-1 min-w-0">
-          {row.badge && (
-            <span
-              className="inline-block px-1.5 py-0 rounded text-[8px] font-medium mr-1.5 align-middle"
-              style={{ color: '#4A5568', background: 'rgba(10,30,47,0.06)' }}
-            >
-              {row.badge}
-            </span>
-          )}
-          {row.val && (
-            <span className="text-[11px] leading-relaxed" style={{ color: '#2D3748' }}>
-              {row.val}
-            </span>
-          )}
-          {row.list && row.list.length > 0 && (
-            <ul className="mt-0.5 space-y-0.5">
-              {row.list.map((item, i) => (
-                <li key={i} className="text-[11px] leading-relaxed flex items-start gap-1.5" style={{ color: '#4A5568' }}>
-                  <span className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ background: '#3FAF7A' }} />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {row.badge && (
+          <span
+            className="px-1.5 py-0 rounded text-[8px] font-medium"
+            style={{ color: '#4A5568', background: 'rgba(10,30,47,0.06)' }}
+          >
+            {row.badge}
+          </span>
+        )}
       </div>
+      {row.val && (
+        <p className="text-[11px] leading-relaxed" style={{ color: '#2D3748' }}>
+          {row.val}
+        </p>
+      )}
+      {row.list && row.list.length > 0 && (
+        <ul className="space-y-0.5">
+          {row.list.map((item, i) => (
+            <li key={i} className="text-[11px] leading-relaxed flex items-start gap-1.5" style={{ color: '#4A5568' }}>
+              <span className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ background: '#3FAF7A' }} />
+              {item}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
