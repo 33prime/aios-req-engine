@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intelligence Layer v3 — Discovery Clarity</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --green: #3FAF7A; --green-hover: #33a06d;
+    --green-dim: rgba(63,175,122,0.08); --green-border: rgba(63,175,122,0.15);
+    --navy: #0A1E2F; --deep-blue: #044159; --dark-green: #1B6B3A;
+    --text-dark: #2D3748; --text-body: #4A5568; --text-muted: #718096; --text-label: #A0AEC0;
+    --border: rgba(10,30,47,0.08); --border-hover: rgba(10,30,47,0.14);
+    --bg: #FAFBFC; --bg-subtle: rgba(0,0,0,0.02);
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.04); --shadow-md: 0 2px 12px rgba(0,0,0,0.06);
+    --radius-sm: 6px; --radius: 8px; --radius-lg: 12px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text-dark); -webkit-font-smoothing: antialiased; }
+  .icon { width: 14px; height: 14px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-sm { width: 12px; height: 12px; }
+  .icon-lg { width: 18px; height: 18px; }
+  .icon-xl { width: 20px; height: 20px; }
+
+  /* ─── LAYOUT ─── */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+  .main-area { flex: 1; overflow-y: auto; }
+  .chat-panel { width: 360px; border-left: 1px solid var(--border); background: white; display: flex; flex-direction: column; transition: width 0.2s; }
+  .chat-panel.collapsed { width: 0; overflow: hidden; border: none; }
+
+  /* ─── TOPBAR ─── */
+  .topbar { background: var(--navy); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .topbar-logo { font-size: 13px; font-weight: 700; color: white; }
+  .topbar-logo span { color: var(--green); }
+  .topbar-sep { width: 1px; height: 18px; background: rgba(255,255,255,0.1); }
+  .topbar-title { font-size: 11px; color: rgba(255,255,255,0.45); font-weight: 500; }
+  .project-tabs { display: flex; gap: 3px; background: rgba(255,255,255,0.06); border-radius: var(--radius); padding: 3px; }
+  .ptab { padding: 5px 12px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 600; cursor: pointer; color: rgba(255,255,255,0.4); border: none; background: none; transition: all 0.15s; }
+  .ptab.active { background: rgba(255,255,255,0.12); color: white; }
+  .ptab:hover:not(.active) { color: rgba(255,255,255,0.65); }
+
+  /* ─── HEADER ─── */
+  .intel-header { padding: 24px 24px 20px; background: white; border-bottom: 1px solid var(--border); }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+  .header-title { font-size: 17px; font-weight: 700; color: var(--navy); letter-spacing: -0.02em; margin-bottom: 3px; }
+  .header-sub { font-size: 11px; color: var(--text-muted); max-width: 620px; line-height: 1.5; }
+  .stats { display: flex; gap: 5px; }
+  .stat { padding: 4px 10px; border-radius: var(--radius-sm); background: var(--bg-subtle); border: 1px solid var(--border); text-align: center; }
+  .stat-val { font-size: 15px; font-weight: 700; color: var(--navy); }
+  .stat-lbl { font-size: 8px; font-weight: 600; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; }
+  .profile-row { display: flex; align-items: center; gap: 12px; }
+  .profile-lbl { font-size: 9px; font-weight: 600; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+  .profile-track { flex: 1; height: 5px; border-radius: 3px; display: flex; overflow: hidden; background: rgba(0,0,0,0.03); }
+  .pseg { height: 100%; transition: width 0.5s; }
+  .pseg.ai { background: var(--green); }
+  .pseg.rules { background: var(--deep-blue); }
+  .pseg.data { background: rgba(10,30,47,0.25); }
+  .legend { display: flex; gap: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; color: var(--text-body); }
+  .ldot { width: 6px; height: 6px; border-radius: 50%; }
+  .ldot.ai { background: var(--green); }
+  .ldot.rules { background: var(--deep-blue); }
+  .ldot.data { background: rgba(10,30,47,0.25); }
+
+  /* ─── CONTENT ─── */
+  .content { padding: 20px 24px 40px; max-width: 880px; }
+  .sec-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; margin-top: 24px; }
+  .sec-header:first-child { margin-top: 0; }
+  .sec-num { width: 20px; height: 20px; border-radius: 50%; background: var(--navy); color: white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .sec-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+  .sec-desc { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+
+  /* ─── QUADRANTS ─── */
+  .q-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .q-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: all 0.2s; }
+  .q-card:hover { border-color: var(--border-hover); box-shadow: var(--shadow-md); }
+  .q-card.open { grid-column: 1 / -1; border-color: var(--border-hover); box-shadow: var(--shadow-md); }
+  .q-head { display: flex; align-items: center; gap: 8px; padding: 13px 14px; cursor: pointer; }
+  .q-icon { width: 26px; height: 26px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; }
+  .q-icon.kn { background: rgba(10,30,47,0.06); color: var(--navy); }
+  .q-icon.sc { background: rgba(4,65,89,0.08); color: var(--deep-blue); }
+  .q-icon.dl { background: rgba(4,65,89,0.06); color: var(--deep-blue); }
+  .q-icon.ac { background: var(--green-dim); color: var(--green); }
+  .q-name { font-size: 12px; font-weight: 700; color: var(--navy); flex: 1; }
+  .q-cnt { font-size: 10px; font-weight: 700; color: var(--text-label); background: var(--bg-subtle); padding: 2px 6px; border-radius: 10px; }
+  .q-chev { color: var(--text-label); font-size: 11px; transition: transform 0.2s; }
+  .q-card.open .q-chev { transform: rotate(180deg); }
+
+  /* Collapsed pills */
+  .q-pills { padding: 0 14px 12px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .q-card.open .q-pills { display: none; }
+  .qp { padding: 3px 7px; border-radius: 4px; font-size: 9px; font-weight: 500; color: var(--text-body); background: var(--bg-subtle); border: 1px solid var(--border); }
+
+  /* Expanded detail */
+  .q-body { display: none; border-top: 1px solid var(--border); }
+  .q-card.open .q-body { display: block; }
+  .q-cols { display: grid; grid-template-columns: 280px 1fr; }
+
+  /* Left: items */
+  .q-left { padding: 14px; border-right: 1px solid var(--border); }
+  .q-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-label); margin-bottom: 6px; padding-left: 2px; }
+  .q-lbl + .q-lbl, .q-lbl:not(:first-child) { margin-top: 14px; }
+  .q-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer; transition: background 0.12s; margin-bottom: 1px; }
+  .q-item:hover { background: var(--bg-subtle); }
+  .q-item.sel { background: var(--green-dim); }
+  .q-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; border: 1.5px solid var(--text-label); }
+  .q-dot.filled { background: var(--green); border-color: var(--green); }
+  .q-dot.open-q { border-style: dashed; border-color: var(--deep-blue); }
+  .q-item-n { font-size: 10px; font-weight: 600; color: var(--text-dark); margin-bottom: 1px; }
+  .q-item-m { font-size: 9px; color: var(--text-label); line-height: 1.3; }
+  .q-item-tag { padding: 1px 5px; border-radius: 3px; font-size: 7px; font-weight: 700; text-transform: uppercase; flex-shrink: 0; margin-top: 3px; }
+  .q-item-tag.def { background: var(--green-dim); color: var(--dark-green); }
+  .q-item-tag.open { background: rgba(4,65,89,0.06); color: var(--deep-blue); }
+
+  /* Connects item to an outcome */
+  .q-outcome { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+  .q-outcome-arrow { color: var(--text-label); font-size: 8px; }
+  .q-outcome-text { font-size: 8px; color: var(--deep-blue); font-weight: 600; }
+
+  /* Right: detail + demo */
+  .q-right { padding: 14px; }
+  .qr-title { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 3px; }
+  .qr-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; }
+
+  /* Demo container */
+  .demo { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .demo-head { padding: 7px 10px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border); }
+  .demo-d { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+  .demo-lbl { font-size: 9px; font-weight: 700; color: var(--dark-green); text-transform: uppercase; letter-spacing: 0.03em; }
+  .demo-inner { padding: 10px; }
+
+  /* Tables */
+  .t { width: 100%; border-collapse: collapse; }
+  .t th { text-align: left; font-size: 8px; font-weight: 700; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 6px 5px; border-bottom: 1px solid var(--border); }
+  .t td { font-size: 10px; color: var(--text-dark); padding: 5px 6px; border-bottom: 1px solid rgba(0,0,0,0.03); }
+  .t tr:last-child td { border-bottom: none; }
+  .sel-input { padding: 4px 7px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 10px; color: var(--text-dark); background: white; font-family: inherit; }
+  .badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 7px; font-weight: 700; text-transform: uppercase; }
+  .badge.g { background: var(--green-dim); color: var(--dark-green); }
+  .badge.b { background: rgba(4,65,89,0.06); color: var(--deep-blue); }
+
+  /* Insight — connects to outcomes */
+  .connects { margin-top: 10px; padding: 8px 10px; border-radius: var(--radius-sm); background: rgba(4,65,89,0.03); border-left: 2px solid var(--deep-blue); }
+  .connects-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--deep-blue); margin-bottom: 3px; }
+  .connects-text { font-size: 10px; color: var(--text-body); line-height: 1.4; }
+
+  /* Open question — conversational, not scary */
+  .open-q-box { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: rgba(4,65,89,0.03); border: 1px solid rgba(4,65,89,0.08); margin-top: 8px; }
+  .open-q-icon { color: var(--deep-blue); flex-shrink: 0; margin-top: 1px; }
+  .open-q-text { font-size: 10px; color: var(--text-body); line-height: 1.4; flex: 1; }
+  .open-q-actions { display: flex; gap: 4px; margin-top: 6px; }
+  .open-q-btn { padding: 3px 8px; border-radius: 4px; font-size: 9px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: white; color: var(--text-body); transition: all 0.12s; }
+  .open-q-btn:hover { border-color: var(--green); color: var(--green); }
+  .open-q-btn.discuss { border-color: var(--green-border); background: var(--green-dim); color: var(--dark-green); }
+  .open-q-btn.discuss:hover { background: var(--green); color: white; }
+
+  /* ─── AGENTS ─── */
+  .a-stack { display: flex; flex-direction: column; gap: 10px; }
+  .a-card { background: white; border: 1.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: all 0.2s; cursor: pointer; }
+  .a-card:hover { border-color: var(--green-border); box-shadow: 0 4px 20px rgba(63,175,122,0.08); }
+  .a-card.open { border-color: var(--green); }
+  .a-head { padding: 14px 16px; display: flex; align-items: flex-start; gap: 10px; }
+  .a-icon { width: 34px; height: 34px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--green-dim); border: 1px solid var(--green-border); }
+  .a-meta { flex: 1; }
+  .a-name { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 2px; }
+  .a-goal { font-size: 10px; color: var(--text-muted); line-height: 1.4; }
+  .a-badge { padding: 3px 7px; border-radius: 8px; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .a-badge.orch { background: rgba(4,65,89,0.06); color: var(--deep-blue); border: 1px solid rgba(4,65,89,0.10); }
+  .a-badge.auto { background: var(--green-dim); color: var(--dark-green); border: 1px solid var(--green-border); }
+
+  /* Workflow */
+  .wf { padding: 0 16px 14px; }
+  .wf-row { display: flex; align-items: flex-start; overflow-x: auto; padding-bottom: 4px; }
+  .wf-n { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px; min-width: 110px; max-width: 140px; flex-shrink: 0; }
+  .wf-n:hover { border-color: var(--green-border); background: white; }
+  .wf-tp { font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+  .wf-tp.sa { color: var(--green); }
+  .wf-tp.tl { color: var(--deep-blue); }
+  .wf-nm { font-size: 9px; font-weight: 600; color: var(--navy); margin-bottom: 3px; line-height: 1.3; }
+  .wf-pills { display: flex; flex-wrap: wrap; gap: 2px; }
+  .wp { padding: 1px 4px; border-radius: 3px; font-size: 7px; font-weight: 600; background: rgba(0,0,0,0.03); border: 1px solid rgba(10,30,47,0.06); color: var(--text-muted); }
+  .wf-arr { display: flex; align-items: center; padding: 0 2px; color: var(--text-label); margin-top: 14px; flex-shrink: 0; }
+
+  /* Agent detail */
+  .a-detail { border-top: 1px solid var(--border); padding: 14px 16px; display: none; }
+  .a-card.open .a-detail { display: block; }
+  .a-tabs { display: flex; gap: 2px; background: rgba(10,30,47,0.04); border-radius: var(--radius-sm); padding: 2px; margin-bottom: 12px; }
+  .a-tab { padding: 4px 10px; border-radius: 5px; font-size: 10px; font-weight: 600; color: var(--text-label); cursor: pointer; border: none; background: none; }
+  .a-tab.active { background: white; color: var(--navy); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .sub-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-label); margin-bottom: 5px; margin-top: 10px; }
+  .sub-lbl:first-child { margin-top: 0; }
+  .tg { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .tc { padding: 7px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .tc:hover { border-color: var(--green-border); background: var(--green-dim); }
+  .tc.ai-b { border-left: 2px solid var(--green); }
+  .tc-h { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
+  .tc-n { font-size: 9px; font-weight: 600; color: var(--navy); }
+  .tc-d { font-size: 8px; color: var(--text-muted); line-height: 1.3; }
+  .tc-b { padding: 1px 4px; border-radius: 3px; font-size: 6px; font-weight: 700; text-transform: uppercase; margin-left: auto; }
+  .tc-b.ai { background: var(--green-dim); color: var(--dark-green); }
+
+  /* ─── CHAT PANEL ─── */
+  .chat-head { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .chat-title { font-size: 12px; font-weight: 700; color: var(--navy); flex: 1; }
+  .chat-close { background: none; border: none; color: var(--text-label); cursor: pointer; padding: 4px; }
+  .chat-context { padding: 8px 14px; background: var(--green-dim); border-bottom: 1px solid var(--green-border); }
+  .chat-ctx-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dark-green); margin-bottom: 2px; }
+  .chat-ctx-val { font-size: 10px; color: var(--text-dark); font-weight: 500; }
+  .chat-msgs { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-msg { max-width: 90%; padding: 8px 10px; border-radius: var(--radius); font-size: 10px; line-height: 1.5; }
+  .chat-msg.assistant { background: rgba(10,30,47,0.04); color: var(--text-dark); align-self: flex-start; }
+  .chat-msg.user { background: var(--navy); color: rgba(255,255,255,0.9); align-self: flex-end; }
+  .chat-msg strong { font-weight: 700; }
+  .chat-suggestions { padding: 8px 14px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .chat-sug { padding: 4px 8px; border-radius: var(--radius-sm); font-size: 9px; font-weight: 500; color: var(--deep-blue); background: rgba(4,65,89,0.04); border: 1px solid rgba(4,65,89,0.08); cursor: pointer; transition: all 0.12s; }
+  .chat-sug:hover { background: rgba(4,65,89,0.08); border-color: var(--deep-blue); }
+  .chat-input-row { padding: 8px 14px; border-top: 1px solid var(--border); display: flex; gap: 6px; }
+  .chat-input { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 10px; font-family: inherit; color: var(--text-dark); }
+  .chat-input:focus { outline: none; border-color: var(--green); }
+  .chat-send { background: var(--green); border: none; color: white; padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; }
+  .chat-send:hover { background: var(--green-hover); }
+
+  /* Chat toggle button */
+  .chat-toggle { position: fixed; bottom: 20px; right: 20px; width: 44px; height: 44px; border-radius: 50%; background: var(--green); color: white; border: none; cursor: pointer; box-shadow: 0 4px 16px rgba(63,175,122,0.3); display: flex; align-items: center; justify-content: center; z-index: 50; transition: all 0.15s; }
+  .chat-toggle:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(63,175,122,0.4); }
+  .chat-toggle.has-panel { display: none; }
+
+  /* ─── REVIEW PROGRESS ─── */
+  .review-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 14px; }
+  .review-progress { flex: 1; display: flex; gap: 3px; }
+  .review-seg { height: 4px; border-radius: 2px; flex: 1; }
+  .review-seg.reviewed { background: var(--green); }
+  .review-seg.pending { background: rgba(10,30,47,0.08); }
+  .review-text { font-size: 9px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+
+  .hidden { display: none !important; }
+  .wf-row::-webkit-scrollbar { height: 3px; }
+  .wf-row::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.25s ease; }
+</style>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<div class="app">
+<div class="main-area">
+
+<!-- ─── TOPBAR ─── -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">AIOS <span>Intelligence</span></div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-title">Discovery</div>
+  </div>
+  <div class="project-tabs">
+    <button class="ptab active" onclick="switchProject('bb')">BenyBox</button>
+    <button class="ptab" onclick="switchProject('ro')">RevOps Platform</button>
+  </div>
+</div>
+
+<!-- ═══════ BENYBOX ═══════ -->
+<div id="p-bb">
+  <div class="intel-header">
+    <div class="header-top">
+      <div>
+        <div class="header-title">Intelligence Layer</div>
+        <div class="header-sub">What makes BenyBox smart. Understand the knowledge, rules, and capabilities needed to deliver every desired outcome in the simplest way possible.</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-val">2</div><div class="stat-lbl">Agents</div></div>
+        <div class="stat"><div class="stat-val">1</div><div class="stat-lbl">AI</div></div>
+        <div class="stat"><div class="stat-val">10</div><div class="stat-lbl">Tools</div></div>
+        <div class="stat"><div class="stat-val">3</div><div class="stat-lbl">Knowledge</div></div>
+      </div>
+    </div>
+    <div class="profile-row">
+      <div class="profile-lbl">Intelligence Profile</div>
+      <div class="profile-track"><div class="pseg ai" style="width:12%"></div><div class="pseg rules" style="width:62%"></div><div class="pseg data" style="width:26%"></div></div>
+      <div class="legend">
+        <div class="legend-item"><div class="ldot ai"></div>12% AI</div>
+        <div class="legend-item"><div class="ldot rules"></div>62% Rules</div>
+        <div class="legend-item"><div class="ldot data"></div>26% Data</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Review Progress -->
+    <div class="review-bar">
+      <div style="font-size:9px;font-weight:700;color:var(--navy)">Review</div>
+      <div class="review-progress">
+        <div class="review-seg reviewed"></div><div class="review-seg reviewed"></div><div class="review-seg reviewed"></div>
+        <div class="review-seg pending"></div><div class="review-seg pending"></div><div class="review-seg pending"></div>
+        <div class="review-seg pending"></div><div class="review-seg pending"></div><div class="review-seg pending"></div>
+        <div class="review-seg pending"></div><div class="review-seg pending"></div><div class="review-seg pending"></div>
+        <div class="review-seg pending"></div><div class="review-seg pending"></div><div class="review-seg pending"></div>
+        <div class="review-seg pending"></div>
+      </div>
+      <div class="review-text">3 of 16 reviewed</div>
+    </div>
+
+    <div class="sec-header"><div class="sec-num">1</div><div class="sec-title">Intelligence Architecture</div></div>
+
+    <div class="q-grid">
+
+      <!-- KNOWLEDGE -->
+      <div class="q-card" id="bb-k"><div class="q-head" onclick="toggleQ('bb-k')"><div class="q-icon kn"><i data-lucide="book-open" class="icon"></i></div><div class="q-name">Knowledge Systems</div><div class="q-cnt">3</div><div class="q-chev">&#9662;</div></div>
+        <div class="q-pills"><span class="qp">50-State Legal Matrix</span><span class="qp">Document Taxonomy</span><span class="qp">Refresh Intervals</span></div>
+        <div class="q-body"><div class="q-cols">
+          <div class="q-left">
+            <div class="q-lbl">What the product needs to know</div>
+            <div class="q-item sel" onclick="selectItem(this)">
+              <div class="q-dot filled"></div>
+              <div style="flex:1">
+                <div class="q-item-n">50-State Legal Requirements</div>
+                <div class="q-item-m">Which documents each state requires by age, status, family</div>
+                <div class="q-outcome"><span class="q-outcome-arrow"><i data-lucide="corner-down-right" class="icon-sm"></i></span><span class="q-outcome-text">Powers Document Needs Assessment</span></div>
+              </div>
+            </div>
+            <div class="q-item" onclick="selectItem(this)">
+              <div class="q-dot filled"></div>
+              <div style="flex:1">
+                <div class="q-item-n">Document Type Taxonomy</div>
+                <div class="q-item-m">42 types across Legal, Medical, Insurance, Financial</div>
+                <div class="q-outcome"><span class="q-outcome-arrow"><i data-lucide="corner-down-right" class="icon-sm"></i></span><span class="q-outcome-text">Powers Vault Organization</span></div>
+              </div>
+            </div>
+            <div class="q-item" onclick="selectItem(this)">
+              <div class="q-dot"></div>
+              <div style="flex:1">
+                <div class="q-item-n">Refresh Interval Rules</div>
+                <div class="q-item-m">How often each document type should be reviewed</div>
+                <div class="q-outcome"><span class="q-outcome-arrow"><i data-lucide="corner-down-right" class="icon-sm"></i></span><span class="q-outcome-text">Powers Staleness Alerts</span></div>
+              </div>
+            </div>
+            <div class="q-lbl">Open questions</div>
+            <div class="q-item" onclick="selectItem(this); openChat('bb', 'Knowledge Systems', 'How should trust documents (revocable/irrevocable) be handled in the taxonomy?')">
+              <div class="q-dot open-q"></div>
+              <div style="flex:1">
+                <div class="q-item-n">Trust documents in taxonomy?</div>
+                <div class="q-item-m">Revocable/irrevocable trusts not yet classified</div>
+              </div>
+              <div class="q-item-tag open">discuss</div>
+            </div>
+            <div class="q-item" onclick="selectItem(this); openChat('bb', 'Knowledge Systems', 'Who maintains the legal requirements matrix when state laws change? What is the maintenance strategy?')">
+              <div class="q-dot open-q"></div>
+              <div style="flex:1">
+                <div class="q-item-n">Who maintains the legal matrix?</div>
+                <div class="q-item-m">State laws change — what's the update strategy?</div>
+              </div>
+              <div class="q-item-tag open">discuss</div>
+            </div>
+          </div>
+          <div class="q-right">
+            <div class="qr-title">50-State Legal Requirements</div>
+            <div class="qr-desc">The core knowledge asset. Margaret doesn't know she needs a CA-specific HIPAA authorization — BenyBox does. This curated expertise is what makes the product trustworthy.</div>
+            <div class="demo"><div class="demo-head"><div class="demo-d"></div><div class="demo-lbl">Explore</div></div>
+              <div class="demo-inner">
+                <div style="display:flex;gap:6px;margin-bottom:8px">
+                  <select class="sel-input"><option>California</option><option>Florida</option><option>Texas</option><option>New York</option></select>
+                  <select class="sel-input"><option>Age 65+</option><option>Age 50-64</option><option>Age 30-49</option></select>
+                  <select class="sel-input"><option>Married</option><option>Divorced</option><option>Single</option></select>
+                </div>
+                <table class="t"><thead><tr><th>Document</th><th>Category</th><th>Why</th></tr></thead><tbody>
+                  <tr><td style="font-weight:600">Last Will & Testament</td><td>Legal</td><td style="font-size:9px;color:var(--text-muted)">CA: 2 witnesses, no notary required</td></tr>
+                  <tr><td style="font-weight:600">Durable Power of Attorney</td><td>Legal</td><td style="font-size:9px;color:var(--text-muted)">CA Probate 4401: notarization required</td></tr>
+                  <tr><td style="font-weight:600">Healthcare Directive</td><td>Medical</td><td style="font-size:9px;color:var(--text-muted)">CA H&S Code 7186-7195</td></tr>
+                  <tr><td style="font-weight:600">HIPAA Authorization</td><td>Medical</td><td style="font-size:9px;color:var(--text-muted)">Federal + CA privacy addendum</td></tr>
+                  <tr><td style="font-weight:600">Property Deed Review</td><td>Legal</td><td style="font-size:9px;color:var(--text-muted)">Community property: spousal consent</td></tr>
+                </tbody></table>
+                <div class="connects">
+                  <div class="connects-lbl">This knowledge delivers</div>
+                  <div class="connects-text">The personalized assessment that tells Margaret exactly which 6 documents her family needs — in 30 seconds instead of 3 hours of research.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- SCORING -->
+      <div class="q-card" id="bb-s"><div class="q-head" onclick="toggleQ('bb-s')"><div class="q-icon sc"><i data-lucide="gauge" class="icon"></i></div><div class="q-name">Scoring Models</div><div class="q-cnt">3</div><div class="q-chev">&#9662;</div></div>
+        <div class="q-pills"><span class="qp">Vault Completeness</span><span class="qp">Document Freshness</span><span class="qp">Client Risk</span></div>
+        <div class="q-body"><div class="q-cols">
+          <div class="q-left">
+            <div class="q-lbl">What the product measures</div>
+            <div class="q-item sel" onclick="selectItem(this)"><div class="q-dot filled"></div><div style="flex:1"><div class="q-item-n">Vault Completeness Score</div><div class="q-item-m">How prepared is this family? uploaded / required x priority</div><div class="q-outcome"><span class="q-outcome-arrow"><i data-lucide="corner-down-right" class="icon-sm"></i></span><span class="q-outcome-text">North-star dashboard metric</span></div></div></div>
+            <div class="q-item" onclick="selectItem(this)"><div class="q-dot filled"></div><div style="flex:1"><div class="q-item-n">Document Freshness Index</div><div class="q-item-m">Is this document still current? upload_date vs refresh interval</div><div class="q-outcome"><span class="q-outcome-arrow"><i data-lucide="corner-down-right" class="icon-sm"></i></span><span class="q-outcome-text">Powers Staleness Alerts</span></div></div></div>
+            <div class="q-item" onclick="selectItem(this)"><div class="q-dot"></div><div style="flex:1"><div class="q-item-n">Client Risk Ranking</div><div class="q-item-m">Which attorney clients need attention most?</div><div class="q-outcome"><span class="q-outcome-arrow"><i data-lucide="corner-down-right" class="icon-sm"></i></span><span class="q-outcome-text">Powers Attorney Portfolio Dashboard</span></div></div></div>
+            <div class="q-lbl">Open questions</div>
+            <div class="q-item" onclick="selectItem(this); openChat('bb', 'Scoring Models', 'Should we add a Family Readiness Score that measures not just documents but also sharing setup and emergency access?')"><div class="q-dot open-q"></div><div style="flex:1"><div class="q-item-n">Family Readiness Score?</div><div class="q-item-m">Completeness only measures docs — what about sharing and access setup?</div></div><div class="q-item-tag open">discuss</div></div>
+          </div>
+          <div class="q-right">
+            <div class="qr-title">Vault Completeness Score</div>
+            <div class="qr-desc">The metric families see every time they open BenyBox. Weighted by document priority — a missing Power of Attorney costs more than a missing property deed review.</div>
+            <div class="demo"><div class="demo-head"><div class="demo-d"></div><div class="demo-lbl">Watch it score</div></div>
+              <div class="demo-inner">
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">Margaret, 68, California — 12 documents required</div>
+                <table class="t"><thead><tr><th>Document</th><th>Status</th><th>Weight</th><th>Points</th></tr></thead><tbody>
+                  <tr><td>Last Will</td><td><span class="badge g">uploaded</span></td><td>P1 (x3)</td><td style="font-weight:700;color:var(--green)">3/3</td></tr>
+                  <tr><td>Durable POA</td><td style="color:var(--deep-blue);font-size:9px;font-weight:600">missing</td><td>P1 (x3)</td><td style="font-weight:700;color:var(--deep-blue)">0/3</td></tr>
+                  <tr><td>Healthcare Directive</td><td><span class="badge g">uploaded</span></td><td>P1 (x3)</td><td style="font-weight:700;color:var(--green)">3/3</td></tr>
+                  <tr><td>Life Insurance</td><td><span class="badge b">stale</span></td><td>P2 (x2)</td><td style="font-weight:700;color:var(--deep-blue)">1/2</td></tr>
+                </tbody></table>
+                <div style="display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px;background:var(--bg-subtle);border-radius:var(--radius-sm)">
+                  <div style="font-size:26px;font-weight:800;color:var(--navy)">62%</div>
+                  <div><div style="font-size:10px;font-weight:600;color:var(--text-dark)">Vault Completeness</div><div style="font-size:9px;color:var(--text-muted)">Top gap: Durable POA (-3 pts)</div></div>
+                </div>
+                <div class="connects"><div class="connects-lbl">This score drives</div><div class="connects-text">Every dashboard view, every alert, every "next step" recommendation. If the weights are right, users trust the product. If they're wrong, they don't come back.</div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- DECISION LOGIC -->
+      <div class="q-card" id="bb-d"><div class="q-head" onclick="toggleQ('bb-d')"><div class="q-icon dl"><i data-lucide="git-branch" class="icon"></i></div><div class="q-name">Decision Logic</div><div class="q-cnt">5</div><div class="q-chev">&#9662;</div></div>
+        <div class="q-pills"><span class="qp">Profile Router</span><span class="qp">Life Event Trigger</span><span class="qp">Permission Matrix</span><span class="qp">Staleness Alert</span><span class="qp">Referral Matcher</span></div>
+        <div class="q-body"><div class="q-cols">
+          <div class="q-left">
+            <div class="q-lbl">Decisions the product makes</div>
+            <div class="q-item sel" onclick="selectItem(this)"><div class="q-dot filled"></div><div style="flex:1"><div class="q-item-n">Profile to Checklist Router</div><div class="q-item-m">State x Age x Status = personalized document set</div></div></div>
+            <div class="q-item" onclick="selectItem(this)"><div class="q-dot filled"></div><div style="flex:1"><div class="q-item-n">Life Event Re-Assessment</div><div class="q-item-m">Marriage, divorce, relocation = re-run assessment</div></div></div>
+            <div class="q-item" onclick="selectItem(this)"><div class="q-dot filled"></div><div style="flex:1"><div class="q-item-n">Permission Validation</div><div class="q-item-m">Role x Relationship = access tier</div></div></div>
+            <div class="q-item" onclick="selectItem(this)"><div class="q-dot filled"></div><div style="flex:1"><div class="q-item-n">Staleness Alert Trigger</div><div class="q-item-m">Document age > refresh interval = notify</div></div></div>
+            <div class="q-item" onclick="selectItem(this)"><div class="q-dot"></div><div style="flex:1"><div class="q-item-n">Service Provider Matcher</div><div class="q-item-m">Missing document x region = referral</div></div></div>
+            <div class="q-lbl">Open questions</div>
+            <div class="q-item" onclick="selectItem(this); openChat('bb', 'Decision Logic', 'What happens when the primary document owner becomes incapacitated? Is there a succession trigger that transfers control to the designated caregiver?')"><div class="q-dot open-q"></div><div style="flex:1"><div class="q-item-n">Incapacitation — who takes over?</div><div class="q-item-m">No trigger for when the owner can't manage their vault</div></div><div class="q-item-tag open">discuss</div></div>
+          </div>
+          <div class="q-right">
+            <div class="qr-title">Profile to Checklist Router</div>
+            <div class="qr-desc">Deterministic. Same input = same output. A 68-year-old married Californian always gets the same 12 documents. No AI needed — this is pure rules, and that's a strength.</div>
+            <div class="demo"><div class="demo-head"><div class="demo-d"></div><div class="demo-lbl">Trace a scenario</div></div>
+              <div class="demo-inner">
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px">Margaret gets divorced and moves from California to Florida</div>
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <div style="display:flex;align-items:flex-start;gap:6px"><div style="width:16px;height:16px;border-radius:50%;background:var(--green-dim);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0">1</div><div style="font-size:10px;color:var(--text-dark);padding-top:1px"><strong>Trigger:</strong> Profile update — CA to FL, married to divorced</div></div>
+                  <div style="width:1px;height:6px;background:var(--border);margin-left:8px"></div>
+                  <div style="display:flex;align-items:flex-start;gap:6px"><div style="width:16px;height:16px;border-radius:50%;background:var(--green-dim);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0">2</div><div style="font-size:10px;color:var(--text-dark);padding-top:1px"><strong>Re-route:</strong> FL is not community property. Remove spousal consent rules.</div></div>
+                  <div style="width:1px;height:6px;background:var(--border);margin-left:8px"></div>
+                  <div style="display:flex;align-items:flex-start;gap:6px"><div style="width:16px;height:16px;border-radius:50%;background:rgba(4,65,89,0.08);color:var(--deep-blue);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0">3</div><div style="font-size:10px;color:var(--text-dark);padding-top:1px"><strong>+6 documents:</strong> FL Lady Bird Deed, QDRO, Updated Beneficiaries, FL Healthcare Surrogate</div></div>
+                  <div style="width:1px;height:6px;background:var(--border);margin-left:8px"></div>
+                  <div style="display:flex;align-items:flex-start;gap:6px"><div style="width:16px;height:16px;border-radius:50%;background:rgba(4,65,89,0.08);color:var(--deep-blue);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0">4</div><div style="font-size:10px;color:var(--text-dark);padding-top:1px"><strong>Score impact:</strong> 62% drops to 38%. Life event = new requirements = fresh urgency.</div></div>
+                </div>
+                <div class="connects"><div class="connects-lbl">Why this matters</div><div class="connects-text">Divorce + relocation is a common trigger for the 60+ demographic. This scenario shows the product adapting in real-time — exactly when the family needs it most.</div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- AI CAPABILITIES -->
+      <div class="q-card" id="bb-a"><div class="q-head" onclick="toggleQ('bb-a')"><div class="q-icon ac"><i data-lucide="sparkles" class="icon"></i></div><div class="q-name">AI Capabilities</div><div class="q-cnt">2</div><div class="q-chev">&#9662;</div></div>
+        <div class="q-pills"><span class="qp">Document Auto-Classification</span><span class="qp">Natural Language Search</span></div>
+        <div class="q-body"><div class="q-cols">
+          <div class="q-left">
+            <div class="q-lbl">Where AI adds value</div>
+            <div class="q-item sel" onclick="selectItem(this)"><div class="q-dot filled"></div><div style="flex:1"><div class="q-item-n">Document Auto-Classification</div><div class="q-item-m">Upload a PDF, get instant type + tags + checklist match</div><div class="q-outcome"><span class="q-outcome-arrow"><i data-lucide="corner-down-right" class="icon-sm"></i></span><span class="q-outcome-text">Removes friction from upload experience</span></div></div></div>
+            <div class="q-item" onclick="selectItem(this)"><div class="q-dot"></div><div style="flex:1"><div class="q-item-n">Natural Language Search</div><div class="q-item-m">"Find mom's power of attorney" instead of browsing folders</div><div class="q-outcome"><span class="q-outcome-arrow"><i data-lucide="corner-down-right" class="icon-sm"></i></span><span class="q-outcome-text">Critical for crisis retrieval</span></div></div></div>
+            <div class="q-lbl">Could elevate the vision</div>
+            <div class="q-item" onclick="selectItem(this); openChat('bb', 'AI Capabilities', 'What if BenyBox could summarize complex legal documents into plain language for family members who are not attorneys?')"><div class="q-dot open-q"></div><div style="flex:1"><div class="q-item-n">Document Summarization</div><div class="q-item-m">Plain-language summaries of legal docs for the whole family</div></div><div class="q-item-tag open">discuss</div></div>
+          </div>
+          <div class="q-right">
+            <div class="qr-title">Document Auto-Classification</div>
+            <div class="qr-desc">Upload a PDF. The system reads it, identifies the document type, assigns searchable tags, and closes the gap on the checklist — automatically. This is the right amount of AI for this product.</div>
+            <div class="demo"><div class="demo-head"><div class="demo-d"></div><div class="demo-lbl">See it work</div></div>
+              <div class="demo-inner">
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">Margaret uploads will_final_2024.pdf</div>
+                <table class="t"><tbody>
+                  <tr><td style="font-weight:600">Classified as</td><td>Last Will and Testament <span class="badge g">99% match</span></td></tr>
+                  <tr><td style="font-weight:600">Category</td><td>Legal</td></tr>
+                  <tr><td style="font-weight:600">Tags generated</td><td>estate-planning, testamentary, finalized, 2024</td></tr>
+                  <tr><td style="font-weight:600">Checklist impact</td><td>Gap closed: Will (Priority 1)</td></tr>
+                  <tr><td style="font-weight:600">Score change</td><td>41% to 48% <span class="badge b">+7%</span></td></tr>
+                </tbody></table>
+                <div class="connects"><div class="connects-lbl">The simplicity here is the point</div><div class="connects-text">The rules engine is the moat. The AI just makes uploading smooth. Don't over-invest in AI when the knowledge base is what clients can't replicate.</div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- AGENTS -->
+    <div class="sec-header"><div class="sec-num">2</div><div class="sec-title">Agents</div><div class="sec-desc">What orchestrates the intelligence</div></div>
+    <div class="a-stack">
+      <div class="a-card" onclick="toggleA(this)"><div class="a-head"><div class="a-icon"><i data-lucide="shield" class="icon-lg" style="color:var(--green)"></i></div><div class="a-meta"><div class="a-name">Family Preparedness Agent</div><div class="a-goal">Guides families from 0% to 100% document readiness</div></div><div class="a-badge orch">Orchestrator</div></div>
+        <div class="wf"><div class="wf-row">
+          <div><div class="wf-n"><div class="wf-tp tl">Tool</div><div class="wf-nm">Checklist Router</div><div class="wf-pills"><span class="wp">State</span><span class="wp">Age</span><span class="wp">Status</span></div></div></div>
+          <div class="wf-arr"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-n"><div class="wf-tp sa">Sub-Agent</div><div class="wf-nm">Doc Classifier</div><div class="wf-pills"><span class="wp">OCR</span><span class="wp">Tags</span></div></div></div>
+          <div class="wf-arr"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-n"><div class="wf-tp tl">Tool</div><div class="wf-nm">Completeness Scorer</div><div class="wf-pills"><span class="wp">Score</span></div></div></div>
+          <div class="wf-arr"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-n"><div class="wf-tp tl">Tool</div><div class="wf-nm">Permission Validator</div><div class="wf-pills"><span class="wp">ACL</span><span class="wp">EAC</span></div></div></div>
+          <div class="wf-arr"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-n"><div class="wf-tp tl">Tool</div><div class="wf-nm">Freshness Monitor</div><div class="wf-pills"><span class="wp">Alerts</span></div></div></div>
+        </div></div>
+        <div class="a-detail"><div class="a-tabs"><button class="a-tab active">Sub-Agents & Tools</button><button class="a-tab">Talk to Agent</button><button class="a-tab">See in Action</button></div>
+          <div class="sub-lbl">Sub-Agent (AI)</div><div class="tg" style="grid-template-columns:1fr;margin-bottom:6px"><div class="tc ai-b"><div class="tc-h"><i data-lucide="tag" class="icon-sm" style="color:var(--green)"></i><div class="tc-n">Document Classifier</div><span class="tc-b ai">AI</span></div><div class="tc-d">OCR + classify + tag + checklist match</div></div></div>
+          <div class="sub-lbl">Tools (Rules)</div><div class="tg">
+            <div class="tc"><div class="tc-h"><i data-lucide="map" class="icon-sm" style="color:var(--deep-blue)"></i><div class="tc-n">Checklist Router</div></div><div class="tc-d">State x Age x Status = checklist</div></div>
+            <div class="tc"><div class="tc-h"><i data-lucide="bar-chart-2" class="icon-sm" style="color:var(--deep-blue)"></i><div class="tc-n">Completeness Scorer</div></div><div class="tc-d">Weighted gap calculation</div></div>
+            <div class="tc"><div class="tc-h"><i data-lucide="clock" class="icon-sm" style="color:var(--deep-blue)"></i><div class="tc-n">Freshness Monitor</div></div><div class="tc-d">Date vs refresh interval</div></div>
+            <div class="tc"><div class="tc-h"><i data-lucide="lock" class="icon-sm" style="color:var(--deep-blue)"></i><div class="tc-n">Permission Validator</div></div><div class="tc-d">ACL matrix + EAC generation</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="a-card" onclick="toggleA(this)"><div class="a-head"><div class="a-icon"><i data-lucide="briefcase" class="icon-lg" style="color:var(--green)"></i></div><div class="a-meta"><div class="a-name">Attorney Portfolio Agent</div><div class="a-goal">Surfaces at-risk clients, ranks by urgency, drafts outreach</div></div><div class="a-badge auto">Autonomous</div></div>
+        <div class="wf"><div class="wf-row">
+          <div><div class="wf-n"><div class="wf-tp tl">Tool</div><div class="wf-nm">Risk Ranker</div><div class="wf-pills"><span class="wp">Score</span></div></div></div>
+          <div class="wf-arr"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-n"><div class="wf-tp tl">Tool</div><div class="wf-nm">Prioritizer</div><div class="wf-pills"><span class="wp">Urgency</span></div></div></div>
+          <div class="wf-arr"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-n"><div class="wf-tp sa">Sub-Agent</div><div class="wf-nm">Outreach Drafter</div><div class="wf-pills"><span class="wp">LLM</span></div></div></div>
+        </div></div>
+        <div class="a-detail"><div class="a-tabs"><button class="a-tab active">Sub-Agents & Tools</button><button class="a-tab">Talk to Agent</button><button class="a-tab">See in Action</button></div>
+          <div class="sub-lbl">Tools</div><div class="tg">
+            <div class="tc"><div class="tc-h"><i data-lucide="activity" class="icon-sm" style="color:var(--deep-blue)"></i><div class="tc-n">Client Risk Ranker</div></div><div class="tc-d">Completeness + criticality + staleness</div></div>
+            <div class="tc"><div class="tc-h"><i data-lucide="list-ordered" class="icon-sm" style="color:var(--deep-blue)"></i><div class="tc-n">Follow-Up Prioritizer</div></div><div class="tc-d">Sort by urgency</div></div>
+            <div class="tc ai-b"><div class="tc-h"><i data-lucide="pen-line" class="icon-sm" style="color:var(--green)"></i><div class="tc-n">Outreach Drafter</div><span class="tc-b ai">AI</span></div><div class="tc-d">Personalized messages</div></div>
+            <div class="tc"><div class="tc-h"><i data-lucide="clock" class="icon-sm" style="color:var(--deep-blue)"></i><div class="tc-n">Stale Doc Detector</div></div><div class="tc-d">Refresh interval flags</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- main-area -->
+
+<!-- ─── CHAT PANEL ─── -->
+<div class="chat-panel collapsed" id="chat-panel">
+  <div class="chat-head">
+    <i data-lucide="message-circle" class="icon" style="color:var(--green)"></i>
+    <div class="chat-title">Discuss</div>
+    <button class="chat-close" onclick="closeChat()"><i data-lucide="x" class="icon-sm"></i></button>
+  </div>
+  <div class="chat-context" id="chat-ctx">
+    <div class="chat-ctx-lbl" id="chat-ctx-section">Knowledge Systems</div>
+    <div class="chat-ctx-val" id="chat-ctx-item">50-State Legal Requirements</div>
+  </div>
+  <div class="chat-msgs" id="chat-msgs">
+    <div class="chat-msg assistant">I see you're exploring the Knowledge Systems. What would you like to think through?</div>
+  </div>
+  <div class="chat-suggestions" id="chat-sugs">
+    <div class="chat-sug" onclick="addUserMsg(this.textContent)">Is this complexity justified for MVP?</div>
+    <div class="chat-sug" onclick="addUserMsg(this.textContent)">What's the simplest version of this?</div>
+    <div class="chat-sug" onclick="addUserMsg(this.textContent)">How does this connect to the outcomes?</div>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" placeholder="Ask about this intelligence..." id="chat-input" onkeydown="if(event.key==='Enter'){sendChat()}">
+    <button class="chat-send" onclick="sendChat()"><i data-lucide="send" class="icon-sm"></i></button>
+  </div>
+</div>
+
+<!-- Chat toggle -->
+<button class="chat-toggle" id="chat-toggle" onclick="openChat('bb', 'Intelligence Layer', 'General')">
+  <i data-lucide="message-circle" class="icon-lg"></i>
+</button>
+
+</div><!-- app -->
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); });
+
+  function switchProject(p) {
+    document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
+    event.target.closest('.ptab').classList.add('active');
+    // For now just BenyBox is built
+    setTimeout(() => lucide.createIcons(), 50);
+  }
+
+  function toggleQ(id) {
+    const el = document.getElementById(id);
+    const was = el.classList.contains('open');
+    el.closest('.q-grid').querySelectorAll('.q-card').forEach(q => q.classList.remove('open'));
+    if (!was) { el.classList.add('open'); setTimeout(() => { el.scrollIntoView({ behavior:'smooth', block:'nearest' }); lucide.createIcons(); }, 80); }
+  }
+
+  function toggleA(card) {
+    const was = card.classList.contains('open');
+    document.querySelectorAll('.a-card').forEach(c => c.classList.remove('open'));
+    if (!was) { card.classList.add('open'); setTimeout(() => { card.scrollIntoView({ behavior:'smooth', block:'nearest' }); lucide.createIcons(); }, 80); }
+  }
+
+  function selectItem(item) {
+    item.closest('.q-left').querySelectorAll('.q-item').forEach(i => i.classList.remove('sel'));
+    item.classList.add('sel');
+  }
+
+  function openChat(project, section, question) {
+    const panel = document.getElementById('chat-panel');
+    const toggle = document.getElementById('chat-toggle');
+    panel.classList.remove('collapsed');
+    toggle.classList.add('has-panel');
+
+    document.getElementById('chat-ctx-section').textContent = section;
+    document.getElementById('chat-ctx-item').textContent = question;
+
+    const msgs = document.getElementById('chat-msgs');
+    msgs.innerHTML = '';
+
+    const intro = document.createElement('div');
+    intro.className = 'chat-msg assistant fade-in';
+
+    if (question.includes('trust documents')) {
+      intro.innerHTML = 'Trust documents are a significant gap. About 25% of estate plans include trusts, and they have unique requirements — revocable trusts need different handling than irrevocable ones. <strong>For MVP, I\'d recommend adding them to the taxonomy but keeping the rules simple.</strong> The assessment can flag "you may need a trust" without trying to classify trust subtypes. That keeps the knowledge base manageable while covering the most common case. Want to explore what the trust path looks like in the solution flow?';
+    } else if (question.includes('maintains')) {
+      intro.innerHTML = 'Great question — this is the sustainability question. State laws change 2-3 times per year on average. <strong>Three options at different cost levels:</strong><br><br>1. <strong>Legal content partnership</strong> (lowest effort) — partner with a legal publisher who already tracks changes<br>2. <strong>Annual audit cycle</strong> (moderate) — hire a paralegal to review all 50 states once per year<br>3. <strong>Community-driven</strong> (scalable) — let attorneys flag outdated rules through the B2B portal<br><br>Option 3 is interesting because it creates a feedback loop from the attorney persona. Want to discuss which fits the business model?';
+    } else if (question.includes('Family Readiness')) {
+      intro.innerHTML = 'This is an insightful question. Right now, Vault Completeness only measures <strong>documents uploaded vs. required</strong>. But family preparedness is bigger than documents — it\'s also:<br><br>- Has the vault been shared with the right family members?<br>- Is there an Emergency Access Card generated?<br>- Have family members actually accessed the vault?<br>- Are the right people designated for the right roles?<br><br>A <strong>Family Readiness Score</strong> could combine document completeness (70%) + sharing setup (20%) + access verification (10%). This would be a more honest metric — and a stronger retention driver. Should we add this to the scoring models?';
+    } else if (question.includes('Summarization')) {
+      intro.innerHTML = 'Document summarization could be a powerful differentiator. Imagine: Margaret uploads her Power of Attorney, and her son David sees a plain-language summary: <strong>"This document gives you authority to manage Margaret\'s finances if she becomes incapacitated. It was signed on Jan 15, 2024 and is valid in California."</strong><br><br>This directly serves the Adult Child Caregiver persona — they need to understand documents quickly during stressful moments. The AI cost is low (one LLM call per upload) and the trust impact is high.<br><br>This could be a strong H2 feature. Want to explore how it fits into the solution flow?';
+    } else if (question.includes('incapacitation')) {
+      intro.innerHTML = 'This is a critical gap. The entire product premise is "be ready before crisis strikes" — but the product itself doesn\'t have a crisis trigger.<br><br><strong>What needs to happen when the owner can\'t manage:</strong><br>- Emergency Access Card holder should be able to trigger a "crisis mode"<br>- Vault access escalates to the designated successor<br>- All shared users get notified<br>- Audit trail captures the transition<br><br>This connects to the <strong>Permission Management</strong> step in the solution flow and the <strong>Emergency Access Card</strong> feature. The decision logic needs a new path: EAC activation → succession trigger → access escalation.<br><br>This feels like a must-have for launch, not a deferral. Want to trace what the flow looks like?';
+    } else {
+      intro.innerHTML = 'I\'m here to help you think through the intelligence layer. What aspect would you like to explore? I can help connect capabilities to outcomes, identify what\'s essential vs. what can wait, or think through simpler approaches.';
+    }
+
+    msgs.appendChild(intro);
+
+    const sugs = document.getElementById('chat-sugs');
+    sugs.innerHTML = '';
+    const suggestions = [
+      'Is this essential for launch?',
+      'What\'s the simplest version?',
+      'How does this connect to user outcomes?',
+      'What would a client find surprising here?'
+    ];
+    suggestions.forEach(s => {
+      const btn = document.createElement('div');
+      btn.className = 'chat-sug';
+      btn.textContent = s;
+      btn.onclick = () => addUserMsg(s);
+      sugs.appendChild(btn);
+    });
+
+    setTimeout(() => lucide.createIcons(), 50);
+  }
+
+  function closeChat() {
+    document.getElementById('chat-panel').classList.add('collapsed');
+    document.getElementById('chat-toggle').classList.remove('has-panel');
+  }
+
+  function addUserMsg(text) {
+    const msgs = document.getElementById('chat-msgs');
+    const msg = document.createElement('div');
+    msg.className = 'chat-msg user fade-in';
+    msg.textContent = text;
+    msgs.appendChild(msg);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    // Simulate response
+    setTimeout(() => {
+      const resp = document.createElement('div');
+      resp.className = 'chat-msg assistant fade-in';
+      if (text.includes('essential')) {
+        resp.innerHTML = 'Looking at the solution flow, this capability directly powers <strong>3 of the 16 steps</strong>. Without it, those steps become manual. For MVP, the question is: can the product deliver its core promise without this? If yes, defer. If no, it\'s essential.';
+      } else if (text.includes('simplest')) {
+        resp.innerHTML = 'The simplest version: <strong>a static lookup table</strong> rather than a dynamic engine. Hardcode the top 10 states (covers 65% of US population), support the most common family structures, and expand coverage based on actual user demand. Ship fast, learn, then build the engine.';
+      } else if (text.includes('outcomes')) {
+        resp.innerHTML = 'This capability connects to the core desired outcome: <strong>"families know exactly which documents they need."</strong> Without it, the product is just a file vault — Dropbox with categories. This intelligence is what makes BenyBox a guided experience rather than a storage tool.';
+      } else if (text.includes('surprising')) {
+        resp.innerHTML = 'The most surprising thing for a client here: <strong>"You don\'t need AI for 88% of this."</strong> Most founders assume they need machine learning. Showing them that a well-curated rules engine is the real moat — and that AI is just polish on the upload experience — that reframes their entire build plan and budget.';
+      } else {
+        resp.innerHTML = 'That\'s an interesting angle. Let me think about how this connects to the broader intelligence architecture and the desired outcomes we\'ve mapped in the BRD. What specific aspect would you like to go deeper on?';
+      }
+      msgs.appendChild(resp);
+      msgs.scrollTop = msgs.scrollHeight;
+    }, 800);
+
+    document.getElementById('chat-sugs').innerHTML = '';
+  }
+
+  function sendChat() {
+    const input = document.getElementById('chat-input');
+    if (input.value.trim()) {
+      addUserMsg(input.value.trim());
+      input.value = '';
+    }
+  }
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { IntelLayerAgent } from '@/types/workspace'
 import { useAgentChat } from '@/hooks/useAgentChat'
+import { Markdown } from '@/components/ui/Markdown'
 
 interface Props {
   agent: IntelLayerAgent
@@ -14,7 +15,6 @@ export function AgentChatTab({ agent, projectId }: Props) {
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -34,10 +34,6 @@ export function AgentChatTab({ agent, projectId }: Props) {
     }
   }
 
-  const handleSuggestion = (text: string) => {
-    sendMessage(text)
-  }
-
   const introText = agent.chat_intro || `I'm ${agent.name}. ${agent.role_description.split('.')[0]}.`
   const suggestions = agent.chat_suggestions.length > 0
     ? agent.chat_suggestions
@@ -49,7 +45,6 @@ export function AgentChatTab({ agent, projectId }: Props) {
     <div className="flex flex-col h-full">
       {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 min-h-0">
-        {/* Intro message from agent */}
         {showIntro && (
           <div
             className="rounded-xl px-3 py-2 text-[11px] leading-relaxed max-w-[85%]"
@@ -59,13 +54,12 @@ export function AgentChatTab({ agent, projectId }: Props) {
           </div>
         )}
 
-        {/* Suggestion buttons */}
         {showSuggestions && (
           <div className="flex flex-wrap gap-1 pt-1">
             {suggestions.map((suggestion, i) => (
               <button
                 key={i}
-                onClick={() => handleSuggestion(suggestion)}
+                onClick={() => sendMessage(suggestion)}
                 className="px-2.5 py-1 rounded text-[10px] transition-colors hover:bg-[rgba(4,65,89,0.08)]"
                 style={{ color: '#044159', background: 'rgba(4,65,89,0.04)' }}
               >
@@ -75,15 +69,11 @@ export function AgentChatTab({ agent, projectId }: Props) {
           </div>
         )}
 
-        {/* Message bubbles */}
         {messages.map((msg) => {
           if (msg.role === 'system') {
             return (
               <div key={msg.id} className="flex justify-center">
-                <span
-                  className="text-[10px] px-3 py-1 rounded-full"
-                  style={{ color: '#718096', background: 'rgba(0,0,0,0.03)' }}
-                >
+                <span className="text-[10px] px-3 py-1 rounded-full" style={{ color: '#718096', background: 'rgba(0,0,0,0.03)' }}>
                   {msg.content}
                 </span>
               </div>
@@ -94,21 +84,22 @@ export function AgentChatTab({ agent, projectId }: Props) {
           return (
             <div
               key={msg.id}
-              className={`rounded-xl px-3 py-2 text-[11px] leading-relaxed max-w-[85%] ${
-                isUser ? 'ml-auto' : 'mr-auto'
-              }`}
+              className={`rounded-xl px-3 py-2 max-w-[85%] ${isUser ? 'ml-auto' : 'mr-auto'}`}
               style={
                 isUser
                   ? { background: '#0A1E2F', color: 'rgba(255,255,255,0.9)' }
                   : { background: 'rgba(10,30,47,0.04)', color: '#2D3748' }
               }
             >
-              {msg.content}
+              {isUser ? (
+                <span className="text-[11px] leading-relaxed">{msg.content}</span>
+              ) : (
+                <Markdown content={msg.content} className="text-[11px] leading-relaxed [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:mb-1.5 [&_li]:text-[11px] [&_strong]:text-[#0A1E2F]" />
+              )}
             </div>
           )
         })}
 
-        {/* Loading indicator */}
         {isLoading && (
           <div className="mr-8 rounded-lg px-3 py-2" style={{ background: 'rgba(0,0,0,0.03)' }}>
             <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: '#3FAF7A' }} />

@@ -2084,7 +2084,8 @@ export interface FlowLayoutPosition {
 export type FlowCardSize = 'size-sm' | 'size-md' | 'size-lg' | 'size-hero'
 
 // Agent derivation types
-export type AgentType = 'classifier' | 'matcher' | 'predictor' | 'watcher' | 'generator' | 'processor'
+export type AgentType = 'classifier' | 'matcher' | 'predictor' | 'watcher' | 'generator' | 'processor' | 'orchestrator'
+export type AgentRole = 'orchestrator' | 'sub_agent' | 'peer'
 export type AgentMaturity = 'learning' | 'reliable' | 'expert'
 
 export interface AgentDataNeed {
@@ -2203,6 +2204,8 @@ export interface IntelLayerAgent {
   id: string
   project_id: string
   source_step_id: string | null
+  parent_agent_id: string | null
+  agent_role: AgentRole
   name: string
   icon: string
   agent_type: AgentType
@@ -2245,12 +2248,41 @@ export interface IntelLayerAgent {
   created_at: string
   updated_at: string
   tools: AgentTool[]
+  sub_agents: IntelLayerAgent[]
+}
+
+// Intelligence Architecture (4 Quadrants)
+export interface ArchitectureItem {
+  name: string
+  description: string
+  powers: string
+  status: 'defined' | 'unreviewed' | 'gap'
+}
+
+export interface ArchitectureOpenQuestion {
+  question: string
+  context: string
+}
+
+export interface QuadrantData {
+  items: ArchitectureItem[]
+  open_questions: ArchitectureOpenQuestion[]
+}
+
+export interface IntelArchitecture {
+  knowledge_systems: QuadrantData
+  scoring_models: QuadrantData
+  decision_logic: QuadrantData
+  ai_capabilities: QuadrantData
 }
 
 export interface IntelLayerResponse {
   agents: IntelLayerAgent[]
   agent_count: number
+  sub_agent_count: number
+  tool_count: number
   validated_count: number
+  architecture: IntelArchitecture | null
 }
 
 export interface AgentChatMessage {

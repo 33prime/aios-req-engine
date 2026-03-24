@@ -19,6 +19,7 @@ const STEPS_BY_TYPE: Record<AgentType, string[]> = {
   watcher: ['Reading input', 'Scanning for alerts', 'Assessing severity', 'Recommending actions', 'Building output'],
   generator: ['Reading input', 'Synthesizing narrative', 'Structuring sections', 'Assessing confidence', 'Building output'],
   processor: ['Reading input', 'Extracting entities', 'Generating probes', 'Summarizing findings', 'Building output'],
+  orchestrator: ['Planning approach', 'Coordinating sub-agents', 'Assembling results', 'Validating output', 'Delivering results'],
 }
 
 export function ProcessingAnimation({ agentType, agentName, isRunning, startedAt, steps: dbSteps }: Props) {

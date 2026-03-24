@@ -86,8 +86,8 @@ export function AgentTryItTab({ agent, projectId, onValidated }: Props) {
             color: '#2D3748',
             background: 'rgba(0,0,0,0.02)',
             border: '1px solid rgba(10,30,47,0.10)',
-            minHeight: 72,
-            maxHeight: 120,
+            minHeight: 120,
+            maxHeight: 200,
           }}
           disabled={isRunning}
         />
@@ -98,7 +98,7 @@ export function AgentTryItTab({ agent, projectId, onValidated }: Props) {
         <button
           onClick={handleRun}
           disabled={!inputText.trim()}
-          className="w-full rounded-lg py-2 text-[11px] font-semibold text-white transition-all mb-3"
+          className="rounded-md px-4 py-1.5 text-[10px] font-semibold text-white transition-all mb-3"
           style={{
             background: !inputText.trim() ? '#A0AEC0' : '#3FAF7A',
             cursor: !inputText.trim() ? 'not-allowed' : 'pointer',

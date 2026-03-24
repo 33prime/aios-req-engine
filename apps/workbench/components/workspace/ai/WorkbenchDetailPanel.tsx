@@ -1,16 +1,23 @@
 'use client'
 
 /**
- * WorkbenchDetailPanel — 3-tab slide-in panel for the Intelligence Workbench.
+ * WorkbenchDetailPanel — 3-tab slide-in panel for agents.
  *
- * Tabs: Profile | Talk to {Agent} | See in Action
- * Supports both DerivedAgent (legacy fallback) and IntelLayerAgent (DB-backed).
+ * For sub-agents (agent_role === 'sub_agent'):
+ *   Tabs: Profile | Talk to {Name} | See in Action
+ *   Uses existing AgentProfileTab, AgentChatTab, AgentTryItTab
+ *
+ * For orchestrators (agent_role === 'orchestrator'):
+ *   Single overview tab (no chat, no try-it — orchestrators coordinate, they don't execute)
+ *
+ * For legacy peers (agent_role === 'peer' or DerivedAgent):
+ *   Falls back to legacy rendering for backward compatibility
  */
 
 import { useState, useEffect, useCallback } from 'react'
 import type { DerivedAgent, IntelLayerAgent } from '@/types/workspace'
 
-// New tab components (DB-backed agents)
+// DB-backed agent tab components
 import { AgentProfileTab } from './AgentProfileTab'
 import { AgentChatTab } from './AgentChatTab'
 import { AgentTryItTab } from './AgentTryItTab'
@@ -36,11 +43,14 @@ interface Props {
   projectId: string
   onClose: () => void
   onAgentValidated?: () => void
+  parentAgentName?: string
 }
 
-export function WorkbenchDetailPanel({ agent, agents, projectId, onClose, onAgentValidated }: Props) {
+export function WorkbenchDetailPanel({ agent, agents, projectId, onClose, onAgentValidated, parentAgentName }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>('profile')
   const db = isDbAgent(agent)
+  const isOrchestrator = db && agent.agent_role === 'orchestrator'
+  const isSubAgent = db && agent.agent_role === 'sub_agent'
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -54,9 +64,16 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose, onAgen
   useEffect(() => { setActiveTab('profile') }, [agent.id])
 
   const name = agent.name
-  const icon = agent.icon
-  const role = db ? agent.role_description : agent.role
   const isValidated = db && agent.validation_status === 'validated'
+
+  // Determine which tabs to show
+  const tabs: Array<{ id: TabId; label: string }> = isOrchestrator
+    ? [{ id: 'profile', label: 'Overview' }]
+    : [
+        { id: 'profile', label: 'Profile' },
+        { id: 'chat', label: `Talk to ${name.split(' ')[0]}` },
+        { id: 'tryit', label: 'See in Action' },
+      ]
 
   return (
     <>
@@ -72,24 +89,33 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose, onAgen
         className="fixed right-0 top-0 bottom-0 z-[210] flex flex-col bg-white shadow-2xl"
         style={{ width: 520, maxWidth: '95vw' }}
       >
-        {/* Header — icon + name + tabs inline + close */}
+        {/* Header */}
         <div className="flex items-center gap-3 px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid rgba(10,30,47,0.08)' }}>
           <button onClick={onClose} className="p-1 rounded-md hover:bg-[rgba(0,0,0,0.04)] transition-colors text-[#A0AEC0] flex-shrink-0">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="1" y1="1" x2="13" y2="13"/><line x1="13" y1="1" x2="1" y2="13"/></svg>
           </button>
-          <span className="text-lg flex-shrink-0">{icon}</span>
-          <p className="text-[13px] font-semibold text-[#0A1E2F] truncate">{name}</p>
-          {isValidated && (
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] text-white flex-shrink-0" style={{ background: '#3FAF7A' }}>&#x2713;</div>
-          )}
 
-          {/* Tabs — pill style, right-aligned in header row */}
+          <div className="flex-1 min-w-0">
+            {/* Breadcrumb for sub-agents */}
+            {isSubAgent && parentAgentName && (
+              <p className="text-[9px] text-[#A0AEC0] font-medium truncate mb-0.5">
+                Part of {parentAgentName}
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <p className="text-[13px] font-semibold text-[#0A1E2F] truncate">{name}</p>
+              {isValidated && (
+                <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] text-white flex-shrink-0" style={{ background: '#3FAF7A' }}>&#x2713;</div>
+              )}
+              {isSubAgent && (
+                <span className="text-[7px] font-bold uppercase px-1.5 py-px rounded bg-[rgba(63,175,122,0.08)] text-[#1B6B3A] flex-shrink-0">AI</span>
+              )}
+            </div>
+          </div>
+
+          {/* Tabs */}
           <div className="flex items-center gap-0.5 ml-auto rounded-lg p-0.5 flex-shrink-0" style={{ background: 'rgba(10,30,47,0.04)' }}>
-            {([
-              { id: 'profile' as TabId, label: 'Profile' },
-              { id: 'chat' as TabId, label: `Talk to ${name.split(' ')[0]}` },
-              { id: 'tryit' as TabId, label: 'See in Action' },
-            ]).map(tab => (
+            {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
@@ -109,17 +135,16 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose, onAgen
         {/* Tab content */}
         <div className="flex-1 overflow-hidden min-h-0">
           {db ? (
-            // ── DB-backed agent tabs ──
             <>
               {activeTab === 'profile' && (
                 <div className="h-full overflow-y-auto">
                   <AgentProfileTab agent={agent} agents={agents as IntelLayerAgent[]} />
                 </div>
               )}
-              {activeTab === 'chat' && (
+              {activeTab === 'chat' && !isOrchestrator && (
                 <AgentChatTab agent={agent} projectId={projectId} />
               )}
-              {activeTab === 'tryit' && (
+              {activeTab === 'tryit' && !isOrchestrator && (
                 <AgentTryItTab
                   agent={agent}
                   projectId={projectId}
@@ -128,7 +153,7 @@ export function WorkbenchDetailPanel({ agent, agents, projectId, onClose, onAgen
               )}
             </>
           ) : (
-            // ── Legacy derived-agent panel ──
+            // Legacy derived-agent panel
             <LegacyDetailContent
               agent={agent as DerivedAgent}
               agents={agents as DerivedAgent[]}

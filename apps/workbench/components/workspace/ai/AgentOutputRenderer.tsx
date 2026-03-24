@@ -385,6 +385,7 @@ const RENDERERS: Record<AgentType, React.FC<{ output: Record<string, unknown> }>
   watcher: WatcherOutput,
   generator: GeneratorOutput,
   processor: ProcessorOutput,
+  orchestrator: ProcessorOutput,
 }
 
 export function AgentOutputRenderer({ agentType, output, executionTimeMs, hideFooter }: Props) {

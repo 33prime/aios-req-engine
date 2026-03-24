@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intelligence Layer v2 — Consultant Clarity Tool</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --green: #3FAF7A; --green-hover: #33a06d;
+    --green-dim: rgba(63,175,122,0.08); --green-border: rgba(63,175,122,0.15);
+    --navy: #0A1E2F; --deep-blue: #044159; --dark-green: #1B6B3A;
+    --gold: #8B6914; --gold-dim: rgba(212,160,23,0.08); --gold-border: rgba(212,160,23,0.15);
+    --red: #C53030; --red-dim: rgba(197,48,48,0.06);
+    --purple: #5B21B6; --purple-dim: rgba(91,33,182,0.06);
+    --text-dark: #2D3748; --text-body: #4A5568; --text-muted: #718096; --text-label: #A0AEC0;
+    --border: rgba(10,30,47,0.08); --border-hover: rgba(10,30,47,0.15);
+    --bg-canvas: #FAFBFC; --bg-subtle: rgba(0,0,0,0.02);
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.04); --shadow-md: 0 2px 12px rgba(0,0,0,0.06);
+    --radius-sm: 6px; --radius: 8px; --radius-lg: 12px;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg-canvas); color: var(--text-dark); -webkit-font-smoothing: antialiased;
+  }
+  .icon { width: 14px; height: 14px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-sm { width: 11px; height: 11px; }
+  .icon-lg { width: 18px; height: 18px; }
+
+  /* ─── TOPBAR ─── */
+  .topbar { background: var(--navy); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .topbar-logo { font-size: 13px; font-weight: 700; color: white; }
+  .topbar-logo span { color: var(--green); }
+  .topbar-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.1); }
+  .topbar-title { font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 500; }
+  .project-tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.06); border-radius: var(--radius); padding: 3px; }
+  .project-tab { padding: 6px 14px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 600; cursor: pointer; color: rgba(255,255,255,0.4); border: none; background: none; transition: all 0.15s; }
+  .project-tab.active { background: rgba(255,255,255,0.12); color: white; }
+  .project-tab:hover:not(.active) { color: rgba(255,255,255,0.7); }
+
+  /* ─── HEADER ─── */
+  .intel-header { padding: 24px 28px 20px; border-bottom: 1px solid var(--border); background: white; }
+  .intel-header-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+  .intel-title { font-size: 18px; font-weight: 700; color: var(--navy); letter-spacing: -0.02em; margin-bottom: 4px; }
+  .intel-subtitle { font-size: 12px; color: var(--text-muted); max-width: 600px; line-height: 1.4; }
+  .intel-stats { display: flex; gap: 6px; }
+  .intel-stat { padding: 5px 12px; border-radius: var(--radius-sm); background: var(--bg-subtle); border: 1px solid var(--border); text-align: center; }
+  .intel-stat-value { font-size: 16px; font-weight: 700; color: var(--navy); }
+  .intel-stat-label { font-size: 9px; font-weight: 600; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; }
+  .profile-bar { display: flex; align-items: center; gap: 12px; }
+  .profile-bar-label { font-size: 10px; font-weight: 600; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+  .profile-bar-track { flex: 1; height: 6px; border-radius: 3px; display: flex; overflow: hidden; background: rgba(0,0,0,0.03); }
+  .profile-segment { height: 100%; transition: width 0.6s ease; }
+  .profile-segment.ai { background: var(--green); }
+  .profile-segment.rules { background: var(--deep-blue); }
+  .profile-segment.data { background: var(--gold); }
+  .profile-legend { display: flex; gap: 12px; }
+  .profile-legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; color: var(--text-body); }
+  .legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .legend-dot.ai { background: var(--green); }
+  .legend-dot.rules { background: var(--deep-blue); }
+  .legend-dot.data { background: var(--gold); }
+
+  /* ─── MAIN ─── */
+  .main-content { padding: 24px 28px; max-width: 1200px; margin: 0 auto; }
+  .section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; margin-top: 28px; }
+  .section-header:first-child { margin-top: 0; }
+  .section-number { width: 20px; height: 20px; border-radius: 50%; background: var(--navy); color: white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .section-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+  .section-desc { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+
+  /* ─── QUADRANTS ─── */
+  .quadrant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .quadrant { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: all 0.2s; }
+  .quadrant:hover { border-color: var(--border-hover); box-shadow: var(--shadow-md); }
+  .quadrant.expanded { grid-column: 1 / -1; border-color: var(--border-hover); box-shadow: var(--shadow-md); }
+  .quadrant-header { display: flex; align-items: center; gap: 8px; padding: 14px 16px; cursor: pointer; }
+  .q-icon-box { width: 28px; height: 28px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; }
+  .q-icon-box.knowledge { background: var(--gold-dim); color: var(--gold); }
+  .q-icon-box.scoring { background: rgba(4,65,89,0.08); color: var(--deep-blue); }
+  .q-icon-box.decision { background: rgba(10,30,47,0.06); color: var(--navy); }
+  .q-icon-box.ai-cap { background: var(--green-dim); color: var(--green); }
+  .q-title { font-size: 12px; font-weight: 700; color: var(--navy); flex: 1; }
+  .q-count { font-size: 10px; font-weight: 700; color: var(--text-label); background: var(--bg-subtle); padding: 2px 7px; border-radius: 10px; }
+  .q-chevron { color: var(--text-label); transition: transform 0.2s; font-size: 12px; }
+  .quadrant.expanded .q-chevron { transform: rotate(180deg); }
+  .q-summary { padding: 0 16px 14px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .quadrant.expanded .q-summary { display: none; }
+  .s-pill { padding: 3px 8px; border-radius: 4px; font-size: 9px; font-weight: 600; color: var(--text-body); background: var(--bg-subtle); border: 1px solid var(--border); }
+  .q-detail { display: none; border-top: 1px solid var(--border); }
+  .quadrant.expanded .q-detail { display: block; }
+  .qd-cols { display: grid; grid-template-columns: 1fr 1fr; min-height: 280px; }
+
+  /* Inventory (left) */
+  .qd-inv { padding: 16px; border-right: 1px solid var(--border); }
+  .qd-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-label); margin-bottom: 8px; }
+  .qd-label:not(:first-child) { margin-top: 14px; }
+  .qd-item { display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; border-radius: var(--radius-sm); cursor: pointer; transition: background 0.15s; margin-bottom: 2px; }
+  .qd-item:hover { background: var(--bg-subtle); }
+  .qd-item.active { background: var(--green-dim); }
+  .qd-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .qd-dot.ok { background: var(--green); }
+  .qd-dot.partial { background: var(--gold); }
+  .qd-dot.gap { background: none; border: 1.5px dashed var(--red); }
+  .qd-dot.opp { background: none; border: 1.5px dashed var(--purple); }
+  .qd-name { font-size: 11px; font-weight: 600; color: var(--text-dark); margin-bottom: 1px; }
+  .qd-meta { font-size: 9px; color: var(--text-label); }
+  .qd-badge { padding: 2px 6px; border-radius: 4px; font-size: 8px; font-weight: 700; text-transform: uppercase; flex-shrink: 0; margin-top: 2px; }
+  .qd-badge.ok { background: var(--green-dim); color: var(--dark-green); }
+  .qd-badge.partial { background: var(--gold-dim); color: var(--gold); }
+  .qd-badge.missing { background: var(--red-dim); color: var(--red); }
+  .qd-badge.opp { background: var(--purple-dim); color: var(--purple); }
+  .cov-bar { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+  .cov-label { font-size: 9px; font-weight: 600; color: var(--text-label); white-space: nowrap; }
+  .cov-track { flex: 1; height: 4px; border-radius: 2px; background: rgba(0,0,0,0.06); overflow: hidden; }
+  .cov-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+  .cov-fill.good { background: var(--green); }
+  .cov-fill.mid { background: var(--gold); }
+  .cov-fill.low { background: var(--red); }
+  .cov-val { font-size: 10px; font-weight: 700; color: var(--text-dark); }
+
+  /* Detail (right) */
+  .qd-right { padding: 16px; }
+  .qd-right-title { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+  .qd-right-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; margin-bottom: 14px; }
+
+  /* Demo blocks */
+  .demo-block { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .demo-block-header { padding: 8px 12px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border); }
+  .demo-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .demo-dot.green { background: var(--green); }
+  .demo-dot.blue { background: var(--deep-blue); }
+  .demo-dot.gold { background: var(--gold); }
+  .demo-dot.navy { background: var(--navy); }
+  .demo-block-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .demo-block-body { padding: 12px; }
+
+  /* Callouts — gap, risk, opportunity */
+  .callout { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: var(--radius-sm); margin-top: 10px; }
+  .callout.gap { background: var(--red-dim); border: 1px solid rgba(197,48,48,0.10); }
+  .callout.risk { background: rgba(212,160,23,0.06); border: 1px solid rgba(212,160,23,0.12); }
+  .callout.opp { background: var(--purple-dim); border: 1px solid rgba(91,33,182,0.10); }
+  .callout-icon { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .callout.gap .callout-icon { background: rgba(197,48,48,0.12); color: var(--red); }
+  .callout.risk .callout-icon { background: rgba(212,160,23,0.15); color: var(--gold); }
+  .callout.opp .callout-icon { background: rgba(91,33,182,0.12); color: var(--purple); }
+  .callout-text { font-size: 10px; line-height: 1.4; }
+  .callout.gap .callout-text { color: #742A2A; }
+  .callout.risk .callout-text { color: #744210; }
+  .callout.opp .callout-text { color: #44337A; }
+  .callout-text strong { font-weight: 700; }
+
+  /* Consultant insight — the subtle nudge */
+  .insight { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: var(--radius-sm); background: rgba(4,65,89,0.03); border-left: 3px solid var(--deep-blue); margin-top: 10px; }
+  .insight-text { font-size: 10px; color: var(--deep-blue); line-height: 1.4; font-style: italic; }
+
+  /* Tables */
+  .ex-table { width: 100%; border-collapse: collapse; }
+  .ex-table th { text-align: left; font-size: 9px; font-weight: 700; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; padding: 4px 8px 6px; border-bottom: 1px solid var(--border); }
+  .ex-table td { font-size: 10px; color: var(--text-dark); padding: 6px 8px; border-bottom: 1px solid rgba(0,0,0,0.03); }
+  .ex-table tr:last-child td { border-bottom: none; }
+  .ex-select { padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 10px; color: var(--text-dark); background: white; font-family: inherit; }
+  .demo-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+  .demo-badge.high { background: var(--green-dim); color: var(--dark-green); }
+  .demo-badge.mid { background: rgba(4,65,89,0.06); color: var(--deep-blue); }
+  .demo-badge.caution { background: var(--gold-dim); color: var(--gold); }
+  .demo-badge.alert { background: var(--red-dim); color: var(--red); }
+
+  /* Trace path */
+  .trace-step { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 2px; }
+  .trace-num { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; flex-shrink: 0; }
+  .trace-num.green { background: var(--green-dim); color: var(--green); }
+  .trace-num.gold { background: var(--gold-dim); color: var(--gold); }
+  .trace-num.red { background: var(--red-dim); color: var(--red); }
+  .trace-line { width: 1px; height: 8px; background: var(--border); margin-left: 9px; }
+  .trace-text { font-size: 10px; color: var(--text-dark); padding-top: 2px; }
+
+  /* ─── AGENTS ─── */
+  .agents-stack { display: flex; flex-direction: column; gap: 12px; }
+  .agent-card { background: white; border: 1.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: all 0.2s; cursor: pointer; }
+  .agent-card:hover { border-color: var(--green-border); box-shadow: 0 4px 20px rgba(63,175,122,0.10); }
+  .agent-card.expanded { border-color: var(--green); }
+  .agent-card-header { padding: 16px 18px; display: flex; align-items: flex-start; gap: 12px; }
+  .a-icon { width: 36px; height: 36px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--green-dim); border: 1px solid var(--green-border); }
+  .a-meta { flex: 1; min-width: 0; }
+  .a-name { font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 2px; }
+  .a-goal { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+  .a-badge { padding: 3px 8px; border-radius: 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .a-badge.orch { background: rgba(4,65,89,0.06); color: var(--deep-blue); border: 1px solid rgba(4,65,89,0.12); }
+  .a-badge.auto { background: var(--green-dim); color: var(--dark-green); border: 1px solid var(--green-border); }
+  .a-badge.peri { background: var(--gold-dim); color: var(--gold); border: 1px solid var(--gold-border); }
+  .wf-chain { padding: 0 18px 16px; }
+  .wf-steps { display: flex; align-items: flex-start; overflow-x: auto; padding-bottom: 4px; }
+  .wf-node { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; min-width: 115px; max-width: 145px; flex-shrink: 0; transition: all 0.2s; }
+  .wf-node:hover { border-color: var(--green-border); background: white; box-shadow: var(--shadow-sm); }
+  .wf-type { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .wf-type.sa { color: var(--green); }
+  .wf-type.tl { color: var(--deep-blue); }
+  .wf-name { font-size: 10px; font-weight: 600; color: var(--navy); margin-bottom: 4px; line-height: 1.3; }
+  .wf-tools { display: flex; flex-wrap: wrap; gap: 3px; }
+  .tp { padding: 2px 5px; border-radius: 3px; font-size: 8px; font-weight: 600; background: rgba(0,0,0,0.03); border: 1px solid rgba(10,30,47,0.06); color: var(--text-muted); }
+  .wf-arrow { display: flex; align-items: center; padding: 0 3px; color: var(--text-label); margin-top: 18px; flex-shrink: 0; }
+  .a-detail { border-top: 1px solid var(--border); padding: 16px 18px; display: none; }
+  .agent-card.expanded .a-detail { display: block; }
+  .d-tabs { display: flex; gap: 2px; background: rgba(10,30,47,0.04); border-radius: var(--radius-sm); padding: 2px; margin-bottom: 14px; }
+  .d-tab { padding: 5px 12px; border-radius: 5px; font-size: 10px; font-weight: 600; color: var(--text-label); cursor: pointer; border: none; background: none; }
+  .d-tab.active { background: white; color: var(--navy); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .sub-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-label); margin-bottom: 6px; margin-top: 12px; }
+  .sub-lbl:first-child { margin-top: 0; }
+  .t-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .t-card { padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); transition: all 0.15s; }
+  .t-card:hover { border-color: var(--green-border); background: var(--green-dim); }
+  .t-card.ai-b { border-left: 3px solid var(--green); }
+  .t-card-h { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+  .t-card-n { font-size: 10px; font-weight: 600; color: var(--navy); }
+  .t-card-d { font-size: 9px; color: var(--text-muted); line-height: 1.3; }
+  .b-sm { padding: 1px 5px; border-radius: 3px; font-size: 7px; font-weight: 700; text-transform: uppercase; margin-left: auto; }
+  .b-sm.ai { background: var(--green-dim); color: var(--dark-green); }
+  .b-sm.hy { background: rgba(4,65,89,0.06); color: var(--deep-blue); }
+  .k-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .k-card { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); border-left: 3px solid; }
+  .k-card.db { border-left-color: var(--gold); }
+  .k-card.rb { border-left-color: var(--deep-blue); }
+  .k-card-n { font-size: 10px; font-weight: 600; color: var(--navy); margin-bottom: 2px; }
+  .k-card-m { font-size: 9px; color: var(--text-label); }
+
+  .hidden { display: none !important; }
+  @keyframes slide-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .slide-up { animation: slide-up 0.3s ease; }
+  .wf-steps::-webkit-scrollbar { height: 3px; }
+  .wf-steps::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .t-card.span2 { grid-column: span 2; }
+</style>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">AIOS <span>Intelligence</span></div>
+    <div class="topbar-divider"></div>
+    <div class="topbar-title">Intelligence Layer v2</div>
+  </div>
+  <div class="project-tabs">
+    <button class="project-tab active" onclick="switchProject('benybox')">BenyBox <span style="opacity:0.4;margin-left:3px">AI-Light</span></button>
+    <button class="project-tab" onclick="switchProject('revops')">RevOps <span style="opacity:0.4;margin-left:3px">AI-Heavy</span></button>
+  </div>
+</div>
+
+<!-- ═══════════ BENYBOX ═══════════ -->
+<div id="project-benybox">
+  <div class="intel-header">
+    <div class="intel-header-top">
+      <div>
+        <div class="intel-title">Intelligence Layer</div>
+        <div class="intel-subtitle">BenyBox's intelligence comes from legal knowledge, compliance rules, and scoring — with targeted AI for document classification. This clarity helps you see what to build, what to skip, and where risks live.</div>
+      </div>
+      <div class="intel-stats">
+        <div class="intel-stat"><div class="intel-stat-value">2</div><div class="intel-stat-label">Agents</div></div>
+        <div class="intel-stat"><div class="intel-stat-value">1</div><div class="intel-stat-label">Sub-Agent</div></div>
+        <div class="intel-stat"><div class="intel-stat-value">10</div><div class="intel-stat-label">Tools</div></div>
+        <div class="intel-stat"><div class="intel-stat-value">3</div><div class="intel-stat-label">Knowledge</div></div>
+      </div>
+    </div>
+    <div class="profile-bar">
+      <div class="profile-bar-label">Intelligence Profile</div>
+      <div class="profile-bar-track"><div class="profile-segment ai" style="width:12%"></div><div class="profile-segment rules" style="width:62%"></div><div class="profile-segment data" style="width:26%"></div></div>
+      <div class="profile-legend">
+        <div class="profile-legend-item"><div class="legend-dot ai"></div>12% AI</div>
+        <div class="profile-legend-item"><div class="legend-dot rules"></div>62% Rules</div>
+        <div class="profile-legend-item"><div class="legend-dot data"></div>26% Data</div>
+      </div>
+    </div>
+  </div>
+  <div class="main-content">
+    <div class="section-header" style="margin-top:0"><div class="section-number">1</div><div class="section-title">Intelligence Architecture</div><div class="section-desc">Click to explore, demo, and find gaps</div></div>
+    <div class="quadrant-grid">
+
+      <!-- BB: Knowledge -->
+      <div class="quadrant" id="bb-q1"><div class="quadrant-header" onclick="toggleQ('bb-q1')"><div class="q-icon-box knowledge"><i data-lucide="book-open" class="icon"></i></div><div class="q-title">Knowledge Systems</div><div class="q-count">3</div><div class="q-chevron">&#9662;</div></div>
+        <div class="q-summary"><span class="s-pill">50-State Legal Matrix</span><span class="s-pill">Document Taxonomy (42 types)</span><span class="s-pill">Refresh Intervals</span></div>
+        <div class="q-detail"><div class="qd-cols">
+          <div class="qd-inv">
+            <div class="qd-label">Defined</div>
+            <div class="qd-item active"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">50-State Legal Requirements</div><div class="qd-meta">Estate planning docs per state x age x status</div></div><div class="qd-badge ok">48/50</div></div>
+            <div class="qd-item"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Document Type Taxonomy</div><div class="qd-meta">Legal, Medical, Insurance, Financial</div></div><div class="qd-badge ok">42 types</div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">Refresh Interval Rules</div><div class="qd-meta">Review frequency per document type</div></div><div class="qd-badge partial">32/42</div></div>
+            <div class="qd-label">Gaps</div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">Wyoming & Montana rules missing</div><div class="qd-meta">Community property not mapped</div></div><div class="qd-badge missing">gap</div></div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">Trust documents not in taxonomy</div><div class="qd-meta">Revocable/irrevocable trusts</div></div><div class="qd-badge missing">gap</div></div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">10 doc types missing refresh rules</div><div class="qd-meta">Insurance policies, beneficiary designations</div></div><div class="qd-badge missing">gap</div></div>
+            <div class="cov-bar"><div class="cov-label">Coverage</div><div class="cov-track"><div class="cov-fill mid" style="width:78%"></div></div><div class="cov-val">78%</div></div>
+          </div>
+          <div class="qd-right">
+            <div class="qd-right-title">50-State Legal Requirements</div>
+            <div class="qd-right-desc">The product's moat. Margaret doesn't know she needs a CA-specific HIPAA authorization. BenyBox does. This is curated expertise, not AI.</div>
+            <div class="demo-block"><div class="demo-block-header"><div class="demo-dot gold"></div><div class="demo-block-label" style="color:var(--gold)">Explore the Knowledge</div></div>
+              <div class="demo-block-body">
+                <div style="display:flex;gap:8px;margin-bottom:10px;"><select class="ex-select"><option>California</option><option>Florida</option><option>Texas</option></select><select class="ex-select"><option>Age 65+</option><option>Age 50-64</option></select><select class="ex-select"><option>Married</option><option>Divorced</option></select></div>
+                <table class="ex-table"><thead><tr><th>Document</th><th>Category</th><th>Priority</th><th>State Rule</th></tr></thead><tbody>
+                  <tr><td style="font-weight:600">Last Will & Testament</td><td>Legal</td><td><span class="demo-badge high">P1</span></td><td style="font-size:9px;color:var(--text-muted)">CA: 2 witnesses required, no notary</td></tr>
+                  <tr><td style="font-weight:600">Durable Power of Attorney</td><td>Legal</td><td><span class="demo-badge high">P1</span></td><td style="font-size:9px;color:var(--text-muted)">CA Probate 4401: notarization required</td></tr>
+                  <tr><td style="font-weight:600">Healthcare Directive</td><td>Medical</td><td><span class="demo-badge high">P1</span></td><td style="font-size:9px;color:var(--text-muted)">CA H&S Code 7186-7195</td></tr>
+                  <tr><td style="font-weight:600">HIPAA Authorization</td><td>Medical</td><td><span class="demo-badge high">P1</span></td><td style="font-size:9px;color:var(--text-muted)">Federal + CA privacy addendum</td></tr>
+                  <tr><td style="font-weight:600">Property Deed Review</td><td>Legal</td><td><span class="demo-badge mid">P2</span></td><td style="font-size:9px;color:var(--text-muted)">Community property: spousal consent</td></tr>
+                </tbody></table>
+                <div class="callout gap"><div class="callout-icon">!</div><div class="callout-text"><strong>Gap:</strong> No domestic partnership rules for CA. 14% of households affected. Checklist will be incomplete for these users.</div></div>
+                <div class="insight"><div class="insight-text">This knowledge base is the product's defensible moat. But it needs a maintenance strategy — who updates it when state laws change? Consider a legal content partnership or annual audit cycle.</div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- BB: Scoring -->
+      <div class="quadrant" id="bb-q2"><div class="quadrant-header" onclick="toggleQ('bb-q2')"><div class="q-icon-box scoring"><i data-lucide="gauge" class="icon"></i></div><div class="q-title">Scoring Models</div><div class="q-count">3</div><div class="q-chevron">&#9662;</div></div>
+        <div class="q-summary"><span class="s-pill">Vault Completeness</span><span class="s-pill">Document Freshness</span><span class="s-pill">Client Risk Ranking</span></div>
+        <div class="q-detail"><div class="qd-cols">
+          <div class="qd-inv">
+            <div class="qd-label">Defined</div>
+            <div class="qd-item active"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Vault Completeness Score</div><div class="qd-meta">uploaded / required x priority weight</div></div><div class="qd-badge ok">ready</div></div>
+            <div class="qd-item"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Document Freshness Index</div><div class="qd-meta">upload_date vs refresh interval</div></div><div class="qd-badge ok">ready</div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">Client Risk Ranking</div><div class="qd-meta">completeness + criticality + staleness</div></div><div class="qd-badge partial">draft</div></div>
+            <div class="qd-label">Gaps</div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">No document quality score</div><div class="qd-meta">Signatures, completeness not assessed</div></div><div class="qd-badge missing">gap</div></div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">No family readiness score</div><div class="qd-meta">Sharing + access setup not measured</div></div><div class="qd-badge missing">gap</div></div>
+          </div>
+          <div class="qd-right">
+            <div class="qd-right-title">Vault Completeness Score</div>
+            <div class="qd-right-desc">The product's north-star metric. Priority-weighted ratio of uploaded docs to required docs. Drives the entire dashboard experience.</div>
+            <div class="demo-block"><div class="demo-block-header"><div class="demo-dot blue"></div><div class="demo-block-label" style="color:var(--deep-blue)">Watch It Score</div></div>
+              <div class="demo-block-body">
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px">Margaret, 68, CA — 12 documents required</div>
+                <table class="ex-table"><thead><tr><th>Document</th><th>Status</th><th>Weight</th><th>Points</th></tr></thead><tbody>
+                  <tr><td>Last Will & Testament</td><td><span class="demo-badge high">uploaded</span></td><td>P1 (x3)</td><td style="font-weight:700;color:var(--green)">3/3</td></tr>
+                  <tr><td>Durable POA</td><td><span style="color:var(--red);font-size:9px;font-weight:600">MISSING</span></td><td>P1 (x3)</td><td style="font-weight:700;color:var(--red)">0/3</td></tr>
+                  <tr><td>Healthcare Directive</td><td><span class="demo-badge high">uploaded</span></td><td>P1 (x3)</td><td style="font-weight:700;color:var(--green)">3/3</td></tr>
+                  <tr><td>Life Insurance</td><td><span class="demo-badge caution">stale</span></td><td>P2 (x2)</td><td style="font-weight:700;color:var(--gold)">1/2</td></tr>
+                </tbody></table>
+                <div style="display:flex;align-items:center;gap:12px;margin-top:12px;padding:10px 12px;background:var(--bg-subtle);border-radius:var(--radius-sm)">
+                  <div style="font-size:28px;font-weight:800;color:var(--navy)">62%</div>
+                  <div><div style="font-size:10px;font-weight:600;color:var(--text-dark)">Vault Completeness Score</div><div style="font-size:9px;color:var(--text-muted)">Top gap: Durable POA (-3 pts)</div></div>
+                </div>
+                <div class="callout risk"><div class="callout-icon">~</div><div class="callout-text"><strong>Risk:</strong> If the scoring formula weights are wrong, users will feel false confidence or unnecessary anxiety. The weights need client validation — is a Healthcare Directive really equal to a Will?</div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- BB: Decision -->
+      <div class="quadrant" id="bb-q3"><div class="quadrant-header" onclick="toggleQ('bb-q3')"><div class="q-icon-box decision"><i data-lucide="git-branch" class="icon"></i></div><div class="q-title">Decision Logic</div><div class="q-count">5</div><div class="q-chevron">&#9662;</div></div>
+        <div class="q-summary"><span class="s-pill">Profile Router</span><span class="s-pill">Life Event Trigger</span><span class="s-pill">Permission Matrix</span><span class="s-pill">Staleness Alert</span><span class="s-pill">Referral Matcher</span></div>
+        <div class="q-detail"><div class="qd-cols">
+          <div class="qd-inv">
+            <div class="qd-label">Decision Rules</div>
+            <div class="qd-item active"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Profile to Checklist Router</div><div class="qd-meta">State x Age x Status = doc set</div></div></div>
+            <div class="qd-item"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Life Event Re-Assessment</div><div class="qd-meta">Marriage, divorce, move = re-run</div></div></div>
+            <div class="qd-item"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Permission Validation</div><div class="qd-meta">Role x Relationship = access tier</div></div></div>
+            <div class="qd-item"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Staleness Alert Trigger</div><div class="qd-meta">age > interval = alert</div></div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">Service Provider Matcher</div><div class="qd-meta">Missing doc x region = referral</div></div><div class="qd-badge partial">draft</div></div>
+            <div class="qd-label">Gaps</div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">No incapacitation trigger</div><div class="qd-meta">What happens when owner can't manage?</div></div><div class="qd-badge missing">gap</div></div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">No minor child rules</div><div class="qd-meta">Guardianship requirements missing</div></div><div class="qd-badge missing">gap</div></div>
+          </div>
+          <div class="qd-right">
+            <div class="qd-right-title">Profile to Checklist Router</div>
+            <div class="qd-right-desc">Deterministic decision tree. Same input = same output. No AI needed — this is pure rules.</div>
+            <div class="demo-block"><div class="demo-block-header"><div class="demo-dot navy"></div><div class="demo-block-label" style="color:var(--navy)">Trace a Path</div></div>
+              <div class="demo-block-body">
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:10px">Scenario: Margaret divorces and moves to Florida</div>
+                <div class="trace-step"><div class="trace-num green">1</div><div class="trace-text"><strong>Trigger:</strong> Profile update — state CA to FL, married to divorced</div></div><div class="trace-line"></div>
+                <div class="trace-step"><div class="trace-num green">2</div><div class="trace-text"><strong>Re-route:</strong> FL is NOT community property. Remove spousal consent.</div></div><div class="trace-line"></div>
+                <div class="trace-step"><div class="trace-num gold">3</div><div class="trace-text"><strong>+6 docs:</strong> FL Lady Bird Deed, Updated Beneficiaries, FL Healthcare Surrogate, QDRO</div></div><div class="trace-line"></div>
+                <div class="trace-step"><div class="trace-num red">4</div><div class="trace-text"><strong>Score:</strong> 62% to 38% — 6 new docs required, 2 existing now invalid under FL law</div></div>
+                <div class="callout gap"><div class="callout-icon">!</div><div class="callout-text"><strong>Gap:</strong> No cross-state portability rules. Margaret's CA-notarized POA may not be recognized in FL. Need interstate validity matrix.</div></div>
+                <div class="insight"><div class="insight-text">This scenario is a real user journey — divorce + relocation is common for the 60+ demographic. If the decision logic doesn't handle it cleanly, the product loses trust at the most critical moment.</div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- BB: AI -->
+      <div class="quadrant" id="bb-q4"><div class="quadrant-header" onclick="toggleQ('bb-q4')"><div class="q-icon-box ai-cap"><i data-lucide="sparkles" class="icon"></i></div><div class="q-title">AI Capabilities</div><div class="q-count">2</div><div class="q-chevron">&#9662;</div></div>
+        <div class="q-summary"><span class="s-pill">Document Auto-Classification (OCR + LLM)</span><span class="s-pill">Natural Language Search</span></div>
+        <div class="q-detail"><div class="qd-cols">
+          <div class="qd-inv">
+            <div class="qd-label">AI-Powered</div>
+            <div class="qd-item active"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Document Auto-Classification</div><div class="qd-meta">OCR + LLM classify + tag</div></div><div class="qd-badge ok">ready</div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">Natural Language Search</div><div class="qd-meta">Semantic search across vault</div></div><div class="qd-badge partial">planned</div></div>
+            <div class="qd-label">Opportunities</div>
+            <div class="qd-item"><div class="qd-dot opp"></div><div style="flex:1"><div class="qd-name">Document Summarization</div><div class="qd-meta">Plain-language summaries of legal docs</div></div><div class="qd-badge opp">opportunity</div></div>
+            <div class="qd-item"><div class="qd-dot opp"></div><div style="flex:1"><div class="qd-name">Attorney Outreach Drafts</div><div class="qd-meta">AI-drafted client messages</div></div><div class="qd-badge opp">opportunity</div></div>
+            <div class="cov-bar"><div class="cov-label">AI Readiness</div><div class="cov-track"><div class="cov-fill low" style="width:35%"></div></div><div class="cov-val">35%</div></div>
+          </div>
+          <div class="qd-right">
+            <div class="qd-right-title">Document Auto-Classification</div>
+            <div class="qd-right-desc">The only true AI capability. Analyzes uploaded PDFs via OCR, classifies type, assigns category and tags, maps to checklist.</div>
+            <div class="demo-block"><div class="demo-block-header"><div class="demo-dot green"></div><div class="demo-block-label" style="color:var(--dark-green)">See in Action</div></div>
+              <div class="demo-block-body">
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px">Upload: will_final_2024.pdf — signed, 2 witnesses, notarized</div>
+                <table class="ex-table"><tbody>
+                  <tr><td style="font-weight:600">Classification</td><td>Last Will and Testament (Finalized) <span class="demo-badge high">99%</span></td></tr>
+                  <tr><td style="font-weight:600">Category</td><td>Legal <span class="demo-badge high">confirmed</span></td></tr>
+                  <tr><td style="font-weight:600">Tags</td><td>estate-planning, testamentary, legal-binding, 2024, finalized</td></tr>
+                  <tr><td style="font-weight:600">Checklist</td><td>Gap closed: Last Will — Priority 1</td></tr>
+                  <tr><td style="font-weight:600">Score Impact</td><td>41% to 48% <span class="demo-badge mid">+7%</span></td></tr>
+                </tbody></table>
+                <div class="insight"><div class="insight-text">This is the right amount of AI for v1. Don't over-invest here — the rules engine is the real differentiator. Document classification is a commodity capability that makes the upload experience smooth, not the product's moat.</div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- AGENTS -->
+    <div class="section-header"><div class="section-number">2</div><div class="section-title">Agents</div><div class="section-desc">Goal-driven orchestrators</div></div>
+    <div class="agents-stack">
+      <div class="agent-card" onclick="toggleAgent(this)"><div class="agent-card-header"><div class="a-icon"><i data-lucide="shield" class="icon-lg" style="color:var(--green)"></i></div><div class="a-meta"><div class="a-name">Family Preparedness Agent</div><div class="a-goal">Guides families from 0% to 100% document readiness</div></div><div class="a-badge orch">Orchestrator</div></div>
+        <div class="wf-chain"><div class="wf-steps">
+          <div><div class="wf-node"><div class="wf-type tl">Tool</div><div class="wf-name">Checklist Router</div><div class="wf-tools"><span class="tp">State Lookup</span><span class="tp">Age Rules</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type sa">Sub-Agent</div><div class="wf-name">Doc Classifier</div><div class="wf-tools"><span class="tp">OCR</span><span class="tp">Tagger</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type tl">Tool</div><div class="wf-name">Completeness Scorer</div><div class="wf-tools"><span class="tp">Gap Calc</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type tl">Tool</div><div class="wf-name">Permission Validator</div><div class="wf-tools"><span class="tp">ACL Matrix</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type tl">Tool</div><div class="wf-name">Freshness Monitor</div><div class="wf-tools"><span class="tp">Alerts</span></div></div></div>
+        </div></div>
+        <div class="a-detail"><div class="d-tabs"><button class="d-tab active">Sub-Agents & Tools</button><button class="d-tab">Talk to Agent</button><button class="d-tab">See in Action</button></div>
+          <div class="sub-lbl">Sub-Agent (AI)</div><div class="t-grid" style="grid-template-columns:1fr;margin-bottom:8px"><div class="t-card ai-b"><div class="t-card-h"><i data-lucide="tag" class="icon-sm" style="color:var(--green)"></i><div class="t-card-n">Document Classifier</div><span class="b-sm ai">AI</span></div><div class="t-card-d">OCR + classify + tag + checklist match</div></div></div>
+          <div class="sub-lbl">Tools (Rules & Logic)</div><div class="t-grid"><div class="t-card"><div class="t-card-h"><i data-lucide="map" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Checklist Router</div></div><div class="t-card-d">State x Age x Status = checklist</div></div><div class="t-card"><div class="t-card-h"><i data-lucide="bar-chart-2" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Completeness Scorer</div></div><div class="t-card-d">Uploaded / Required x Priority</div></div><div class="t-card"><div class="t-card-h"><i data-lucide="clock" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Freshness Monitor</div></div><div class="t-card-d">Date vs refresh interval</div></div><div class="t-card"><div class="t-card-h"><i data-lucide="lock" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Permission Validator</div></div><div class="t-card-d">ACL matrix + EAC generation</div></div></div>
+        </div>
+      </div>
+      <div class="agent-card" onclick="toggleAgent(this)"><div class="agent-card-header"><div class="a-icon"><i data-lucide="briefcase" class="icon-lg" style="color:var(--green)"></i></div><div class="a-meta"><div class="a-name">Attorney Portfolio Agent</div><div class="a-goal">Surfaces at-risk clients, ranks by urgency, drafts outreach</div></div><div class="a-badge peri">Periodic</div></div>
+        <div class="wf-chain"><div class="wf-steps">
+          <div><div class="wf-node"><div class="wf-type tl">Tool</div><div class="wf-name">Risk Ranker</div><div class="wf-tools"><span class="tp">Score</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type tl">Tool</div><div class="wf-name">Prioritizer</div><div class="wf-tools"><span class="tp">Urgency</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type sa">Sub-Agent</div><div class="wf-name">Outreach Drafter</div><div class="wf-tools"><span class="tp">LLM</span></div></div></div>
+        </div></div>
+        <div class="a-detail"><div class="d-tabs"><button class="d-tab active">Sub-Agents & Tools</button><button class="d-tab">Talk to Agent</button><button class="d-tab">See in Action</button></div>
+          <div class="sub-lbl">Tools</div><div class="t-grid"><div class="t-card"><div class="t-card-h"><i data-lucide="activity" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Client Risk Ranker</div></div><div class="t-card-d">Completeness + criticality + staleness</div></div><div class="t-card"><div class="t-card-h"><i data-lucide="list-ordered" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Follow-Up Prioritizer</div></div><div class="t-card-d">Sort by urgency for action</div></div><div class="t-card ai-b"><div class="t-card-h"><i data-lucide="pen-line" class="icon-sm" style="color:var(--green)"></i><div class="t-card-n">Outreach Drafter</div><span class="b-sm ai">AI</span></div><div class="t-card-d">Personalized messages with doc refs</div></div><div class="t-card"><div class="t-card-h"><i data-lucide="clock" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Stale Doc Detector</div></div><div class="t-card-d">Refresh interval flagging</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ REVOPS ═══════════ -->
+<div id="project-revops" class="hidden">
+  <div class="intel-header">
+    <div class="intel-header-top">
+      <div>
+        <div class="intel-title">Intelligence Layer</div>
+        <div class="intel-subtitle">RevOps is AI-first — every step generates novel output from data synthesis. But 5 AI sub-agents is ambitious for v1. This view helps you see where AI is essential vs where rules would do, and where risks hide in the complexity.</div>
+      </div>
+      <div class="intel-stats">
+        <div class="intel-stat"><div class="intel-stat-value">2</div><div class="intel-stat-label">Agents</div></div>
+        <div class="intel-stat"><div class="intel-stat-value">5</div><div class="intel-stat-label">Sub-Agents</div></div>
+        <div class="intel-stat"><div class="intel-stat-value">15</div><div class="intel-stat-label">Tools</div></div>
+        <div class="intel-stat"><div class="intel-stat-value">4</div><div class="intel-stat-label">Knowledge</div></div>
+      </div>
+    </div>
+    <div class="profile-bar">
+      <div class="profile-bar-label">Intelligence Profile</div>
+      <div class="profile-bar-track"><div class="profile-segment ai" style="width:68%"></div><div class="profile-segment rules" style="width:18%"></div><div class="profile-segment data" style="width:14%"></div></div>
+      <div class="profile-legend">
+        <div class="profile-legend-item"><div class="legend-dot ai"></div>68% AI</div>
+        <div class="profile-legend-item"><div class="legend-dot rules"></div>18% Rules</div>
+        <div class="profile-legend-item"><div class="legend-dot data"></div>14% Data</div>
+      </div>
+    </div>
+  </div>
+  <div class="main-content">
+    <div class="section-header" style="margin-top:0"><div class="section-number">1</div><div class="section-title">Intelligence Architecture</div><div class="section-desc">AI-dominant — but where are the risks?</div></div>
+    <div class="quadrant-grid">
+
+      <!-- RO: Knowledge -->
+      <div class="quadrant" id="ro-q1"><div class="quadrant-header" onclick="toggleQ('ro-q1')"><div class="q-icon-box knowledge"><i data-lucide="book-open" class="icon"></i></div><div class="q-title">Knowledge Systems</div><div class="q-count">4</div><div class="q-chevron">&#9662;</div></div>
+        <div class="q-summary"><span class="s-pill">Industry Benchmarks</span><span class="s-pill">Comparable Companies</span><span class="s-pill">Channel Effectiveness</span><span class="s-pill">Tax & Compliance</span></div>
+        <div class="q-detail"><div class="qd-cols">
+          <div class="qd-inv">
+            <div class="qd-label">Defined</div>
+            <div class="qd-item active"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">Industry Benchmark Database</div><div class="qd-meta">Gartner, IDC market sizing reports</div></div><div class="qd-badge partial">source?</div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">Comparable Company Financials</div><div class="qd-meta">SaaS financials by segment</div></div><div class="qd-badge partial">scope?</div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">Channel Effectiveness Benchmarks</div><div class="qd-meta">By stage and vertical</div></div><div class="qd-badge partial">source?</div></div>
+            <div class="qd-item"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">State Tax & Compliance Registry</div><div class="qd-meta">Entity types, jurisdictions, tax rates</div></div><div class="qd-badge ok">ready</div></div>
+            <div class="qd-label">Risks</div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">Benchmark data freshness</div><div class="qd-meta">If Gartner data is 2 years old, TAM is wrong</div></div><div class="qd-badge missing">risk</div></div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">Licensing cost for data</div><div class="qd-meta">Gartner/IDC reports cost $15-50K/yr</div></div><div class="qd-badge missing">risk</div></div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">SaaS-only comparables</div><div class="qd-meta">What about services, e-commerce, hardware?</div></div><div class="qd-badge missing">gap</div></div>
+            <div class="cov-bar"><div class="cov-label">Coverage</div><div class="cov-track"><div class="cov-fill mid" style="width:55%"></div></div><div class="cov-val">55%</div></div>
+          </div>
+          <div class="qd-right">
+            <div class="qd-right-title">Industry Benchmark Database</div>
+            <div class="qd-right-desc">The foundation everything sits on. TAM/SAM/SOM computation is only as good as the benchmark data feeding it. If benchmarks are stale or narrow, every downstream forecast is unreliable.</div>
+            <div class="demo-block"><div class="demo-block-header"><div class="demo-dot gold"></div><div class="demo-block-label" style="color:var(--gold)">Explore the Knowledge</div></div>
+              <div class="demo-block-body">
+                <div style="display:flex;gap:8px;margin-bottom:10px"><select class="ex-select"><option>HR Compliance Software</option><option>Marketing Automation</option><option>Supply Chain</option></select><select class="ex-select"><option>Mid-Market (500-5K)</option><option>SMB (&lt;500)</option><option>Enterprise (5K+)</option></select></div>
+                <table class="ex-table"><thead><tr><th>Data Point</th><th>Value</th><th>Source</th><th>Freshness</th></tr></thead><tbody>
+                  <tr><td style="font-weight:600">Total Market Size</td><td>$14.2B</td><td>Gartner 2024</td><td><span class="demo-badge high">current</span></td></tr>
+                  <tr><td style="font-weight:600">Mid-Market Segment</td><td>$2.4B (17%)</td><td>IDC 2024</td><td><span class="demo-badge high">current</span></td></tr>
+                  <tr><td style="font-weight:600">3yr CAGR</td><td>12.3%</td><td>Gartner 2024</td><td><span class="demo-badge high">current</span></td></tr>
+                  <tr><td style="font-weight:600">Avg Deal Size (Mid)</td><td>$18K ACV</td><td>Internal</td><td><span class="demo-badge caution">2023</span></td></tr>
+                  <tr><td style="font-weight:600">Win Rate</td><td>—</td><td>—</td><td><span class="demo-badge alert">missing</span></td></tr>
+                </tbody></table>
+                <div class="callout risk"><div class="callout-icon">~</div><div class="callout-text"><strong>Risk:</strong> Average deal size data is from 2023. In a market growing 12% YoY, pricing benchmarks decay fast. The Market Sizer sub-agent will use stale ACV data to compute SOM, potentially understating opportunity by 15-20%.</div></div>
+                <div class="callout gap"><div class="callout-icon">!</div><div class="callout-text"><strong>Gap:</strong> No win rate data. Without it, the Revenue Forecaster will use industry defaults (25-30%) which may not match this client's competitive position. This is a conversation to have with the client.</div></div>
+                <div class="insight"><div class="insight-text">The biggest build-vs-buy decision for this product: do you curate benchmark data internally ($15-50K/yr licensing + maintenance) or let the AI hallucinate reasonable numbers? The answer determines whether this product is trustworthy for real financial decisions.</div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- RO: Scoring -->
+      <div class="quadrant" id="ro-q2"><div class="quadrant-header" onclick="toggleQ('ro-q2')"><div class="q-icon-box scoring"><i data-lucide="gauge" class="icon"></i></div><div class="q-title">Scoring Models</div><div class="q-count">3</div><div class="q-chevron">&#9662;</div></div>
+        <div class="q-summary"><span class="s-pill">Penetration Plausibility (AI)</span><span class="s-pill">Structural Readiness</span><span class="s-pill">Portfolio Health</span></div>
+        <div class="q-detail"><div class="qd-cols">
+          <div class="qd-inv">
+            <div class="qd-label">Defined</div>
+            <div class="qd-item active"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Penetration Plausibility</div><div class="qd-meta">AI-computed — benchmark comparison + reasoning</div></div><div class="qd-badge ok">AI</div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">Structural Readiness Score</div><div class="qd-meta">Entity type + compliance + team</div></div><div class="qd-badge partial">draft</div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">Portfolio Health Index</div><div class="qd-meta">Progress + activity + revenue impact</div></div><div class="qd-badge partial">draft</div></div>
+            <div class="qd-label">Gaps</div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">No forecast accuracy tracking</div><div class="qd-meta">Does the AI's TAM prediction match reality?</div></div><div class="qd-badge missing">gap</div></div>
+            <div class="qd-item"><div class="qd-dot opp"></div><div style="flex:1"><div class="qd-name">Client confidence score</div><div class="qd-meta">How confident is the client in their plan?</div></div><div class="qd-badge opp">opportunity</div></div>
+          </div>
+          <div class="qd-right">
+            <div class="qd-right-title">Penetration Plausibility</div>
+            <div class="qd-right-desc">The guardrail that prevents unrealistic forecasts. Compares the client's growth target against comparable companies at similar stages. This is where AI reasoning matters — it's not just math.</div>
+            <div class="demo-block"><div class="demo-block-header"><div class="demo-dot blue"></div><div class="demo-block-label" style="color:var(--deep-blue)">Watch It Score</div></div>
+              <div class="demo-block-body">
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px">Client target: $8M ARR in 3 years from $1.2M current</div>
+                <table class="ex-table"><thead><tr><th>Check</th><th>Result</th><th>Assessment</th></tr></thead><tbody>
+                  <tr><td style="font-weight:600">Growth Multiple</td><td>6.7x over 3 years</td><td><span class="demo-badge caution">aggressive</span></td></tr>
+                  <tr><td style="font-weight:600">SAM Penetration</td><td>0.33% of $2.4B SAM</td><td><span class="demo-badge high">plausible</span></td></tr>
+                  <tr><td style="font-weight:600">Comparable Median</td><td>5.2x at Series A stage</td><td><span class="demo-badge caution">above median</span></td></tr>
+                  <tr><td style="font-weight:600">Top Quartile</td><td>7.8x (Rippling at similar stage)</td><td><span class="demo-badge mid">achievable</span></td></tr>
+                </tbody></table>
+                <div style="display:flex;align-items:center;gap:12px;margin-top:12px;padding:10px 12px;background:var(--bg-subtle);border-radius:var(--radius-sm)">
+                  <div style="font-size:11px;font-weight:700;color:var(--gold)">PLAUSIBLE WITH RISK</div>
+                  <div style="font-size:9px;color:var(--text-muted)">6.7x exceeds median (5.2x) but within top quartile. Recommend stress-testing with 4.5x conservative scenario.</div>
+                </div>
+                <div class="callout risk"><div class="callout-icon">~</div><div class="callout-text"><strong>Risk:</strong> Clients may treat the "plausible" label as validation. Consider adding a disclaimer: "This analysis compares your target to industry benchmarks — it does not guarantee achievability." Trust calibration is critical.</div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- RO: Decision -->
+      <div class="quadrant" id="ro-q3"><div class="quadrant-header" onclick="toggleQ('ro-q3')"><div class="q-icon-box decision"><i data-lucide="git-branch" class="icon"></i></div><div class="q-title">Decision Logic</div><div class="q-count">3</div><div class="q-chevron">&#9662;</div></div>
+        <div class="q-summary"><span class="s-pill">Tier Classifier</span><span class="s-pill">CRM Auto-Mapper</span><span class="s-pill">Mode Switch (Self / Fractional)</span></div>
+        <div class="q-detail"><div class="qd-cols">
+          <div class="qd-inv">
+            <div class="qd-label">Decision Rules</div>
+            <div class="qd-item active"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Tier Classification</div><div class="qd-meta">Sub-$1M / $1M-$100M / $100M+</div></div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">CRM Field Auto-Mapper</div><div class="qd-meta">GTM outputs to CRM pipeline stages</div></div><div class="qd-badge partial">draft</div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">Mode Switch Logic</div><div class="qd-meta">Self-service to fractional trigger</div></div><div class="qd-badge partial">draft</div></div>
+            <div class="qd-label">Gaps</div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">No pre-revenue tier handling</div><div class="qd-meta">What about companies with $0 revenue?</div></div><div class="qd-badge missing">gap</div></div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">CRM compatibility unclear</div><div class="qd-meta">Which CRMs? HubSpot, Salesforce, Pipedrive?</div></div><div class="qd-badge missing">gap</div></div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">Mode switch triggers undefined</div><div class="qd-meta">What specifically triggers upgrade recommendation?</div></div><div class="qd-badge missing">gap</div></div>
+          </div>
+          <div class="qd-right">
+            <div class="qd-right-title">Tier Classification</div>
+            <div class="qd-right-desc">The first fork in the road. Routes clients into the right onboarding path and unlocks the appropriate tools. This is deterministic — no AI needed.</div>
+            <div class="demo-block"><div class="demo-block-header"><div class="demo-dot navy"></div><div class="demo-block-label" style="color:var(--navy)">Trace a Path</div></div>
+              <div class="demo-block-body">
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:10px">Scenario: Pre-revenue startup, $0 current, targeting $2M in 2 years</div>
+                <div class="trace-step"><div class="trace-num green">1</div><div class="trace-text"><strong>Input:</strong> Current revenue $0, target $2M, "SaaS marketplace for pet services"</div></div><div class="trace-line"></div>
+                <div class="trace-step"><div class="trace-num gold">2</div><div class="trace-text"><strong>Problem:</strong> $0 revenue falls below Sub-$1M tier minimum. No tier handles pre-revenue.</div></div><div class="trace-line"></div>
+                <div class="trace-step"><div class="trace-num red">3</div><div class="trace-text"><strong>Result:</strong> Client gets routed to Sub-$1M by default. Market Sizer has no baseline to work from. Revenue Forecaster can't compute growth multiple (divide by zero).</div></div>
+                <div class="callout gap"><div class="callout-icon">!</div><div class="callout-text"><strong>Gap:</strong> Pre-revenue is Valerie's most common intake profile. Without a dedicated path, these clients will hit a dead end in the first 2 minutes. Need a "pre-revenue" tier with different assumptions.</div></div>
+                <div class="insight"><div class="insight-text">This is the kind of gap that kills adoption. The decision logic is the front door — if it doesn't handle the most common persona, everything downstream is irrelevant. Fix this before building AI sub-agents.</div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- RO: AI -->
+      <div class="quadrant" id="ro-q4"><div class="quadrant-header" onclick="toggleQ('ro-q4')"><div class="q-icon-box ai-cap"><i data-lucide="sparkles" class="icon"></i></div><div class="q-title">AI Capabilities</div><div class="q-count">7</div><div class="q-chevron">&#9662;</div></div>
+        <div class="q-summary"><span class="s-pill">TAM/SAM/SOM</span><span class="s-pill">Revenue Scenarios</span><span class="s-pill">ICP Gen</span><span class="s-pill">Positioning</span><span class="s-pill">Plan Assembly</span><span class="s-pill">At-Risk Detection</span><span class="s-pill">Nudge Selection</span></div>
+        <div class="q-detail"><div class="qd-cols">
+          <div class="qd-inv">
+            <div class="qd-label">AI-Powered</div>
+            <div class="qd-item active"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">TAM/SAM/SOM Synthesis</div><div class="qd-meta">Market sizing from benchmarks + context</div></div><div class="qd-badge ok">core</div></div>
+            <div class="qd-item"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Revenue Scenario Modeling</div><div class="qd-meta">Dynamic forecast with stress testing</div></div><div class="qd-badge ok">core</div></div>
+            <div class="qd-item"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">ICP Variant Generation</div><div class="qd-meta">Creative persona synthesis</div></div><div class="qd-badge ok">core</div></div>
+            <div class="qd-item"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Positioning Statement Drafter</div><div class="qd-meta">NLP-generated messaging</div></div><div class="qd-badge ok">core</div></div>
+            <div class="qd-item"><div class="qd-dot ok"></div><div style="flex:1"><div class="qd-name">Plan Document Assembly</div><div class="qd-meta">Cross-section consistency + formatting</div></div><div class="qd-badge ok">core</div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">At-Risk Pattern Detection</div><div class="qd-meta">Client engagement monitoring</div></div><div class="qd-badge partial">v2</div></div>
+            <div class="qd-item"><div class="qd-dot partial"></div><div style="flex:1"><div class="qd-name">Nudge Template Selection</div><div class="qd-meta">Personalized re-engagement</div></div><div class="qd-badge partial">v2</div></div>
+            <div class="qd-label">Risks & Opportunities</div>
+            <div class="qd-item"><div class="qd-dot gap"></div><div style="flex:1"><div class="qd-name">No human validation gate</div><div class="qd-meta">AI forecasts go directly to client</div></div><div class="qd-badge missing">risk</div></div>
+            <div class="qd-item"><div class="qd-dot opp"></div><div style="flex:1"><div class="qd-name">Competitive landscape analysis</div><div class="qd-meta">Who else is in this market?</div></div><div class="qd-badge opp">opportunity</div></div>
+            <div class="qd-item"><div class="qd-dot opp"></div><div style="flex:1"><div class="qd-name">Historical accuracy tracking</div><div class="qd-meta">Did past forecasts match reality?</div></div><div class="qd-badge opp">opportunity</div></div>
+            <div class="cov-bar"><div class="cov-label">AI Readiness</div><div class="cov-track"><div class="cov-fill good" style="width:82%"></div></div><div class="cov-val">82%</div></div>
+          </div>
+          <div class="qd-right">
+            <div class="qd-right-title">TAM/SAM/SOM Synthesis</div>
+            <div class="qd-right-desc">The hero capability. Takes "I sell HR software to mid-market" and produces a sourced, defensible market sizing with penetration analysis. This is where AI earns its keep.</div>
+            <div class="demo-block"><div class="demo-block-header"><div class="demo-dot green"></div><div class="demo-block-label" style="color:var(--dark-green)">See in Action</div></div>
+              <div class="demo-block-body">
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px">Input: "HR compliance software, mid-market (500-5K employees), US"</div>
+                <table class="ex-table"><tbody>
+                  <tr><td style="font-weight:600">TAM</td><td>$14.2B — US HR compliance software, all segments <span class="demo-badge high">sourced</span></td></tr>
+                  <tr><td style="font-weight:600">SAM</td><td>$2.4B — Mid-market, US-only <span class="demo-badge high">computed</span></td></tr>
+                  <tr><td style="font-weight:600">SOM</td><td>$48M — Based on GTM capacity <span class="demo-badge mid">projected</span></td></tr>
+                  <tr><td style="font-weight:600">Plausibility</td><td>$8M target = 0.33% SAM. <strong>Plausible.</strong> 6.7x growth exceeds 5.2x median. <span class="demo-badge caution">review</span></td></tr>
+                  <tr><td style="font-weight:600">Comparables</td><td>Rippling 2.1% SAM at Series C. Gusto 1.8% at similar stage.</td></tr>
+                </tbody></table>
+                <div class="callout risk"><div class="callout-icon">~</div><div class="callout-text"><strong>Risk:</strong> No human validation gate between AI forecast and client delivery. If the AI confidently produces a wrong TAM (hallucinated benchmark), the client builds their business plan on it. Consider a consultant review step before the client sees final numbers.</div></div>
+                <div class="callout opp"><div class="callout-icon">+</div><div class="callout-text"><strong>Opportunity:</strong> Historical accuracy tracking. After 20+ clients, you could show: "Our TAM estimates have been within 15% of actual market reports." That's a trust-building flywheel — and a competitive moat for the platform.</div></div>
+                <div class="insight"><div class="insight-text">Structure Advisor could be rules-based instead of AI. Entity type + jurisdiction matching is a decision matrix, not a creative task. Downgrading it from AI sub-agent to a rules tool would reduce complexity without losing value — and free up engineering for the capabilities that actually need AI.</div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- AGENTS -->
+    <div class="section-header"><div class="section-number">2</div><div class="section-title">Agents</div><div class="section-desc">AI orchestrators — 2 agents, not 8</div></div>
+    <div class="agents-stack">
+      <div class="agent-card" onclick="toggleAgent(this)"><div class="agent-card-header"><div class="a-icon"><i data-lucide="compass" class="icon-lg" style="color:var(--green)"></i></div><div class="a-meta"><div class="a-name">Client Journey Agent</div><div class="a-goal">Takes clients from intake to a complete revenue plan — orchestrating market sizing, forecasting, GTM strategy, and plan assembly</div></div><div class="a-badge orch">Orchestrator</div></div>
+        <div class="wf-chain"><div class="wf-steps">
+          <div><div class="wf-node"><div class="wf-type tl">Tool</div><div class="wf-name">Tier Classifier</div><div class="wf-tools"><span class="tp">Routing</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type sa">Sub-Agent</div><div class="wf-name">Market Sizer</div><div class="wf-tools"><span class="tp">Benchmark</span><span class="tp">TAM</span><span class="tp">Plausibility</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type sa">Sub-Agent</div><div class="wf-name">Revenue Forecaster</div><div class="wf-tools"><span class="tp">Scenarios</span><span class="tp">Sensitivity</span><span class="tp">Break-Even</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type sa">Sub-Agent</div><div class="wf-name">GTM Strategist</div><div class="wf-tools"><span class="tp">ICP Gen</span><span class="tp">Channels</span><span class="tp">Positioning</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type tl">Tool</div><div class="wf-name">Structure Advisor</div><div class="wf-tools"><span class="tp">Rules Matrix</span><span class="tp">Tax Calc</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type sa">Sub-Agent</div><div class="wf-name">Plan Assembler</div><div class="wf-tools"><span class="tp">Consistency</span><span class="tp">Confidence</span><span class="tp">Export</span></div></div></div>
+        </div></div>
+        <div class="a-detail"><div class="d-tabs"><button class="d-tab active">Sub-Agents & Tools</button><button class="d-tab">Talk to Agent</button><button class="d-tab">See in Action</button></div>
+          <div class="sub-lbl">Sub-Agents (AI)</div><div class="t-grid">
+            <div class="t-card ai-b"><div class="t-card-h"><i data-lucide="bar-chart-2" class="icon-sm" style="color:var(--green)"></i><div class="t-card-n">Market Sizer</div><span class="b-sm ai">AI</span></div><div class="t-card-d">TAM/SAM/SOM from benchmarks + context</div></div>
+            <div class="t-card ai-b"><div class="t-card-h"><i data-lucide="trending-up" class="icon-sm" style="color:var(--green)"></i><div class="t-card-n">Revenue Forecaster</div><span class="b-sm ai">AI</span></div><div class="t-card-d">3-year forecast with scenario testing</div></div>
+            <div class="t-card ai-b"><div class="t-card-h"><i data-lucide="rocket" class="icon-sm" style="color:var(--green)"></i><div class="t-card-n">GTM Strategist</div><span class="b-sm ai">AI</span></div><div class="t-card-d">ICP variants, channels, positioning</div></div>
+            <div class="t-card ai-b span2"><div class="t-card-h"><i data-lucide="file-text" class="icon-sm" style="color:var(--green)"></i><div class="t-card-n">Plan Assembler</div><span class="b-sm ai">AI</span></div><div class="t-card-d">Investor-ready plan with consistency checks and confidence tagging</div></div>
+          </div>
+          <div class="sub-lbl">Tools (Rules & Logic)</div><div class="t-grid">
+            <div class="t-card"><div class="t-card-h"><i data-lucide="target" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Tier Classifier</div></div><div class="t-card-d">Revenue tier routing</div></div>
+            <div class="t-card"><div class="t-card-h"><i data-lucide="building-2" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Structure Advisor</div><span class="b-sm hy">Rules</span></div><div class="t-card-d">Entity type + jurisdiction matrix</div></div>
+            <div class="t-card"><div class="t-card-h"><i data-lucide="check-square" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Input Validator</div></div><div class="t-card-d">Contradiction detection</div></div>
+            <div class="t-card"><div class="t-card-h"><i data-lucide="link" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">CRM Mapper</div></div><div class="t-card-d">Output to CRM pipeline</div></div>
+          </div>
+          <div class="insight" style="margin-top:14px"><div class="insight-text">Note: Structure Advisor demoted from AI sub-agent to rules tool. Entity type matching is a decision matrix — it doesn't need LLM reasoning. This simplifies the build without losing value. 4 AI sub-agents instead of 5.</div></div>
+        </div>
+      </div>
+      <div class="agent-card" onclick="toggleAgent(this)"><div class="agent-card-header"><div class="a-icon"><i data-lucide="eye" class="icon-lg" style="color:var(--green)"></i></div><div class="a-meta"><div class="a-name">Portfolio Watcher</div><div class="a-goal">Monitors all clients, flags stalls, recommends interventions, triggers mode switches</div></div><div class="a-badge auto">Autonomous</div></div>
+        <div class="wf-chain"><div class="wf-steps">
+          <div><div class="wf-node"><div class="wf-type tl">Tool</div><div class="wf-name">At-Risk Flagger</div><div class="wf-tools"><span class="tp">>5d idle</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type tl">Tool</div><div class="wf-name">Prioritizer</div><div class="wf-tools"><span class="tp">Revenue x Urgency</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type sa">Sub-Agent</div><div class="wf-name">Nudge Selector</div><div class="wf-tools"><span class="tp">LLM</span></div></div></div>
+          <div class="wf-arrow"><i data-lucide="chevron-right" class="icon-sm"></i></div>
+          <div><div class="wf-node"><div class="wf-type tl">Tool</div><div class="wf-name">Mode Switch</div><div class="wf-tools"><span class="tp">Self / Fractional</span></div></div></div>
+        </div></div>
+        <div class="a-detail"><div class="d-tabs"><button class="d-tab active">Sub-Agents & Tools</button><button class="d-tab">Talk to Agent</button><button class="d-tab">See in Action</button></div>
+          <div class="sub-lbl">Tools</div><div class="t-grid">
+            <div class="t-card"><div class="t-card-h"><i data-lucide="alert-triangle" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">At-Risk Flagger</div></div><div class="t-card-d">>5d inactivity, stuck stages</div></div>
+            <div class="t-card"><div class="t-card-h"><i data-lucide="list-ordered" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Intervention Prioritizer</div></div><div class="t-card-d">Revenue x urgency x completion</div></div>
+            <div class="t-card ai-b"><div class="t-card-h"><i data-lucide="message-circle" class="icon-sm" style="color:var(--green)"></i><div class="t-card-n">Nudge Selector</div><span class="b-sm ai">AI</span></div><div class="t-card-d">Personalized re-engagement</div></div>
+            <div class="t-card"><div class="t-card-h"><i data-lucide="repeat" class="icon-sm" style="color:var(--deep-blue)"></i><div class="t-card-n">Mode Switch</div></div><div class="t-card-d">Self-service to fractional</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); });
+  function switchProject(p) {
+    document.querySelectorAll('.project-tab').forEach(t => t.classList.remove('active'));
+    event.target.closest('.project-tab').classList.add('active');
+    document.getElementById('project-benybox').classList.toggle('hidden', p !== 'benybox');
+    document.getElementById('project-revops').classList.toggle('hidden', p !== 'revops');
+    setTimeout(() => lucide.createIcons(), 50);
+  }
+  function toggleQ(id) {
+    const el = document.getElementById(id);
+    const was = el.classList.contains('expanded');
+    el.closest('.quadrant-grid').querySelectorAll('.quadrant').forEach(q => q.classList.remove('expanded'));
+    if (!was) { el.classList.add('expanded'); setTimeout(() => { el.scrollIntoView({ behavior:'smooth', block:'nearest' }); lucide.createIcons(); }, 100); }
+  }
+  function toggleAgent(card) {
+    const was = card.classList.contains('expanded');
+    document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('expanded'));
+    if (!was) { card.classList.add('expanded'); setTimeout(() => { card.scrollIntoView({ behavior:'smooth', block:'nearest' }); lucide.createIcons(); }, 100); }
+  }
+</script>
+</body>
+</html>

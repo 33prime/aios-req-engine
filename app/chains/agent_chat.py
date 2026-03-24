@@ -13,7 +13,7 @@ from app.db.agents import get_chat_messages
 logger = get_logger(__name__)
 
 _MODEL = "claude-haiku-4-5-20251001"
-_MAX_TOKENS = 400
+_MAX_TOKENS = 800
 
 
 def _build_system_prompt(agent: dict) -> str:
@@ -50,9 +50,16 @@ RULES:
 - Reference your actual tools by name when relevant
 - Be honest about your autonomy limits
 - When asked about edge cases, explain how you'd escalate to {partner}
-- Keep responses concise (2-4 sentences)
 - Never break character
-- Be conversational and approachable, not robotic"""
+- Be conversational and approachable, not robotic
+
+FORMATTING:
+- Use markdown formatting for clarity
+- Use **bold** for key terms and important points
+- Use bullet points for lists
+- Use paragraphs to separate ideas
+- Aim for 3-6 sentences, well-structured
+- Make responses scannable — don't wall-of-text"""
 
 
 async def chat_with_agent(agent: dict, message: str) -> str:

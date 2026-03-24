@@ -17,6 +17,7 @@ const GENERIC_STATEMENTS: Record<AgentType, string> = {
   watcher: 'Continuously monitors for anomalies and alerts, replacing manual spot-checks.',
   generator: 'Compiles structured reports and narratives from raw data in seconds, not hours.',
   processor: 'Transforms unstructured signals into actionable entities, eliminating manual data entry.',
+  orchestrator: "Coordinates intelligent capabilities to achieve the product's goals.",
 }
 
 export function HumanValueCallout({ statement, agentType, agentName, automationRate, humanPartner }: Props) {

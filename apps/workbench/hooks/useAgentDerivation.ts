@@ -27,6 +27,7 @@ const AGENT_ICONS: Record<AgentType, string> = {
   watcher: '◉',
   generator: '◆',
   processor: '⬡',
+  orchestrator: '⬡',
 }
 
 const TECHNIQUE_MAP: Record<AgentType, AgentTechnique> = {
@@ -36,6 +37,7 @@ const TECHNIQUE_MAP: Record<AgentType, AgentTechnique> = {
   watcher: 'rules',
   generator: 'llm',
   processor: 'hybrid',
+  orchestrator: 'hybrid',
 }
 
 const RHYTHM_KEYWORDS: Array<[AgentRhythm, string[]]> = [

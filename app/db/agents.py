@@ -25,8 +25,21 @@ def _maybe_single(query) -> dict[str, Any] | None:
 # ═══════════════════════════════════════════════
 
 
+def _normalize_agent(agent: dict[str, Any]) -> dict[str, Any]:
+    """Normalize tool join key and array fields for a single agent."""
+    agent["tools"] = agent.pop("agent_tools", []) or []
+    agent["tools"].sort(key=lambda t: t.get("display_order", 0))
+    for field in ("can_do", "needs_approval", "cannot_do",
+                  "chat_suggestions", "depends_on_agent_ids", "feeds_agent_ids"):
+        if agent.get(field) is None:
+            agent[field] = []
+    if "sub_agents" not in agent:
+        agent["sub_agents"] = []
+    return agent
+
+
 def list_agents(project_id: UUID) -> list[dict[str, Any]]:
-    """List all agents for a project, with tools joined."""
+    """List top-level agents for a project, with sub-agents nested and tools joined."""
     supabase = get_supabase()
     pid = str(project_id)
 
@@ -37,24 +50,31 @@ def list_agents(project_id: UUID) -> list[dict[str, Any]]:
         .order("display_order")
         .execute()
     )
-    agents = result.data or []
+    all_agents = [_normalize_agent(a) for a in (result.data or [])]
 
-    # Normalize tool join key
-    for agent in agents:
-        agent["tools"] = agent.pop("agent_tools", []) or []
-        # Sort tools by display_order
-        agent["tools"].sort(key=lambda t: t.get("display_order", 0))
-        # Normalize array fields from Postgres
-        for field in ("can_do", "needs_approval", "cannot_do",
-                      "chat_suggestions", "depends_on_agent_ids", "feeds_agent_ids"):
-            if agent.get(field) is None:
-                agent[field] = []
+    # Separate top-level (orchestrators + legacy peers) from sub-agents
+    children_map: dict[str, list[dict[str, Any]]] = {}
+    top_level: list[dict[str, Any]] = []
 
-    return agents
+    for agent in all_agents:
+        parent_id = agent.get("parent_agent_id")
+        if parent_id:
+            children_map.setdefault(parent_id, []).append(agent)
+        else:
+            top_level.append(agent)
+
+    # Attach sub-agents to their parent orchestrator
+    for agent in top_level:
+        agent["sub_agents"] = sorted(
+            children_map.get(agent["id"], []),
+            key=lambda a: a.get("display_order", 0),
+        )
+
+    return top_level
 
 
 def get_agent(agent_id: UUID) -> dict[str, Any] | None:
-    """Get a single agent with tools."""
+    """Get a single agent with tools. If orchestrator, also fetch sub-agents."""
     supabase = get_supabase()
     agent = _maybe_single(
         supabase.table("agents")
@@ -64,12 +84,20 @@ def get_agent(agent_id: UUID) -> dict[str, Any] | None:
     if not agent:
         return None
 
-    agent["tools"] = agent.pop("agent_tools", []) or []
-    agent["tools"].sort(key=lambda t: t.get("display_order", 0))
-    for field in ("can_do", "needs_approval", "cannot_do",
-                  "chat_suggestions", "depends_on_agent_ids", "feeds_agent_ids"):
-        if agent.get(field) is None:
-            agent[field] = []
+    _normalize_agent(agent)
+
+    # If orchestrator, fetch and attach sub-agents
+    if agent.get("agent_role") == "orchestrator":
+        sub_result = (
+            supabase.table("agents")
+            .select("*, agent_tools(*)")
+            .eq("parent_agent_id", str(agent_id))
+            .order("display_order")
+            .execute()
+        )
+        agent["sub_agents"] = [
+            _normalize_agent(s) for s in (sub_result.data or [])
+        ]
 
     return agent
 

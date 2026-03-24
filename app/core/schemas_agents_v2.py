@@ -85,6 +85,8 @@ class AgentCreate(BaseModel):
     agent_type: str = "processor"
     role_description: str = ""
     source_step_id: Optional[str] = None
+    parent_agent_id: Optional[str] = None
+    agent_role: str = "peer"  # orchestrator | sub_agent | peer
 
     autonomy_level: int = 50
     can_do: List[str] = Field(default_factory=list)
@@ -137,6 +139,8 @@ class AgentResponse(BaseModel):
     id: str
     project_id: str
     source_step_id: Optional[str] = None
+    parent_agent_id: Optional[str] = None
+    agent_role: str = "peer"  # orchestrator | sub_agent | peer
 
     name: str
     icon: str
@@ -191,12 +195,15 @@ class AgentResponse(BaseModel):
     updated_at: str = ""
 
     tools: List[AgentToolResponse] = Field(default_factory=list)
+    sub_agents: List["AgentResponse"] = Field(default_factory=list)
 
 
 class AgentUpdate(BaseModel):
     name: Optional[str] = None
     icon: Optional[str] = None
     role_description: Optional[str] = None
+    agent_role: Optional[str] = None
+    parent_agent_id: Optional[str] = None
     autonomy_level: Optional[int] = None
     can_do: Optional[List[str]] = None
     needs_approval: Optional[List[str]] = None
@@ -253,6 +260,35 @@ class AgentValidateRequest(BaseModel):
 
 
 # ═══════════════════════════════════════════════
+# Intelligence Architecture (4 Quadrants)
+# ═══════════════════════════════════════════════
+
+
+class ArchitectureItem(BaseModel):
+    name: str
+    description: str = ""
+    powers: str = ""  # What outcome this intelligence powers
+    status: str = "defined"  # defined | unreviewed | gap
+
+
+class ArchitectureOpenQuestion(BaseModel):
+    question: str
+    context: str = ""
+
+
+class QuadrantData(BaseModel):
+    items: List[ArchitectureItem] = Field(default_factory=list)
+    open_questions: List[ArchitectureOpenQuestion] = Field(default_factory=list)
+
+
+class IntelArchitectureResponse(BaseModel):
+    knowledge_systems: QuadrantData = Field(default_factory=QuadrantData)
+    scoring_models: QuadrantData = Field(default_factory=QuadrantData)
+    decision_logic: QuadrantData = Field(default_factory=QuadrantData)
+    ai_capabilities: QuadrantData = Field(default_factory=QuadrantData)
+
+
+# ═══════════════════════════════════════════════
 # Intelligence Layer Top-Level
 # ═══════════════════════════════════════════════
 
@@ -260,4 +296,7 @@ class AgentValidateRequest(BaseModel):
 class IntelligenceLayerResponse(BaseModel):
     agents: List[AgentResponse] = Field(default_factory=list)
     agent_count: int = 0
+    sub_agent_count: int = 0
+    tool_count: int = 0
     validated_count: int = 0
+    architecture: Optional[IntelArchitectureResponse] = None

@@ -27,6 +27,7 @@ from app.core.schemas_agents_v2 import (
     AgentValidateRequest,
     IntelAgentExecuteRequest,
     IntelAgentExecuteResponse,
+    IntelArchitectureResponse,
     IntelligenceLayerResponse,
 )
 
@@ -62,19 +63,50 @@ async def generate_intelligence_layer(project_id: UUID):
 # ═══════════════════════════════════════════════
 
 
+def _to_agent_response(data: dict) -> AgentResponse:
+    """Convert a DB dict (with nested sub_agents) to AgentResponse."""
+    subs = data.get("sub_agents", [])
+    data["sub_agents"] = [_to_agent_response(s) for s in subs]
+    return AgentResponse(**data)
+
+
 @router.get("/agents", response_model=IntelligenceLayerResponse)
 async def list_agents(project_id: UUID):
-    """List all agents for a project with tools."""
+    """List top-level agents with sub-agents nested + architecture."""
     from app.db.agents import list_agents
+    from app.db.intelligence_architecture import get_architecture
 
     agents_data = list_agents(project_id)
-    agents = [AgentResponse(**a) for a in agents_data]
-    validated = sum(1 for a in agents if a.validation_status == "validated")
+    agents = [_to_agent_response(a) for a in agents_data]
+
+    # Count across the hierarchy
+    validated = 0
+    sub_agent_count = 0
+    tool_count = 0
+    for a in agents:
+        tool_count += len(a.tools)
+        for s in a.sub_agents:
+            sub_agent_count += 1
+            tool_count += len(s.tools)
+            if s.validation_status == "validated":
+                validated += 1
+
+    # Load architecture
+    arch = None
+    try:
+        arch_data = get_architecture(project_id)
+        if arch_data and arch_data.get("quadrants"):
+            arch = IntelArchitectureResponse(**arch_data["quadrants"])
+    except Exception as e:
+        logger.warning(f"Failed to load architecture: {e}")
 
     return IntelligenceLayerResponse(
         agents=agents,
         agent_count=len(agents),
+        sub_agent_count=sub_agent_count,
+        tool_count=tool_count,
         validated_count=validated,
+        architecture=arch,
     )
 
 
