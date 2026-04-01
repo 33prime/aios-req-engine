@@ -14,12 +14,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from pathlib import Path
 from typing import Any
 
 from app.core.config import get_settings
 from app.core.schemas_prototype_builder import PrototypePayload
 
 logger = logging.getLogger(__name__)
+
+# Load design quality reference — prepended to every builder system prompt.
+# Prompt caching: first call pays full, remaining 7+ hit cache at 90% discount.
+_DESIGN_REF = (Path(__file__).parent / "references" / "design_quality.md").read_text()
 
 # =============================================================================
 # Tool schema — single page output (simpler = more reliable)
@@ -52,7 +57,11 @@ PAGE_TOOL = {
 # System prompt
 # =============================================================================
 
-BUILDER_SYSTEM_PROMPT = """\
+BUILDER_SYSTEM_PROMPT = f"""\
+{_DESIGN_REF}
+
+---
+
 You are a senior React+TypeScript developer building production-quality prototype pages.
 
 You will receive a project plan and a single screen assignment. Write a complete, \
@@ -92,6 +101,8 @@ import {{ Feature }} from '@/lib/aios/Feature'
 **Badge** — Status indicator. Variants: default, success, warning, danger, accent
 ```tsx
 <Badge variant="success">Active</Badge>
+<Badge variant="warning">Overdue</Badge>  // overdue/pending = warning, NEVER danger
+<Badge variant="danger">Failed</Badge>    // danger is ONLY for actual errors/failures
 // IMPORTANT: Badge variant is a union type. When mapping data to variants,
 // use a typed constant or inline ternary — NEVER Record<string, string>.
 // GOOD: const v = s === 'active' ? 'success' : 'default'
@@ -101,6 +112,11 @@ import {{ Feature }} from '@/lib/aios/Feature'
 **Button** — Action button. Variants: primary, secondary, ghost. Sizes: sm, md, lg
 ```tsx
 <Button variant="primary" size="md" onClick={{() => navigate('/route')}}>Click Me</Button>
+// WITH ICON — icon must be INLINE beside text, never stacked above:
+<Button variant="secondary" size="sm" onClick={{handler}}>
+  <LucideIcon name="Upload" size={{14}} className="shrink-0" />
+  Upload File
+</Button>
 ```
 
 **LucideIcon** — Icon component. Use PascalCase names from lucide-react.
@@ -182,6 +198,64 @@ export default function PageNamePage() {{
 }}
 ```
 
+## AI Agent Patterns (when ai_config is present)
+
+The AI has ALREADY DONE ITS WORK. Show the results naturally:
+
+**AI-Attributed Data:**
+- Tables: add a "Confidence" or "AI Score" column showing the AI's assessment
+- Cards: include an insight line like "AI recommendation: ..." in text-xs text-gray-500
+- Lists: show AI-generated tags or classifications inline
+
+**Subtle Agent Attribution:**
+```tsx
+<div className="flex items-center gap-2 text-xs text-gray-400 mt-2">
+  <LucideIcon name="Zap" size={{12}} />
+  <span>Analyzed by {{agentName}}</span>
+</div>
+```
+
+**AI Insight Banner (once per AI section, not per item):**
+```tsx
+<div className="bg-primary/5 border border-primary/10 rounded-lg p-3 flex items-start gap-3">
+  <LucideIcon name="Sparkles" size={{16}} className="text-primary mt-0.5 shrink-0" />
+  <div>
+    <p className="text-sm font-medium text-gray-900">{{insight headline}}</p>
+    <p className="text-xs text-gray-500 mt-0.5">{{detail}}</p>
+  </div>
+</div>
+```
+
+**Human-in-the-Loop Checkpoint:**
+```tsx
+<div className="border-l-4 border-accent p-4 bg-accent/5 rounded-r-xl">
+  <div className="flex items-center gap-2 mb-1">
+    <LucideIcon name="UserCheck" size={{16}} className="text-accent" />
+    <span className="text-sm font-medium">Review Required</span>
+  </div>
+  <p className="text-xs text-gray-500">{{touchpoint description}}</p>
+</div>
+```
+
+**AI Result Panel Import:**
+When ai_config appears in the Solution Flow Context, a result panel component exists at
+`@/components/ai/{{AgentName}}Panel` (PascalCase, no spaces). Import and render it
+inline on the page — NOT in a modal:
+```tsx
+import {{AgentNamePanel}} from '@/components/ai/AgentNamePanel'
+
+// Render inline where the AI results belong:
+<AgentNamePanel />
+```
+
+DO NOT use:
+- Giant agent identity cards with automation percentages
+- "See How It Works" buttons or demo modals
+- Processing visualizations or step animations
+- Agent type labels like "Watcher agent" or "Classifier agent"
+
+Use these patterns when `ai_config` appears in the Solution Flow Context.
+
 ## CRITICAL RULES
 
 1. **Default export** a single function component. Name ends with "Page".
@@ -202,6 +276,10 @@ Example: `const v = s === 'active' ? 'success' : 'default' as const`
 14. **No onClick on Card** — Card has no onClick prop. Wrap clickable cards in a `<button>` \
 or `<div onClick={{...}} className="cursor-pointer">`.
 15. **Escape apostrophes** — in JSX text, write `don&apos;t` or `{"don't"}`, NEVER raw `don't`.
+16. **Button sizing** — buttons should be sized to their content, NOT full-width (`w-full`) \
+unless they're the sole CTA in a form or modal. Action button rows use \
+`flex items-center gap-3`, not stacked full-width. Never make 3+ buttons all w-full \
+stacked vertically.
 
 ## Tailwind Utilities
 
@@ -436,7 +514,7 @@ def _format_plan_context(project_plan: dict, payload: PrototypePayload) -> str:
     return "\n".join(lines)
 
 
-def _format_single_screen(screen: dict) -> str:
+def _format_single_screen(screen: dict, step_data: dict | None = None) -> str:
     """Format a single screen blueprint for the builder."""
     lines: list[str] = []
 
@@ -456,6 +534,50 @@ def _format_single_screen(screen: dict) -> str:
         lines.append(f"    Guidance: {comp['guidance']}")
         lines.append("")
 
+    if step_data:
+        lines.append("## Solution Flow Context")
+        if step_data.get("story_headline"):
+            lines.append(f"Story: {step_data['story_headline']}")
+        if step_data.get("feel_description"):
+            lines.append(f"Feel: {step_data['feel_description']}")
+        if step_data.get("how_it_works"):
+            lines.append(f"Mock Narrative: {step_data['how_it_works'][:400]}")
+        if step_data.get("user_actions"):
+            lines.append(f"User Actions: {'; '.join(step_data['user_actions'][:5])}")
+        if step_data.get("human_value_statement"):
+            lines.append(f"Value: {step_data['human_value_statement']}")
+        if step_data.get("information_fields"):
+            lines.append("Key Fields:")
+            for f in step_data["information_fields"][:8]:
+                if isinstance(f, dict):
+                    lines.append(
+                        f"  - {f.get('name', '')} ({f.get('type', '')}): "
+                        f"{f.get('mock_value', '')}"
+                    )
+        if step_data.get("ai_config") and isinstance(step_data["ai_config"], dict):
+            ai = step_data["ai_config"]
+            agent_name = ai.get("agent_name", "AI")
+            lines.append(
+                f"AI Agent: {agent_name} ({ai.get('agent_type', '')}) "
+                f"— {ai.get('role', '')}"
+            )
+            if ai.get("behaviors"):
+                lines.append(f"  Behaviors: {'; '.join(ai['behaviors'][:4])}")
+            if ai.get("automation_estimate"):
+                lines.append(f"  Automation: {ai['automation_estimate']}%")
+            if ai.get("human_touchpoints"):
+                lines.append(f"  Human Review: {'; '.join(ai['human_touchpoints'][:3])}")
+            # Inject AI result panel for inline rendering
+            slug = agent_name.lower().replace(" ", "-").replace("_", "-")
+            pascal = "".join(w.capitalize() for w in slug.split("-") if w)
+            panel_comp = f"{pascal}Panel"
+            lines.append(
+                f"  AI PANEL: Import {panel_comp} from "
+                f"'@/components/ai/{panel_comp}' and render it inline "
+                f"on the page where the AI results belong."
+            )
+        lines.append("")
+
     return "\n".join(lines)
 
 
@@ -470,6 +592,7 @@ async def _build_single_page(
     project_plan: dict,
     client: Any,
     simplified: bool = False,
+    step_data: dict | None = None,
 ) -> dict | None:
     """Build a single page with one Haiku call.
 
@@ -482,7 +605,7 @@ async def _build_single_page(
     if simplified and screen.get("components") and len(screen["components"]) > 3:
         screen = {**screen, "components": screen["components"][:3]}
 
-    screen_blueprint = _format_single_screen(screen)
+    screen_blueprint = _format_single_screen(screen, step_data=step_data)
     route = screen["route"]
 
     # User message is screen-specific (small), plan context is cached
@@ -603,16 +726,55 @@ async def run_haiku_builders(
     # Shared plan context (will be cached across all calls)
     plan_context = _format_plan_context(project_plan, payload)
 
+    # Build route → solution flow step data mapping
+    step_by_route: dict[str, dict] = {}
+    if hasattr(payload, "solution_flow_steps") and payload.solution_flow_steps:
+        # Index steps by linked feature IDs
+        slug_to_step: dict[str, Any] = {}
+        for step in payload.solution_flow_steps:
+            for fid in step.linked_feature_ids:
+                slug_to_step[fid] = step
+
+        # Match screens to steps via feature_slugs in components
+        for screen in all_screens:
+            matched_step = None
+            for comp in screen.get("components", []):
+                if not isinstance(comp, dict):
+                    continue
+                fs = comp.get("feature_slug", "")
+                if fs in slug_to_step:
+                    matched_step = slug_to_step[fs]
+                    break
+            if not matched_step:
+                # Fallback: use step ordering
+                idx = all_screens.index(screen)
+                if idx < len(payload.solution_flow_steps):
+                    matched_step = payload.solution_flow_steps[idx]
+            if matched_step:
+                step_by_route[screen["route"]] = (
+                    matched_step.model_dump()
+                    if hasattr(matched_step, "model_dump")
+                    else matched_step
+                )
+
     logger.info(
         f"Starting {len(all_screens)} parallel page builders "
-        f"(plan context: ~{len(plan_context)} chars)"
+        f"(plan context: ~{len(plan_context)} chars, "
+        f"{len(step_by_route)} screens with step data)"
     )
 
     start = time.monotonic()
 
     # ── Pass 1: initial parallel build ──
     tasks = [
-        _build_single_page(screen, plan_context, project_plan, client) for screen in all_screens
+        _build_single_page(
+            screen,
+            plan_context,
+            project_plan,
+            client,
+            step_data=step_by_route.get(screen["route"]),
+        )
+        for screen in all_screens
     ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -640,7 +802,13 @@ async def run_haiku_builders(
     if failed_routes:
         logger.info(f"Retry round 1: re-running {len(failed_routes)} failed pages...")
         retry_tasks = [
-            _build_single_page(screen_by_route[r], plan_context, project_plan, client)
+            _build_single_page(
+                screen_by_route[r],
+                plan_context,
+                project_plan,
+                client,
+                step_data=step_by_route.get(r),
+            )
             for r in failed_routes
         ]
         retry_results = await asyncio.gather(*retry_tasks, return_exceptions=True)
@@ -666,7 +834,12 @@ async def run_haiku_builders(
         )
         simplified_tasks = [
             _build_single_page(
-                screen_by_route[r], plan_context, project_plan, client, simplified=True
+                screen_by_route[r],
+                plan_context,
+                project_plan,
+                client,
+                simplified=True,
+                step_data=step_by_route.get(r),
             )
             for r in failed_routes
         ]

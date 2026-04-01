@@ -13,6 +13,7 @@ Typical run: ~55s, ~$0.56 (vs old planning agent ~360s).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import shutil
 import subprocess
@@ -46,6 +47,7 @@ class PipelineStats:
     page_count: int = 0
     file_count: int = 0
     finisher_patches: int = 0
+    ai_demo_count: int = 0
 
 
 @dataclass
@@ -77,6 +79,7 @@ async def run_prototype_pipeline(
     Returns:
         PipelineResult with files, plan, build_dir, and build status.
     """
+    from app.pipeline.ai_demo import run_ai_demo_builders
     from app.pipeline.builder import run_haiku_builders
     from app.pipeline.cleanup import cleanup_tsx_files
     from app.pipeline.coherence import run_coherence_agent
@@ -123,12 +126,19 @@ async def run_prototype_pipeline(
             "total_screens": stats.screen_count,
         })
 
-    # ── 2. Haiku Builders (parallel) ──
+    # ── 2. Haiku Builders + AI Panel Builders (parallel) ──
     t0 = time.monotonic()
-    pages = await run_haiku_builders(project_plan, payload, prebuild)
+    pages, ai_panels = await asyncio.gather(
+        run_haiku_builders(project_plan, payload, prebuild),
+        run_ai_demo_builders(payload),
+    )
     stats.builders_s = time.monotonic() - t0
     stats.page_count = len(pages)
-    logger.info(f"Pipeline: builders done — {stats.page_count} pages in {stats.builders_s:.1f}s")
+    stats.ai_demo_count = len(ai_panels)
+    logger.info(
+        f"Pipeline: builders done — {stats.page_count} pages, "
+        f"{stats.ai_demo_count} AI panels in {stats.builders_s:.1f}s"
+    )
 
     # Fire screen_built events for each completed page
     if on_progress:
@@ -149,7 +159,7 @@ async def run_prototype_pipeline(
 
     # ── 3. Deterministic Stitch ──
     t0 = time.monotonic()
-    files = stitch_scaffold(payload, prebuild, project_plan, pages)
+    files = stitch_scaffold(payload, prebuild, project_plan, pages, ai_demos=ai_panels)
     stats.stitch_s = time.monotonic() - t0
 
     # ── 3b. Deterministic Cleanup ──

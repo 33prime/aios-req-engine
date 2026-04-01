@@ -4,11 +4,16 @@ Patterns:
 - Acknowledgements → canned response
 - Simple create commands → direct tool execution
 - Card button commands → structured command parsing
+
+Post-creation cascade:
+- fire_fast_path_cascades() runs embedding + linking after direct entity insert.
+  This closes the intelligence gap where fast-path entities bypass the pipeline.
 """
 
 import re
 from dataclasses import dataclass
 from typing import Any
+from uuid import UUID
 
 from app.core.logging import get_logger
 
@@ -115,3 +120,77 @@ async def try_fast_path(
             )
 
     return None
+
+
+async def fire_fast_path_cascades(
+    project_id: str | UUID,
+    entity_type: str,
+    entity_id: str,
+) -> None:
+    """Fire post-creation cascades for fast-path entities.
+
+    Fast-path entities bypass the signal pipeline, so they miss:
+    - Embedding (multi-vector)
+    - Co-occurrence linking
+    - Semantic link resolution
+    - Cache invalidation
+
+    Call this AFTER the tool execution returns the entity_id.
+    All operations are fire-and-forget — errors are logged, never raised.
+    """
+    from app.db.entity_embeddings import ENTITY_TABLE_MAP
+
+    pid = UUID(str(project_id))
+    table = ENTITY_TABLE_MAP.get(entity_type)
+    if not table:
+        return
+
+    try:
+        from app.db.supabase_client import get_supabase
+
+        sb = get_supabase()
+        response = sb.table(table).select("*").eq("id", entity_id).single().execute()
+        if not response.data:
+            return
+        entity_data = response.data
+
+        # 1. Multi-vector embedding (fire-and-forget)
+        try:
+            from app.db.entity_embeddings import embed_entity_multivector
+
+            enrichment = entity_data.get("enrichment_intel") or {}
+            await embed_entity_multivector(
+                entity_type=entity_type,
+                entity_id=UUID(entity_id),
+                entity_data=entity_data,
+                project_id=pid,
+                enrichment=enrichment,
+            )
+        except Exception:
+            logger.debug(f"Fast-path embedding failed for {entity_type}/{entity_id}", exc_info=True)
+
+        # 2. Co-occurrence linking (fire-and-forget)
+        try:
+            from app.db.patch_applicator import _link_entities_by_cooccurrence
+
+            _link_entities_by_cooccurrence(pid, [{
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "operation": "create",
+                "name": entity_data.get("name") or entity_data.get("title") or "",
+            }])
+        except Exception:
+            logger.debug(f"Fast-path co-occurrence linking failed for {entity_type}/{entity_id}", exc_info=True)
+
+        # 3. Cache invalidation
+        try:
+            from app.context.project_awareness import invalidate_awareness_cache
+
+            invalidate_awareness_cache(str(pid))
+        except Exception:
+            pass
+
+        logger.debug(f"Fast-path cascades fired for {entity_type}/{entity_id}")
+
+    except Exception:
+        logger.debug(f"Fast-path cascades failed for {entity_type}/{entity_id}", exc_info=True)

@@ -43,10 +43,14 @@ class ContextSnapshot(BaseModel):
     # Layer 5: Entity relationship hints (graph neighborhoods for connected entities)
     relationship_hints_prompt: str = ""
 
+    # Layer 6: Outcomes summary (strength, gaps, sharpen prompts)
+    outcomes_prompt: str = ""
+
     # Raw data for downstream use (scoring, resolution)
     entity_inventory: dict[str, list[dict]] = Field(default_factory=dict)
     beliefs: list[dict] = Field(default_factory=list)
     open_questions: list[dict] = Field(default_factory=list)
+    outcomes_raw: list[dict] = Field(default_factory=list)
 
     # Pulse snapshot (None if pulse computation failed)
     pulse: Any = None
@@ -123,17 +127,53 @@ async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
             open_questions_raw=open_questions_raw,
         )
 
+    # Layer 6: Outcomes (non-critical)
+    outcomes_prompt = ""
+    outcomes_raw: list[dict] = []
+    try:
+        outcomes_prompt, outcomes_raw = _build_outcomes_layer(project_id)
+    except Exception as e:
+        logger.debug(f"Outcomes layer failed (non-critical): {e}")
+
     return ContextSnapshot(
         entity_inventory_prompt=entity_prompt,
         memory_prompt=memory_prompt,
         gaps_prompt=gaps_prompt,
         extraction_briefing_prompt=briefing_prompt,
         relationship_hints_prompt=relationship_hints,
+        outcomes_prompt=outcomes_prompt,
         entity_inventory=entity_inventory,
         beliefs=beliefs,
         open_questions=open_questions,
+        outcomes_raw=outcomes_raw,
         pulse=pulse,
     )
+
+
+def _build_outcomes_layer(project_id: UUID) -> tuple[str, list[dict]]:
+    """Build outcome summary for extraction briefing (Layer 6)."""
+    from app.db.outcomes import list_outcomes
+
+    outcomes = list_outcomes(project_id)
+    if not outcomes:
+        return "", []
+
+    lines = ["## Outcomes"]
+    for o in outcomes:
+        strength = o.get("strength_score", 0)
+        indicator = "strong" if strength >= 70 else "needs sharpening"
+        lines.append(f"- [{o.get('horizon', 'h1').upper()}] {o['title']} (strength: {strength}, {indicator})")
+
+    # Highlight weak outcomes with sharpen context
+    weak = [o for o in outcomes if o.get("strength_score", 0) < 70]
+    if weak:
+        lines.append("\nOutcomes needing sharpening (prioritize signals that strengthen these):")
+        for o in weak:
+            dims = o.get("strength_dimensions", {})
+            weakest = min(dims, key=lambda k: dims.get(k, 0)) if dims else "unknown"
+            lines.append(f"- {o['title']} — weakest dimension: {weakest}")
+
+    return "\n".join(lines), outcomes
 
 
 # =============================================================================

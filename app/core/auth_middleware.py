@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 from datetime import datetime
 from uuid import UUID
 
@@ -17,6 +18,33 @@ logger = logging.getLogger(__name__)
 
 # HTTP Bearer scheme for Authorization header
 security = HTTPBearer(auto_error=False)
+
+# ─── Auth context cache (5-min TTL) ───────────────────────────────────────────
+# Caches profile + org lookups per user_id to avoid hitting DB on every request.
+# profile/org data changes infrequently; 5 min staleness is acceptable.
+_auth_cache: dict[str, tuple[float, object, list]] = {}  # user_id -> (expires_at, profile, org_ids)
+_AUTH_CACHE_TTL = 300  # 5 minutes
+
+
+def _get_cached_auth(user_id: str):
+    """Return (profile, org_ids) if cached and not expired, else None."""
+    entry = _auth_cache.get(user_id)
+    if entry and entry[0] > time.monotonic():
+        return entry[1], entry[2]
+    return None
+
+
+def _set_cached_auth(user_id: str, profile, org_ids: list):
+    """Cache profile + org_ids for user."""
+    _auth_cache[user_id] = (time.monotonic() + _AUTH_CACHE_TTL, profile, org_ids)
+
+
+def invalidate_auth_cache(user_id: str | None = None):
+    """Clear cache for a user or all users."""
+    if user_id:
+        _auth_cache.pop(user_id, None)
+    else:
+        _auth_cache.clear()
 
 # Admin API key for workbench/internal tools
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
@@ -180,39 +208,43 @@ async def get_current_user(
                 logger.error(f"Failed to sync user: {create_err}")
                 return None
 
-        # Load profile and organizations for enhanced context
+        # Load profile and organizations — cached for 5 min to reduce DB load
         platform_role = None
         organizations = []
 
-        try:
-            from app.db.organizations import list_user_organizations
-            from app.db.profiles import get_profile_by_user_id
+        cached = _get_cached_auth(str(user.id))
+        if cached:
+            profile, organizations = cached
+            platform_role = profile.platform_role if profile else None
+        else:
+            try:
+                from app.db.organizations import list_user_organizations
+                from app.db.profiles import get_profile_by_user_id
 
-            # Get profile for platform_role
-            profile = await get_profile_by_user_id(user.id)
-            if profile:
-                platform_role = profile.platform_role
+                profile = await get_profile_by_user_id(user.id)
+                if profile:
+                    platform_role = profile.platform_role
 
-            # Get accessible organizations
-            user_orgs = await list_user_organizations(user.id)
-            organizations = [org.id for org in user_orgs]
+                user_orgs = await list_user_organizations(user.id)
+                organizations = [org.id for org in user_orgs]
 
-            # For solution architects, also get assigned orgs
-            if platform_role == PlatformRole.SOLUTION_ARCHITECT:
-                sa_result = (
-                    client.table("solution_architect_assignments")
-                    .select("organization_id")
-                    .eq("user_id", str(user.id))
-                    .execute()
-                )
-                for row in sa_result.data or []:
-                    org_id = UUID(row["organization_id"])
-                    if org_id not in organizations:
-                        organizations.append(org_id)
+                if platform_role == PlatformRole.SOLUTION_ARCHITECT:
+                    sa_result = (
+                        client.table("solution_architect_assignments")
+                        .select("organization_id")
+                        .eq("user_id", str(user.id))
+                        .execute()
+                    )
+                    for row in sa_result.data or []:
+                        org_id = UUID(row["organization_id"])
+                        if org_id not in organizations:
+                            organizations.append(org_id)
 
-        except Exception as profile_err:
-            logger.warning(f"Error loading profile/orgs: {profile_err}")
-            # Continue with basic auth - profile loading is optional
+                _set_cached_auth(str(user.id), profile, organizations)
+
+            except Exception as profile_err:
+                logger.warning(f"Error loading profile/orgs: {profile_err}")
+                # Continue with basic auth - profile loading is optional
 
         return AuthContext(
             user=user,

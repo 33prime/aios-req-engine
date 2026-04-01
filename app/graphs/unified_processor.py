@@ -120,6 +120,106 @@ def _update_signal_status(
         logger.debug(f"Failed to update signal {signal_id} status to {status!r}: {e}")
 
 
+async def _maybe_trigger_outcome_generation(state: V2ProcessorState) -> None:
+    """Trigger outcome generation if change-detection conditions are met.
+
+    Runs on signals 1-3 (bootstrap), or when new entity types appear,
+    3+ entities created, or business_driver changed. Fire-and-forget.
+    """
+    if not state.application_result or state.application_result.total_applied == 0:
+        return
+
+    try:
+        from app.chains.generate_outcomes import (
+            generate_outcomes,
+            persist_generated_outcomes,
+            should_trigger_outcome_generation,
+        )
+        from app.db.outcomes import list_outcomes
+
+        # Count signals for this project
+        sb = get_supabase()
+        sig_resp = sb.table("signals").select("id", count="exact").eq(
+            "project_id", str(state.project_id)
+        ).execute()
+        signal_count = sig_resp.count or 0
+
+        # Detect new entity types
+        existing_types = set(state.context_snapshot.entity_inventory.keys()) if state.context_snapshot else set()
+        created_types = {
+            e.get("entity_type") for e in state.application_result.applied
+            if e.get("operation") == "create"
+        }
+        new_types = created_types - existing_types if existing_types else set()
+
+        # Detect business_driver changes
+        has_driver = any(
+            e.get("entity_type") == "business_driver"
+            for e in state.application_result.applied
+        )
+
+        if not should_trigger_outcome_generation(
+            project_id=state.project_id,
+            signal_count=signal_count,
+            new_entity_types=new_types or None,
+            created_count=state.application_result.created_count,
+            has_driver_change=has_driver,
+        ):
+            return
+
+        # Load entity graph
+        entity_graph: dict[str, list[dict]] = {}
+        for etype, table in [
+            ("personas", "personas"),
+            ("business_drivers", "business_drivers"),
+            ("features", "features"),
+            ("workflows", "workflows"),
+            ("constraints", "constraints"),
+        ]:
+            try:
+                resp = sb.table(table).select("*").eq("project_id", str(state.project_id)).execute()
+                entity_graph[etype] = resp.data or []
+            except Exception:
+                entity_graph[etype] = []
+
+        total_entities = sum(len(v) for v in entity_graph.values())
+        if total_entities < 3:
+            return  # Not enough data yet
+
+        existing_outcomes = list_outcomes(state.project_id)
+
+        result = await generate_outcomes(
+            project_id=state.project_id,
+            entity_graph=entity_graph,
+            existing_outcomes=existing_outcomes,
+        )
+
+        created = await persist_generated_outcomes(
+            project_id=state.project_id,
+            generation_result=result,
+            entity_graph=entity_graph,
+        )
+
+        if created:
+            # Score each outcome (fire-and-forget)
+            from app.chains.score_outcomes import score_and_persist_outcome
+            for outcome in created:
+                try:
+                    await score_and_persist_outcome(outcome_id=str(outcome["id"]))
+                except Exception:
+                    pass
+
+            logger.info(
+                f"[v2] Outcome generation triggered: {len(created)} outcomes created",
+                extra={"signal_id": str(state.signal_id)},
+            )
+
+    except ImportError:
+        pass  # Outcome system not yet available
+    except Exception as e:
+        logger.debug(f"[v2] Outcome generation trigger failed: {e}")
+
+
 def _create_signal_review_task(state: V2ProcessorState) -> None:
     """Create a signal_review task for any signal that produced entity changes.
 
@@ -476,6 +576,44 @@ async def v2_extract_patches(state: V2ProcessorState) -> dict[str, Any]:
         return {"entity_patches": None, "error": f"Extraction failed: {e}"}
 
 
+async def v2_enrich_patches(state: V2ProcessorState) -> dict[str, Any]:
+    """Step 4a: Enrich patches with hypothetical questions, term expansion, canonical format.
+
+    Non-critical — pipeline continues with raw patches if enrichment fails entirely.
+    """
+    if not state.entity_patches or not state.entity_patches.patches:
+        return {}
+
+    try:
+        from app.chains.enrich_entity_patches import enrich_entity_patches
+
+        context = state.context_snapshot
+        inventory_prompt = context.entity_inventory_prompt if context else ""
+
+        enriched = await enrich_entity_patches(
+            patches=state.entity_patches.patches,
+            entity_inventory_prompt=inventory_prompt,
+            project_id=state.project_id,
+            signal_id=state.signal_id,
+        )
+
+        return {
+            "entity_patches": EntityPatchList(
+                patches=enriched,
+                signal_id=state.entity_patches.signal_id,
+                run_id=state.entity_patches.run_id,
+                extraction_model=state.entity_patches.extraction_model,
+                extraction_duration_ms=state.entity_patches.extraction_duration_ms,
+            )
+        }
+    except Exception as e:
+        logger.warning(
+            f"v2_enrich_patches failed, continuing with raw patches: {e}",
+            extra={"signal_id": str(state.signal_id)},
+        )
+        return {}
+
+
 async def v2_dedup_patches(state: V2ProcessorState) -> dict[str, Any]:
     """Step 4b: Deduplicate create patches against existing entities."""
     if not state.entity_patches or not state.entity_patches.patches:
@@ -728,6 +866,9 @@ async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
     # Create review task for any signal that produced entity changes
     _create_signal_review_task(state)
 
+    # Trigger outcome generation if change-detection conditions met (fire-and-forget)
+    await _maybe_trigger_outcome_generation(state)
+
     return {"success": True}
 
 
@@ -758,15 +899,15 @@ async def _trigger_stakeholder_intelligence(state: V2ProcessorState) -> None:
     )
 
     try:
-        from app.agents.stakeholder_intelligence_agent import invoke_stakeholder_intelligence_agent
+        from app.chains.stakeholder_enrichment import analyze_stakeholder
 
-        for sid in stakeholder_ids[:3]:  # Cap at 3 per signal to limit LLM cost
+        for sid in stakeholder_ids[:3]:  # Cap at 3 per signal
             try:
-                await invoke_stakeholder_intelligence_agent(
+                await analyze_stakeholder(
                     stakeholder_id=UUID(sid),
                     project_id=state.project_id,
                     trigger="signal_processed",
-                    trigger_context=f"Signal {state.signal_id} applied patches to this stakeholder",
+                    trigger_context=f"Signal {state.signal_id} applied patches",
                 )
             except Exception as e:
                 logger.debug(f"[v2] SI agent trigger failed for stakeholder {sid}: {e}")
@@ -963,6 +1104,10 @@ async def process_signal_v2(
         if state.error:
             _update_signal_status(signal_id, "failed")
             return _make_v2_result(state)
+
+        # Step 4a: Enrich patches (non-critical — raw patches still work for dedup)
+        updates = await v2_enrich_patches(state)
+        _apply_state_updates(state, updates)
 
         # Step 4b: Dedup create patches (non-critical — original patches still work)
         updates = await v2_dedup_patches(state)

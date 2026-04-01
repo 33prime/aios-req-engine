@@ -92,6 +92,33 @@ _MODES: dict[str, ChatMode] = {
         max_tokens=1500,
         primary_entity_type="unlock",
     ),
+    # ── Outcomes tab modes ──
+    "outcomes": ChatMode(
+        name="outcomes",
+        tools=["search", "outcome", "write", "suggest_actions"],
+        retrieval_strategy="light",
+        load_confidence=True,
+        load_horizon=True,
+        max_tokens=1500,
+        primary_entity_type="outcome",
+    ),
+    "outcomes:actors": ChatMode(
+        name="outcomes",
+        tools=["search", "outcome", "write", "suggest_actions"],
+        retrieval_strategy="light",
+        load_confidence=True,
+        max_tokens=1500,
+        primary_entity_type="persona",
+    ),
+    "outcomes:workflows": ChatMode(
+        name="outcomes",
+        tools=["search", "outcome", "write", "suggest_actions"],
+        retrieval_strategy="light",
+        load_confidence=True,
+        max_tokens=1500,
+        primary_entity_type="workflow",
+    ),
+    # ── Solution Flow + Intelligence ──
     "brd:solution-flow": ChatMode(
         name="solution_flow",
         tools=["search", "write", "solution_flow", "suggest_actions"],
@@ -104,9 +131,11 @@ _MODES: dict[str, ChatMode] = {
     ),
     "data-ai": ChatMode(
         name="data_ai",
-        tools=["suggest_actions"],
-        retrieval_strategy="none",
-        max_tokens=1200,
+        tools=["search", "write", "outcome", "suggest_actions"],
+        retrieval_strategy="light",
+        load_confidence=True,
+        max_tokens=1500,
+        primary_entity_type="outcome_capability",
     ),
     "build": ChatMode(
         name="build",

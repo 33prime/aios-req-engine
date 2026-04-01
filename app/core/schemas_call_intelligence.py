@@ -39,6 +39,7 @@ NuggetType = Literal[
     "use_case",
     "objection",
     "vision_statement",
+    "pain_point",
 ]
 
 ReactionType = Literal[

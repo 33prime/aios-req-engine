@@ -499,7 +499,12 @@ def cleanup_tsx_files(files: dict[str, str]) -> tuple[dict[str, str], int]:
     total_fixes = 0
     result = dict(files)
 
-    page_files = [name for name in files if name.startswith("src/pages/") and name.endswith(".tsx")]
+    page_files = [
+        name
+        for name in files
+        if (name.startswith("src/pages/") or name.startswith("src/components/ai/"))
+        and name.endswith(".tsx")
+    ]
 
     if not page_files:
         logger.info("Cleanup: no page files found — skipping")

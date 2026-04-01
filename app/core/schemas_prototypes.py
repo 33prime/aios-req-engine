@@ -32,6 +32,10 @@ class GenericStyle(BaseModel):
     description: str = Field(..., description="Style description")
     preview_colors: list[str] = Field(default_factory=list, description="Preview color swatches")
     tokens: DesignTokens = Field(..., description="Design tokens for this style")
+    recommended_nav_style: str = Field(
+        "sidebar-dark",
+        description="Recommended nav style for this design",
+    )
 
 
 class DesignSelection(BaseModel):
@@ -85,17 +89,22 @@ GENERIC_DESIGN_STYLES: list[GenericStyle] = [
         id="minimal_clean",
         label="Minimal & Clean",
         description="Understated elegance with generous whitespace and sharp typography",
-        preview_colors=["#000000", "#f5f5f5", "#e5e5e5"],
+        preview_colors=["#1a1a1a", "#f5f5f5", "#e5e5e5"],
+        recommended_nav_style="sidebar-light",
         tokens=DesignTokens(
-            primary_color="#000000",
+            primary_color="#1a1a1a",
             secondary_color="#f5f5f5",
             accent_color="#e5e5e5",
             font_heading="Inter",
             font_body="Inter",
             spacing="generous",
             corners="sharp",
-            style_direction="Minimal and clean: high contrast black/white, generous whitespace, "
-            "sharp corners, thin borders, restrained use of color",
+            style_direction=(
+                "Understated elegance with generous whitespace, near-black typography, and sharp "
+                "geometric lines. Light sidebar navigation with subtle gray borders keeps the "
+                "interface open and airy. Content areas use bg-white or bg-gray-50 for maximum "
+                "readability."
+            ),
         ),
     ),
     GenericStyle(
@@ -103,6 +112,7 @@ GENERIC_DESIGN_STYLES: list[GenericStyle] = [
         label="Bold & Expressive",
         description="Strong typography and high contrast with vibrant accent colors",
         preview_colors=["#1a1a2e", "#e94560", "#f5f5f5"],
+        recommended_nav_style="sidebar-dark",
         tokens=DesignTokens(
             primary_color="#1a1a2e",
             secondary_color="#f5f5f5",
@@ -111,25 +121,35 @@ GENERIC_DESIGN_STYLES: list[GenericStyle] = [
             font_body="Inter",
             spacing="balanced",
             corners="slightly-rounded",
-            style_direction="Bold and expressive: dark primary with vibrant red accent, "
-            "strong typography hierarchy, high visual contrast, confident layout",
+            style_direction=(
+                "Confident dark navy paired with vibrant red accents and strong typographic "
+                "hierarchy. Dark sidebar navigation with a bold active-state treatment reinforces "
+                "the high-contrast personality. Content areas remain light "
+                "(bg-white or bg-gray-50) "
+                "to let the bold accent colors pop."
+            ),
         ),
     ),
     GenericStyle(
         id="warm_organic",
         label="Warm & Organic",
         description="Earthy tones with rounded shapes and a friendly, approachable feel",
-        preview_colors=["#2d3436", "#e17055", "#ffeaa7"],
+        preview_colors=["#5c4033", "#e17055", "#ffeaa7"],
+        recommended_nav_style="sidebar-light",
         tokens=DesignTokens(
-            primary_color="#2d3436",
+            primary_color="#5c4033",
             secondary_color="#ffeaa7",
             accent_color="#e17055",
             font_heading="DM Serif Display",
             font_body="DM Sans",
             spacing="balanced",
             corners="rounded",
-            style_direction="Warm and organic: earthy tones, rounded corners, warm accent colors, "
-            "friendly serif headings, approachable and human feel",
+            style_direction=(
+                "Earthy brown tones with terracotta accents and warm serif headings create an "
+                "approachable, human feel. Light sidebar with rounded elements and organic shapes "
+                "keeps navigation friendly. Content background stays light (bg-gray-50) with "
+                "warm-tinted cards and generous corner radii."
+            ),
         ),
     ),
     GenericStyle(
@@ -137,6 +157,7 @@ GENERIC_DESIGN_STYLES: list[GenericStyle] = [
         label="Luxury & Refined",
         description="Elegant serif typography with gold accents and refined dark palette",
         preview_colors=["#0c0c0c", "#c9a227", "#f8f8f8"],
+        recommended_nav_style="sidebar-dark",
         tokens=DesignTokens(
             primary_color="#0c0c0c",
             secondary_color="#f8f8f8",
@@ -145,8 +166,13 @@ GENERIC_DESIGN_STYLES: list[GenericStyle] = [
             font_body="Lato",
             spacing="generous",
             corners="sharp",
-            style_direction="Luxury and refined: near-black primary, gold accents, elegant serif headings, "
-            "generous spacing, minimal ornamentation, premium feel",
+            style_direction=(
+                "Near-black primary with gold accents, elegant serif headings, "
+                "and generous spacing "
+                "convey premium sophistication. Dark sidebar navigation with minimal ornamentation "
+                "and refined typography sets the tone. Content areas use bg-white with subtle "
+                "shadows for a gallery-like presentation."
+            ),
         ),
     ),
     GenericStyle(
@@ -154,6 +180,7 @@ GENERIC_DESIGN_STYLES: list[GenericStyle] = [
         label="Tech & Modern",
         description="Clean blue palette with crisp geometry and modern sans-serif type",
         preview_colors=["#0f172a", "#3b82f6", "#f1f5f9"],
+        recommended_nav_style="sidebar-dark",
         tokens=DesignTokens(
             primary_color="#0f172a",
             secondary_color="#f1f5f9",
@@ -162,8 +189,122 @@ GENERIC_DESIGN_STYLES: list[GenericStyle] = [
             font_body="Inter",
             spacing="balanced",
             corners="slightly-rounded",
-            style_direction="Tech and modern: dark navy primary, blue accent, clean geometry, "
-            "crisp borders, modern sans-serif type, dashboard-ready layout",
+            style_direction=(
+                "Dark navy primary with blue accent, clean geometry, and modern sans-serif type "
+                "project technical authority. Dark sidebar navigation with crisp active states "
+                "suits data-heavy dashboard layouts. Content areas use bg-slate-50 for a cool, "
+                "professional backdrop."
+            ),
+        ),
+    ),
+    GenericStyle(
+        id="healthcare_clinical",
+        label="Healthcare & Clinical",
+        description="Deep navy with soft teal accent for clinical trust and clarity",
+        preview_colors=["#134e4a", "#f0fdfa", "#2dd4bf"],
+        recommended_nav_style="sidebar-light",
+        tokens=DesignTokens(
+            primary_color="#134e4a",
+            secondary_color="#f0fdfa",
+            accent_color="#2dd4bf",
+            font_heading="Plus Jakarta Sans",
+            font_body="DM Sans",
+            spacing="balanced",
+            corners="slightly-rounded",
+            style_direction=(
+                "Deep teal-green primary with soft mint accent evoke clinical trust "
+                "without the generic teal-on-white look. Light sidebar navigation "
+                "with soft borders maintains an open, calming atmosphere. Content "
+                "areas use bg-white with structured card layouts and clear hierarchy."
+            ),
+        ),
+    ),
+    GenericStyle(
+        id="creative_playful",
+        label="Creative & Playful",
+        description="Warm coral with playful accents and energetic transitions",
+        preview_colors=["#e11d48", "#fff1f2", "#f59e0b"],
+        recommended_nav_style="topnav",
+        tokens=DesignTokens(
+            primary_color="#e11d48",
+            secondary_color="#fff1f2",
+            accent_color="#f59e0b",
+            font_heading="Sora",
+            font_body="DM Sans",
+            spacing="balanced",
+            corners="rounded",
+            style_direction=(
+                "Warm rose primary with playful amber accents create an inspiring "
+                "creative workspace. Top navigation bar keeps the layout open and "
+                "content-forward for visual work. Content areas use bg-gray-50 with "
+                "rounded cards and colorful category indicators."
+            ),
+        ),
+    ),
+    GenericStyle(
+        id="fintech_pro",
+        label="Fintech & Pro",
+        description="Emerald green with crisp data visualizations and precise typography",
+        preview_colors=["#059669", "#f0fdf4", "#10b981"],
+        recommended_nav_style="sidebar-dark",
+        tokens=DesignTokens(
+            primary_color="#059669",
+            secondary_color="#f0fdf4",
+            accent_color="#10b981",
+            font_heading="Plus Jakarta Sans",
+            font_body="Inter",
+            spacing="compact",
+            corners="slightly-rounded",
+            style_direction=(
+                "Emerald green primary with crisp data visualizations and precise typography "
+                "convey financial authority. Dark sidebar navigation with structured sections "
+                "suits complex multi-panel dashboards. Content areas use bg-gray-50 with white "
+                "cards for clear metric presentation."
+            ),
+        ),
+    ),
+    GenericStyle(
+        id="saas_dashboard",
+        label="SaaS Dashboard",
+        description="Deep charcoal with teal accent for efficient power-user dashboards",
+        preview_colors=["#1e293b", "#f8fafc", "#0d9488"],
+        recommended_nav_style="icon-sidebar",
+        tokens=DesignTokens(
+            primary_color="#1e293b",
+            secondary_color="#f8fafc",
+            accent_color="#0d9488",
+            font_heading="Plus Jakarta Sans",
+            font_body="DM Sans",
+            spacing="balanced",
+            corners="slightly-rounded",
+            style_direction=(
+                "Deep slate primary with teal accent for clean, efficient dashboards. "
+                "Narrow icon-sidebar navigation maximizes content area for data tables "
+                "and charts. Content areas use bg-slate-50 with well-spaced white cards "
+                "and clear section headers."
+            ),
+        ),
+    ),
+    GenericStyle(
+        id="marketplace_fresh",
+        label="Marketplace & Fresh",
+        description="Warm orange primary with a consumer-friendly aesthetic",
+        preview_colors=["#ea580c", "#fff7ed", "#f97316"],
+        recommended_nav_style="topnav",
+        tokens=DesignTokens(
+            primary_color="#ea580c",
+            secondary_color="#fff7ed",
+            accent_color="#f97316",
+            font_heading="DM Sans",
+            font_body="Inter",
+            spacing="balanced",
+            corners="rounded",
+            style_direction=(
+                "Warm orange primary with a fresh, consumer-friendly aesthetic and prominent "
+                "imagery areas. Top navigation bar with category browsing supports marketplace "
+                "discovery patterns. Content areas use bg-white with generous grid layouts and "
+                "product-focused cards."
+            ),
         ),
     ),
 ]

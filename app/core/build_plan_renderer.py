@@ -681,7 +681,7 @@ def _render_vite_config_scaffold(
         "  default: 'bg-gray-100 text-gray-700',\n"
         "  success: 'bg-green-50 text-green-700',\n"
         "  warning: 'bg-amber-50 text-amber-700',\n"
-        "  danger: 'bg-red-50 text-red-700',\n"
+        "  danger: 'bg-orange-50 text-orange-700',\n"
         "  accent: 'bg-primary/10 text-primary',\n"
         "} as const\n\n"
         "interface BadgeProps {\n"
@@ -719,7 +719,8 @@ def _render_vite_config_scaffold(
         "}: ButtonProps) {\n"
         "  return (\n"
         "    <button\n"
-        "      className={`rounded-full font-medium transition-all "
+        "      className={`inline-flex items-center justify-center gap-2 "
+        "rounded-lg font-medium transition-all "
         "${variants[variant]} ${sizes[size]} ${className}`}\n"
         "      {...props}\n"
         "    >\n"
@@ -980,7 +981,7 @@ def _render_vite_scaffold(payload: PrototypePayload) -> dict[str, str]:
             f'        <Link to="{path}" className={{'
             f'pathname === "{path}"'
             f' ? "bg-primary/10 text-primary font-semibold '
-            f'px-3 py-1.5 rounded-full text-sm"'
+            f'px-3 py-1.5 rounded-lg text-sm"'
             f' : "text-gray-500 hover:text-primary '
             f'px-3 py-1.5 text-sm"'
             f"}}>{safe_nav_title}</Link>"
@@ -1192,10 +1193,10 @@ def _render_entry_page(
         )
         + '          <div className="flex items-center justify-center gap-4">\n'
         '            <button className="bg-white text-primary px-8 py-3.5'
-        " rounded-full font-heading font-semibold shadow-lg"
+        " rounded-lg font-heading font-semibold shadow-lg"
         ' hover:shadow-xl hover:scale-105 transition-all">Get Started</button>\n'
         '            <button className="border-2 border-white/40 text-white px-8 py-3.5'
-        " rounded-full font-heading font-medium"
+        " rounded-lg font-heading font-medium"
         ' hover:bg-white/10 transition-all">Learn More</button>\n'
         "          </div>\n"
         "        </div>\n"

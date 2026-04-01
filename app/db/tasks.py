@@ -949,22 +949,31 @@ async def list_my_tasks(
             updated_at=row["updated_at"],
         ))
 
-    # Batch-resolve assignee names for tasks that have assigned_to
+    # Batch-resolve assignee names + photos for tasks that have assigned_to
     assignee_ids = list({t.assigned_to for t in tasks if t.assigned_to})
     if assignee_ids:
+        id_strs = [str(uid) for uid in assignee_ids]
         users_result = (
             client.table("users")
             .select("id, first_name, last_name, avatar_url")
-            .in_("id", [str(uid) for uid in assignee_ids])
+            .in_("id", id_strs)
             .execute()
         )
+        # profiles.photo_url is the actual avatar (users.avatar_url is often null)
+        profiles_result = (
+            client.table("profiles")
+            .select("user_id, photo_url")
+            .in_("user_id", id_strs)
+            .execute()
+        )
+        profile_photos = {r["user_id"]: r["photo_url"] for r in (profiles_result.data or []) if r.get("photo_url")}
         user_map = {row["id"]: row for row in users_result.data or []}
         for t in tasks:
             if t.assigned_to and str(t.assigned_to) in user_map:
                 u = user_map[str(t.assigned_to)]
                 if u.get("first_name"):
                     t.assigned_to_name = f"{u['first_name']} {u.get('last_name', '')}".strip()
-                t.assigned_to_photo_url = u.get("avatar_url")
+                t.assigned_to_photo_url = u.get("avatar_url") or profile_photos.get(str(t.assigned_to))
 
     total = sum(counts.values())
 
@@ -1004,6 +1013,16 @@ async def get_task_with_project(task_id: UUID) -> TaskWithProject | None:
             if u.get("first_name"):
                 assignee_name = f"{u['first_name']} {u.get('last_name', '')}".strip()
             assignee_photo = u.get("avatar_url")
+        # Fallback to profiles.photo_url if users.avatar_url is null
+        if not assignee_photo:
+            profile_result = (
+                client.table("profiles")
+                .select("photo_url")
+                .eq("user_id", row["assigned_to"])
+                .execute()
+            )
+            if profile_result.data and profile_result.data[0].get("photo_url"):
+                assignee_photo = profile_result.data[0]["photo_url"]
 
     return TaskWithProject(
         id=row["id"],

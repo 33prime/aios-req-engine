@@ -24,6 +24,7 @@ class ChatIntent:
     complexity: str = "simple"  # simple | moderate | strategic
     retrieval_strategy: str = "full"  # "none" | "light" | "full"
     classifier_source: str = "regex"  # "regex" | "haiku"
+    query_breadth: str = "focused"  # "focused" | "strategic" — drives convergence boosting
 
 
 # ── Pattern Definitions ────────────────────────────────────────────
@@ -284,6 +285,13 @@ def _classify_regex(
         message, intent_type, complexity,
     )
 
+    # Query breadth: strategic for broad/planning queries, focused for specific
+    query_breadth = "strategic" if (
+        intent_type in ("plan", "collaborate", "review")
+        or complexity == "strategic"
+        or retrieval_strategy == "full"
+    ) else "focused"
+
     return ChatIntent(
         type=intent_type,
         topics=topics,
@@ -291,6 +299,7 @@ def _classify_regex(
         complexity=complexity,
         retrieval_strategy=retrieval_strategy,
         classifier_source="regex",
+        query_breadth=query_breadth,
     )
 
 

@@ -344,6 +344,10 @@ async def assemble_prototype_payload(
             open_questions=_normalize_dicts(s.get("open_questions", []) or []),
             image_url=s.get("image_url"),
             feel_description=s.get("feel_description"),
+            story_headline=s.get("story_headline"),
+            user_actions=s.get("user_actions", []) or [],
+            human_value_statement=s.get("human_value_statement"),
+            data_model=s.get("data_model", []) or [],
             confirmation_status=s.get("confirmation_status", "ai_generated") or "ai_generated",
         )
         for s in (raw_flow_steps or [])
@@ -385,6 +389,12 @@ async def assemble_prototype_payload(
     # ── Design contract resolution ─────────────────────────────────────────
     design_contract = None
     if design_selection:
+        # Look up recommended_nav_style from matching generic style
+        rec_nav = ""
+        for gs in GENERIC_DESIGN_STYLES:
+            if gs.id == design_selection.option_id:
+                rec_nav = gs.recommended_nav_style
+                break
         design_contract = DesignContract(
             tokens=design_selection.tokens,
             brand_colors=[
@@ -393,23 +403,67 @@ async def assemble_prototype_payload(
                 design_selection.tokens.accent_color,
             ],
             style_direction=design_selection.tokens.style_direction,
+            recommended_nav_style=rec_nav,
         )
     elif existing_prototype and existing_prototype.get("design_selection"):
         ds = existing_prototype["design_selection"]
         if isinstance(ds, dict) and ds.get("tokens"):
             tokens = DesignTokens(**ds["tokens"])
+            # Look up recommended_nav_style from matching generic style
+            rec_nav = ""
+            option_id = ds.get("option_id", "")
+            for gs in GENERIC_DESIGN_STYLES:
+                if gs.id == option_id:
+                    rec_nav = gs.recommended_nav_style
+                    break
             design_contract = DesignContract(
                 tokens=tokens,
                 brand_colors=[tokens.primary_color, tokens.secondary_color, tokens.accent_color],
                 style_direction=tokens.style_direction,
+                recommended_nav_style=rec_nav,
             )
     if not design_contract:
-        # Default to tech_modern
-        default_style = GENERIC_DESIGN_STYLES[4]  # tech_modern
+        # Pick a style based on industry if available, otherwise warm_organic
+        # Check industry field and description for keywords
+        raw_industry = (company_info or {}).get("industry", "") or ""
+        raw_desc = (company_info or {}).get("description", "") or ""
+        industry = f"{raw_industry} {raw_desc[:300]}".lower()
+        style_map = {
+            "tech": "tech_modern",
+            "software": "saas_dashboard",
+            "finance": "fintech_pro",
+            "fintech": "fintech_pro",
+            "banking": "fintech_pro",
+            "health": "healthcare_clinical",
+            "medical": "healthcare_clinical",
+            "pharma": "healthcare_clinical",
+            "legal": "luxury_refined",
+            "law": "luxury_refined",
+            "creative": "creative_playful",
+            "design": "creative_playful",
+            "media": "creative_playful",
+            "retail": "marketplace_fresh",
+            "ecommerce": "marketplace_fresh",
+            "marketplace": "marketplace_fresh",
+        }
+        target_id = "warm_organic"  # default: approachable, never generic
+        for keyword, style_id in style_map.items():
+            if keyword in industry:
+                target_id = style_id
+                break
+        default_style = next(
+            (s for s in GENERIC_DESIGN_STYLES if s.id == target_id),
+            GENERIC_DESIGN_STYLES[2],  # warm_organic fallback
+        )
+        logger.info(
+            f"No design selection — defaulting to '{default_style.id}' "
+            f"(industry: {industry or 'unknown'})"
+        )
         design_contract = DesignContract(
             tokens=default_style.tokens,
             brand_colors=default_style.preview_colors,
             style_direction=default_style.tokens.style_direction,
+            recommended_nav_style=default_style.recommended_nav_style,
         )
 
     tech_contract = tech_overrides or TechContract()

@@ -349,6 +349,9 @@ async def compute_project_pulse(
         health_map, entity_inventory, link_densities, chain_completions, project_id,
     )
 
+    # Step 8: Outcome health (non-critical)
+    outcome_health = _compute_outcome_health(project_id)
+
     return ProjectPulse(
         stage=stage_info,
         health=health_map,
@@ -357,6 +360,7 @@ async def compute_project_pulse(
         forecast=forecast,
         extraction_directive=directive,
         auto_confirm_candidates=auto_confirm_candidates,
+        outcome_health=outcome_health,
         config_version=config.version,
         rules_fired=rules_fired,
     )
@@ -1156,3 +1160,82 @@ def _evaluate_auto_confirm_candidates(
                 })
 
     return candidates
+
+
+# ---------------------------------------------------------------------------
+# Outcome health computation (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+def _compute_outcome_health(project_id: UUID) -> "OutcomeHealth":
+    """Compute outcome health metrics for the pulse snapshot.
+
+    Non-critical — returns empty OutcomeHealth on any error.
+    """
+    from app.core.schemas_pulse import OutcomeHealth
+
+    try:
+        from app.db.outcomes import list_outcomes, get_outcome_entity_links, get_outcome_coverage
+
+        outcomes = list_outcomes(project_id)
+        if not outcomes:
+            return OutcomeHealth()
+
+        total = len(outcomes)
+        confirmed = sum(
+            1 for o in outcomes
+            if o.get("confirmation_status", "").startswith("confirmed")
+        )
+
+        strengths = [o.get("strength_score", 0) for o in outcomes]
+        avg_strength = sum(strengths) / len(strengths) if strengths else 0.0
+
+        # Weak outcomes (strength < 70)
+        weak = []
+        for o in outcomes:
+            s = o.get("strength_score", 0)
+            if s < 70:
+                dims = o.get("strength_dimensions", {})
+                weakest = min(dims, key=lambda k: dims.get(k, 0)) if dims else "unknown"
+                weak.append({
+                    "id": o["id"],
+                    "title": o["title"],
+                    "strength": s,
+                    "missing_dimension": weakest,
+                })
+
+        # Unserved outcomes (no solution_flow_steps linked)
+        unserved = []
+        for o in outcomes:
+            links = get_outcome_entity_links(outcome_id=UUID(o["id"]), link_type="surface_of")
+            if not links:
+                unserved.append({"id": o["id"], "title": o["title"]})
+
+        # Uncovered outcomes (missing intelligence quadrants)
+        uncovered = []
+        try:
+            coverage = get_outcome_coverage(project_id)
+            for oid, cov in coverage.items():
+                if cov.get("gaps"):
+                    uncovered.append({
+                        "id": oid,
+                        "title": cov.get("title", ""),
+                        "missing_quadrants": cov["gaps"],
+                    })
+        except Exception:
+            pass
+
+        return OutcomeHealth(
+            total_outcomes=total,
+            confirmed_outcomes=confirmed,
+            avg_strength=round(avg_strength, 1),
+            weak_outcomes=weak,
+            unserved_outcomes=unserved,
+            uncovered_outcomes=uncovered,
+        )
+
+    except ImportError:
+        return OutcomeHealth()
+    except Exception as e:
+        logger.debug(f"Outcome health computation failed: {e}")
+        return OutcomeHealth()

@@ -98,7 +98,7 @@ async def apply_entity_patches(
     run_id: UUID,
     signal_id: UUID | None = None,
     auto_apply_threshold: set[ConfidenceTier] | None = None,
-    auto_confirm: bool = False,
+    auto_confirm: bool = True,
 ) -> PatchApplicationResult:
     """Apply a batch of EntityPatches to the database.
 
@@ -109,6 +109,7 @@ async def apply_entity_patches(
         signal_id: Source signal UUID (for evidence linking)
         auto_apply_threshold: Override which confidence tiers auto-apply
         auto_confirm: If True, auto-confirm entities with high/very_high confidence
+                      (default True — high-confidence entities skip manual review)
 
     Returns:
         PatchApplicationResult with applied/skipped/escalated details
@@ -116,15 +117,15 @@ async def apply_entity_patches(
     if auto_apply_threshold is None:
         auto_apply_threshold = AUTO_APPLY_TIERS
 
-    # Check project auto_confirm_extractions setting if not explicitly passed
-    if not auto_confirm:
+    # Project setting can override (opt-out)
+    if auto_confirm:
         try:
             sb = get_supabase()
             proj_resp = sb.table("projects").select("auto_confirm_extractions").eq("id", str(project_id)).execute()
-            if proj_resp.data and proj_resp.data[0].get("auto_confirm_extractions"):
-                auto_confirm = True
+            if proj_resp.data and proj_resp.data[0].get("auto_confirm_extractions") is False:
+                auto_confirm = False
         except Exception:
-            pass  # Fail open — don't block patch application
+            pass  # Fail open — keep auto_confirm=True
 
     result = PatchApplicationResult()
 
@@ -176,9 +177,9 @@ async def apply_entity_patches(
                 "patch_summary": _summarize_patch(patch),
             })
 
-    # Embed modified entities (fire-and-forget)
+    # Embed modified entities (fire-and-forget, multi-vector when project_id available)
     if result.applied:
-        _embed_modified_entities(result.applied)
+        _embed_modified_entities(result.applied, project_id=project_id)
 
     # Flag linked solution flow steps when entities change
     if result.entity_ids_modified:
@@ -250,6 +251,20 @@ async def apply_entity_patches(
             )
         except Exception:
             logger.debug("Forge matching trigger skipped", exc_info=True)
+
+    # Fire-and-forget: link entities to outcomes via similarity
+    if result.applied:
+        try:
+            _link_entities_to_outcomes(project_id, result.applied)
+        except Exception:
+            logger.debug("Outcome linking skipped", exc_info=True)
+
+    # Fire-and-forget: check convergence thresholds for modified entities
+    if result.entity_ids_modified:
+        try:
+            _check_convergence_thresholds(project_id, result.applied)
+        except Exception:
+            logger.debug("Convergence check skipped", exc_info=True)
 
     logger.info(
         f"Patch application complete: {result.total_applied} applied, "
@@ -487,6 +502,21 @@ def _apply_create(
         words = desc.split()[:8]
         payload["title"] = " ".join(words) + ("..." if len(desc.split()) > 8 else "")
 
+    # Store enrichment_intel from enrichment pipeline (Phase 1 upgrade)
+    if patch.canonical_text:
+        enrichment_intel = {
+            "canonical_text": patch.canonical_text,
+            "hypothetical_questions": patch.hypothetical_questions or [],
+            "expanded_terms": patch.expanded_terms or [],
+            "enrichment_sources": [{
+                "signal_id": str(signal_id) if signal_id else None,
+                "source_authority": patch.source_authority,
+            }],
+        }
+        if patch.enrichment_data:
+            enrichment_intel.update({k: v for k, v in patch.enrichment_data.items() if v})
+        payload["enrichment_intel"] = enrichment_intel
+
     # Resolve display name for logging (check all common name columns)
     display_name = (
         payload.get("name")
@@ -594,6 +624,28 @@ def _apply_merge(
         existing_value = existing.get(field)
         if existing_value is None or existing_status == "ai_generated":
             updates[field] = value
+
+    # Merge enrichment_intel from enrichment pipeline (Phase 1 upgrade)
+    if patch.canonical_text:
+        existing_enrichment = existing.get("enrichment_intel") or {}
+        merged_enrichment = {
+            "canonical_text": patch.canonical_text,  # Latest canonical text wins
+            "hypothetical_questions": _merge_string_lists(
+                existing_enrichment.get("hypothetical_questions", []),
+                patch.hypothetical_questions or [],
+            ),
+            "expanded_terms": _merge_string_lists(
+                existing_enrichment.get("expanded_terms", []),
+                patch.expanded_terms or [],
+            ),
+            "enrichment_sources": existing_enrichment.get("enrichment_sources", []) + [{
+                "signal_id": str(signal_id) if signal_id else None,
+                "source_authority": patch.source_authority,
+            }],
+        }
+        if patch.enrichment_data:
+            merged_enrichment.update({k: v for k, v in patch.enrichment_data.items() if v})
+        updates["enrichment_intel"] = merged_enrichment
 
     # Upgrade confirmation status if warranted
     if CONFIRMATION_HIERARCHY.get(new_status, 0) > CONFIRMATION_HIERARCHY.get(existing_status, 0):
@@ -851,9 +903,22 @@ def _summarize_patch(patch: EntityPatch) -> str:
     return f"{patch.operation} {patch.entity_type}: {name}"[:100]
 
 
-def _embed_modified_entities(applied_results: list[dict]) -> None:
+def _merge_string_lists(existing: list, new: list) -> list:
+    """Merge two string lists, deduplicating case-insensitively."""
+    seen = {s.lower() for s in existing if isinstance(s, str)}
+    merged = list(existing)
+    for item in new:
+        if isinstance(item, str) and item.lower() not in seen:
+            merged.append(item)
+            seen.add(item.lower())
+    return merged
+
+
+def _embed_modified_entities(applied_results: list[dict], project_id: UUID | None = None) -> None:
     """Fire-and-forget: generate embeddings for entities that were created/merged/updated.
 
+    Uses multi-vector embedding (entity_vectors table) when project_id is available,
+    falls back to legacy single-vector embedding otherwise.
     Batches queries by table to avoid N+1 round-trips.
     """
     try:
@@ -885,13 +950,82 @@ def _embed_modified_entities(applied_results: list[dict]) -> None:
                 rows_by_id = {r["id"]: r for r in (response.data or [])}
                 for entity_type, entity_id in type_id_pairs:
                     row = rows_by_id.get(entity_id)
-                    if row:
+                    if not row:
+                        continue
+
+                    # Multi-vector embedding (preferred path)
+                    if project_id:
+                        try:
+                            import asyncio
+                            from app.db.entity_embeddings import embed_entity_multivector
+
+                            enrichment = row.get("enrichment_intel") or {}
+                            # Fetch entity links for relationship vector
+                            links = _fetch_entity_links_for_embedding(
+                                project_id, entity_type, entity_id
+                            )
+                            asyncio.get_event_loop().run_until_complete(
+                                embed_entity_multivector(
+                                    entity_type=entity_type,
+                                    entity_id=UUID(entity_id),
+                                    entity_data=row,
+                                    project_id=project_id,
+                                    enrichment=enrichment,
+                                    links=links,
+                                )
+                            )
+                        except Exception:
+                            # Fallback to legacy single-vector
+                            embed_entity(entity_type, UUID(entity_id), row)
+                    else:
                         embed_entity(entity_type, UUID(entity_id), row)
+
             except Exception as e:
                 logger.debug(f"Batch embedding query failed for {table}: {e}")
 
     except Exception as e:
         logger.debug(f"Entity embedding batch failed: {e}")
+
+
+def _fetch_entity_links_for_embedding(
+    project_id: UUID, entity_type: str, entity_id: str
+) -> list[dict]:
+    """Fetch entity dependency links for relationship vector building."""
+    try:
+        sb = get_supabase()
+        # Get links where this entity is source or target (limit for perf)
+        source_resp = (
+            sb.table("entity_dependencies")
+            .select("target_entity_type, target_entity_id, dependency_type")
+            .eq("project_id", str(project_id))
+            .eq("source_entity_id", entity_id)
+            .is_("superseded_by", "null")
+            .limit(10)
+            .execute()
+        )
+        target_resp = (
+            sb.table("entity_dependencies")
+            .select("source_entity_type, source_entity_id, dependency_type")
+            .eq("project_id", str(project_id))
+            .eq("target_entity_id", entity_id)
+            .is_("superseded_by", "null")
+            .limit(10)
+            .execute()
+        )
+        links = []
+        for row in source_resp.data or []:
+            links.append({
+                "target_name": row.get("target_entity_type", ""),
+                "dependency_type": row.get("dependency_type", ""),
+            })
+        for row in target_resp.data or []:
+            links.append({
+                "source_name": row.get("source_entity_type", ""),
+                "dependency_type": row.get("dependency_type", ""),
+            })
+        return links
+    except Exception:
+        return []
 
 
 def _record_state_revision(
@@ -1541,3 +1675,134 @@ def _register_fk_dependencies(
 
     if links_created:
         logger.info(f"Registered {links_created} structural FK dependencies")
+
+
+# =============================================================================
+# Outcome linking (Phase 2)
+# =============================================================================
+
+
+def _link_entities_to_outcomes(project_id: UUID, applied_results: list[dict]) -> None:
+    """Link newly created/modified entities to outcomes via embedding similarity.
+
+    Fire-and-forget — logs errors, never raises.
+    Business drivers get linked as 'evidence_for'. Other entities as 'serves'.
+    """
+    try:
+        from app.db.outcomes import create_outcome_entity_link, list_outcomes
+
+        outcomes = list_outcomes(project_id)
+        if not outcomes:
+            return
+
+        # Collect outcome IDs that have embeddings
+        sb = get_supabase()
+        outcome_ids = [str(o["id"]) for o in outcomes]
+        ev_resp = (
+            sb.table("entity_vectors")
+            .select("entity_id, embedding")
+            .in_("entity_id", outcome_ids)
+            .eq("entity_type", "outcome")
+            .eq("vector_type", "identity")
+            .execute()
+        )
+        outcome_embeddings = {r["entity_id"]: r["embedding"] for r in (ev_resp.data or [])}
+
+        if not outcome_embeddings:
+            return
+
+        links_created = 0
+        for entry in applied_results:
+            entity_id = entry.get("entity_id")
+            entity_type = entry.get("entity_type")
+            if not entity_id or not entity_type:
+                continue
+
+            # Get entity's identity embedding
+            try:
+                ent_ev = (
+                    sb.table("entity_vectors")
+                    .select("embedding")
+                    .eq("entity_id", entity_id)
+                    .eq("entity_type", entity_type)
+                    .eq("vector_type", "identity")
+                    .maybe_single()
+                    .execute()
+                )
+                if not ent_ev.data:
+                    continue
+                entity_embedding = ent_ev.data["embedding"]
+            except Exception:
+                continue
+
+            # Compare against outcome embeddings
+            from app.core.embeddings import cosine_similarity
+
+            link_type = "evidence_for" if entity_type == "business_driver" else "serves"
+
+            entity_name = entry.get("name", entity_id[:12])
+            for oid, outcome_emb in outcome_embeddings.items():
+                try:
+                    sim = cosine_similarity(entity_embedding, outcome_emb)
+                    if sim > 0.7:
+                        # Find outcome title for how_served
+                        outcome_title = next(
+                            (o["title"][:60] for o in outcomes if str(o["id"]) == oid), ""
+                        )
+                        how = (
+                            f"{entity_type} '{entity_name}' provides evidence for '{outcome_title}'"
+                            if link_type == "evidence_for"
+                            else f"{entity_type} '{entity_name}' serves '{outcome_title}' (similarity: {sim:.0%})"
+                        )
+                        create_outcome_entity_link(
+                            outcome_id=UUID(oid),
+                            entity_id=entity_id,
+                            entity_type=entity_type,
+                            link_type=link_type,
+                            how_served=how,
+                        )
+                        links_created += 1
+                except Exception:
+                    continue
+
+        if links_created:
+            logger.info(f"Linked {links_created} entities to outcomes")
+
+    except ImportError:
+        pass  # outcomes module not yet available
+    except Exception as e:
+        logger.debug(f"Outcome linking failed: {e}")
+
+
+# =============================================================================
+# Convergence threshold checking (Phase 4)
+# =============================================================================
+
+
+def _check_convergence_thresholds(project_id: UUID, applied_results: list[dict]) -> None:
+    """Check if any modified entity crossed the convergence threshold.
+
+    Fire-and-forget. Only runs convergence for entities that crossed
+    5+ high-confidence links for the first time.
+    """
+    try:
+        from app.services.convergence import check_convergence_threshold, compute_entity_convergence
+        import asyncio
+
+        for entry in applied_results:
+            entity_type = entry.get("entity_type")
+            entity_id = entry.get("entity_id")
+            if not entity_type or not entity_id:
+                continue
+
+            # Quick threshold check (no LLM, just DB count)
+            if check_convergence_threshold(project_id, entity_type, entity_id):
+                # Entity has 5+ high-conf links — compute convergence
+                asyncio.ensure_future(
+                    compute_entity_convergence(project_id, entity_type, UUID(entity_id))
+                )
+
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.debug(f"Convergence threshold check failed: {e}")

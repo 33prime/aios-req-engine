@@ -56,6 +56,12 @@ class Settings(BaseSettings):
     )
     EMBEDDING_DIM: int = Field(default=1536, description="Embedding vector dimension")
 
+    # Multi-vector entity search (Phase 1 upgrade)
+    USE_MULTI_VECTOR: bool = Field(
+        default=True,
+        description="Use multi-vector entity search via entity_vectors table.",
+    )
+
     # Upload and signal limits
     MAX_UPLOAD_BYTES: int = Field(default=2_000_000, description="Max file upload size in bytes")
     MAX_SIGNAL_CHARS: int = Field(default=200_000, description="Max signal text characters")

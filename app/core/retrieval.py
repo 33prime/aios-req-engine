@@ -43,6 +43,8 @@ class RetrievalResult:
     chunks: list[dict] = field(default_factory=list)      # signal_chunks with content, metadata, similarity
     entities: list[dict] = field(default_factory=list)     # Related entities with type, name, description, evidence
     beliefs: list[dict] = field(default_factory=list)      # Relevant beliefs with confidence, supporting facts
+    outcomes: list[dict] = field(default_factory=list)      # Matched outcomes with strength, horizon
+    links: list[dict] = field(default_factory=list)         # Matched entity relationships
     source_queries: list[str] = field(default_factory=list)  # What was searched (debugging)
 
 
@@ -253,6 +255,156 @@ async def _search_entities(
     return list(entities.values())
 
 
+# Default multi-vector weights (used when no intent context available)
+_VECTOR_WEIGHTS_DEFAULT = {
+    "intent": 0.40,
+    "identity": 0.30,
+    "relationship": 0.20,
+    "status": 0.10,
+    "convergence": 0.35,
+}
+
+# Intent-type-specific weight profiles
+_VECTOR_WEIGHTS_BY_INTENT = {
+    # "What is X?" / "List all Y" → identity-heavy
+    "search": {"intent": 0.30, "identity": 0.45, "relationship": 0.15, "status": 0.10, "convergence": 0.20},
+    # "Create / update / delete" → identity-heavy (finding the target)
+    "create": {"intent": 0.20, "identity": 0.50, "relationship": 0.20, "status": 0.10, "convergence": 0.10},
+    "update": {"intent": 0.20, "identity": 0.50, "relationship": 0.20, "status": 0.10, "convergence": 0.10},
+    "delete": {"intent": 0.20, "identity": 0.50, "relationship": 0.20, "status": 0.10, "convergence": 0.10},
+    # "What should we focus on?" / "Prepare for call" → intent-heavy
+    "discuss": {"intent": 0.45, "identity": 0.25, "relationship": 0.20, "status": 0.10, "convergence": 0.30},
+    "plan": {"intent": 0.45, "identity": 0.15, "relationship": 0.25, "status": 0.15, "convergence": 0.45},
+    # "What depends on what?" / "How does X connect?" → relationship-heavy
+    "review": {"intent": 0.25, "identity": 0.20, "relationship": 0.40, "status": 0.15, "convergence": 0.40},
+    # "Update the flow" → balanced
+    "flow": {"intent": 0.35, "identity": 0.30, "relationship": 0.25, "status": 0.10, "convergence": 0.30},
+    # "Share with client" → status-heavy (what's confirmed?)
+    "collaborate": {"intent": 0.25, "identity": 0.25, "relationship": 0.15, "status": 0.35, "convergence": 0.35},
+}
+
+
+def _get_vector_weights(intent_type: str | None = None) -> dict[str, float]:
+    """Get vector weights tuned for the query intent type."""
+    if intent_type and intent_type in _VECTOR_WEIGHTS_BY_INTENT:
+        return _VECTOR_WEIGHTS_BY_INTENT[intent_type]
+    return _VECTOR_WEIGHTS_DEFAULT
+
+
+async def _search_entities_multivector(
+    queries: list[str],
+    project_id: str,
+    entity_types: list[str] | None = None,
+    include_convergence: bool = False,
+    intent_type: str | None = None,
+) -> list[dict]:
+    """Search entity_vectors across all 4 vector types in parallel, merge by entity_id.
+
+    Runs 4 parallel RPC calls (one per vector_type), merges results by entity_id
+    with weighted scoring (intent=0.4, identity=0.3, relationship=0.2, status=0.1).
+    Falls back to legacy _search_entities() on any error.
+    """
+    from app.db.supabase_client import get_supabase
+
+    try:
+        from app.core.embeddings import embed_texts_async
+        embeddings = await embed_texts_async(queries[:2])
+    except Exception:
+        return await _search_entities(queries, project_id, entity_types)
+
+    if not embeddings:
+        return await _search_entities(queries, project_id, entity_types)
+
+    sb = get_supabase()
+    vector_types = ["identity", "intent", "relationship", "status"]
+    if include_convergence:
+        vector_types.append("convergence")
+
+    # Run parallel searches per query embedding
+    all_tasks = []
+    for embedding in embeddings:
+        for vtype in vector_types:
+            async def _search_one(emb=embedding, vt=vtype):
+                try:
+                    params: dict[str, Any] = {
+                        "query_embedding": emb,
+                        "match_count": 8,
+                        "filter_project_id": project_id,
+                        "filter_vector_type": vt,
+                    }
+                    if entity_types:
+                        params["filter_entity_types"] = entity_types
+                    result = await asyncio.to_thread(
+                        lambda: sb.rpc("match_entity_vectors", params).execute()
+                    )
+                    return vt, result.data or []
+                except Exception as e:
+                    logger.debug(f"Multi-vector search failed for {vt}: {e}")
+                    return vt, []
+
+            all_tasks.append(_search_one())
+
+    results = await asyncio.gather(*all_tasks, return_exceptions=True)
+
+    # Reciprocal Rank Fusion (RRF) with intent-weighted boost
+    # RRF score = sum( weight_i / (k + rank_in_list_i) ) across vector types
+    # This handles heterogeneous rankings far better than weighted similarity sums
+    _RRF_K = 60  # Standard RRF constant
+
+    weights = _get_vector_weights(intent_type)
+
+    # Build ranked lists per vector type
+    ranked_lists: dict[str, list[str]] = {}  # vtype → [entity_ids in rank order]
+    entity_meta: dict[str, dict] = {}  # entity_id → {entity_type, best_sim, best_vector}
+
+    for result in results:
+        if isinstance(result, Exception):
+            continue
+        vtype, rows = result
+        # Sort by similarity descending (they should already be sorted, but ensure)
+        sorted_rows = sorted(rows, key=lambda r: float(r.get("similarity", 0)), reverse=True)
+        ranked_lists[vtype] = []
+
+        for row in sorted_rows:
+            eid = row.get("entity_id", "")
+            sim = float(row.get("similarity", 0))
+            ranked_lists[vtype].append(eid)
+
+            if eid not in entity_meta:
+                entity_meta[eid] = {
+                    "entity_id": eid,
+                    "entity_type": row.get("entity_type", ""),
+                    "entity_name": "",
+                    "similarity": sim,
+                    "best_vector": vtype,
+                    "vector_hits": {},
+                }
+            entity_meta[eid]["vector_hits"][vtype] = round(sim, 4)
+            if sim > entity_meta[eid]["similarity"]:
+                entity_meta[eid]["similarity"] = sim
+                entity_meta[eid]["best_vector"] = vtype
+
+    if not entity_meta:
+        return await _search_entities(queries, project_id, entity_types)
+
+    # Compute RRF scores
+    rrf_scores: dict[str, float] = {}
+    for vtype, ranked_eids in ranked_lists.items():
+        w = weights.get(vtype, 0.1)
+        for rank, eid in enumerate(ranked_eids):
+            rrf_score = w / (_RRF_K + rank + 1)
+            rrf_scores[eid] = rrf_scores.get(eid, 0.0) + rrf_score
+
+    # Merge RRF score into entity_meta
+    for eid, score in rrf_scores.items():
+        if eid in entity_meta:
+            entity_meta[eid]["weighted_score"] = round(score, 6)
+
+    # Sort by RRF score descending, return top 10
+    ranked = sorted(entity_meta.values(), key=lambda x: x.get("weighted_score", 0), reverse=True)
+    return ranked[:10]
+
+
 async def _search_beliefs(
     queries: list[str],
     project_id: str,
@@ -308,6 +460,45 @@ async def _search_beliefs(
     return list(beliefs.values())
 
 
+async def _search_outcomes(
+    queries: list[str],
+    project_id: str,
+) -> list[dict]:
+    """Search for relevant outcomes via match_outcomes RPC."""
+    from app.db.supabase_client import get_supabase
+
+    sb = get_supabase()
+    outcomes: dict[str, dict] = {}
+
+    try:
+        from app.core.embeddings import embed_texts_async
+        embeddings = await embed_texts_async(queries[:2])
+
+        for embedding in embeddings:
+            try:
+                result = sb.rpc("match_outcomes", {
+                    "query_embedding": embedding,
+                    "match_count": 5,
+                    "filter_project_id": project_id,
+                }).execute()
+
+                for outcome in result.data or []:
+                    oid = outcome.get("outcome_id", "")
+                    existing = outcomes.get(oid)
+                    if not existing or outcome.get("similarity", 0) > existing.get("similarity", 0):
+                        outcome["result_type"] = "outcome"
+                        outcomes[oid] = outcome
+
+            except Exception as e:
+                logger.debug(f"Outcome search failed: {e}")
+                break
+
+    except Exception:
+        pass
+
+    return list(outcomes.values())
+
+
 async def parallel_retrieve(
     queries: list[str],
     project_id: str,
@@ -316,27 +507,56 @@ async def parallel_retrieve(
     include_beliefs: bool = True,
     entity_types: list[str] | None = None,
     meta_filters: dict | None = None,
+    include_convergence: bool = False,
 ) -> RetrievalResult:
     """Fan out three retrieval strategies in parallel."""
     tasks = [_search_chunks(queries, project_id, chunks_per_query, meta_filters)]
 
     if include_entities:
-        tasks.append(_search_entities(queries, project_id, entity_types))
+        # Use multi-vector search when enabled, with fallback
+        try:
+            from app.core.config import Settings
+            use_multivector = Settings().USE_MULTI_VECTOR
+        except Exception:
+            use_multivector = False
+
+        if use_multivector:
+            tasks.append(_search_entities_multivector(
+                queries, project_id, entity_types,
+                include_convergence=include_convergence,
+            ))
+        else:
+            tasks.append(_search_entities(queries, project_id, entity_types))
     if include_beliefs:
         tasks.append(_search_beliefs(queries, project_id))
+
+    # Always search outcomes (cheap, high value)
+    tasks.append(_search_outcomes(queries, project_id))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     chunks = results[0] if not isinstance(results[0], Exception) else []
     entities = []
     beliefs = []
+    outcomes = []
+    links = []
 
     idx = 1
     if include_entities:
-        entities = results[idx] if not isinstance(results[idx], Exception) else []
+        raw_entities = results[idx] if not isinstance(results[idx], Exception) else []
+        # Separate links from entities (multi-vector search returns both)
+        for e in raw_entities:
+            if e.get("entity_type") == "link":
+                links.append(e)
+            else:
+                entities.append(e)
         idx += 1
     if include_beliefs:
         beliefs = results[idx] if not isinstance(results[idx], Exception) else []
+        idx += 1
+
+    # Outcomes (always last task)
+    outcomes = results[idx] if not isinstance(results[idx], Exception) else []
 
     # If entity search returned nothing, try reverse provenance from chunks
     if not entities and include_entities and chunks:
@@ -349,6 +569,8 @@ async def parallel_retrieve(
         chunks=chunks,
         entities=entities,
         beliefs=beliefs,
+        outcomes=outcomes,
+        links=links,
         source_queries=queries,
     )
 
@@ -368,6 +590,7 @@ async def _expand_via_graph(
     graph_depth: int = 1,
     apply_recency: bool = False,
     apply_confidence: bool = False,
+    query_embedding: list[float] | None = None,
 ) -> RetrievalResult:
     """Expand retrieval results with graph neighbors from top entities.
 
@@ -430,14 +653,50 @@ async def _expand_via_graph(
         graph_entities_added = 0
         graph_chunks_added = 0
 
+        # If we have a query embedding, score link relevance to filter neighbors
+        link_relevance: dict[str, float] = {}
+        if query_embedding:
+            try:
+                from app.db.supabase_client import get_supabase as _get_sb
+                from app.core.embeddings import cosine_similarity
+
+                _sb = _get_sb()
+                # Get link embeddings for this project
+                link_evs = (
+                    _sb.table("entity_vectors")
+                    .select("entity_id, embedding")
+                    .eq("project_id", project_id)
+                    .eq("entity_type", "link")
+                    .eq("vector_type", "identity")
+                    .execute()
+                )
+                for lev in (link_evs.data or []):
+                    sim = cosine_similarity(query_embedding, lev["embedding"])
+                    link_relevance[lev["entity_id"]] = sim
+            except Exception:
+                pass  # No link embeddings available, skip relevance scoring
+
         for nbr in neighborhoods:
             if isinstance(nbr, Exception):
                 continue
 
-            # Merge related entities
-            for rel in nbr.get("related", []):
+            # Score and sort related entities by link relevance when available
+            related = nbr.get("related", [])
+            if link_relevance:
+                for rel in related:
+                    # Check if this relationship has a link embedding and score it
+                    dep_id = rel.get("dependency_id", "")
+                    rel["link_relevance"] = link_relevance.get(dep_id, 0.5)
+                # Sort by link relevance descending
+                related = sorted(related, key=lambda r: r.get("link_relevance", 0), reverse=True)
+
+            # Merge related entities (filtered by relevance)
+            for rel in related:
                 if graph_entities_added >= _GRAPH_MAX_TOTAL:
                     break
+                # Skip low-relevance neighbors when link data is available
+                if link_relevance and rel.get("link_relevance", 0.5) < 0.15:
+                    continue
                 rel_id = rel.get("entity_id", "")
                 if rel_id and rel_id not in existing_entity_ids:
                     rel["source"] = "graph_expansion"

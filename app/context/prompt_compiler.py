@@ -406,6 +406,7 @@ def compile_prompt(
     warm_memory: str = "",
     forge_state: dict | None = None,
     next_actions: list[str] | None = None,
+    project_id: str | None = None,
 ) -> CompiledPrompt:
     """Compile a full prompt from cognitive frame + project state.
 
@@ -542,6 +543,11 @@ def compile_prompt(
         if forge_block:
             dynamic_sections.append(forge_block)
 
+    # Outcome intelligence (~0-300t, conditional)
+    outcome_block = _build_outcome_context(project_id)
+    if outcome_block:
+        dynamic_sections.append(outcome_block)
+
     # Retrieval evidence (fills remaining budget, ~500-1500t)
     if retrieval_context:
         dynamic_sections.append(
@@ -560,3 +566,57 @@ def compile_prompt(
         retrieval_plan=compile_retrieval_plan(frame),
         active_frame=frame.label,
     )
+
+
+def _build_outcome_context(project_id: str | None) -> str:
+    """Build outcome intelligence for the dynamic prompt block.
+
+    Includes: confirmed outcomes, weak outcomes with sharpen prompts,
+    and intelligence coverage gaps. Returns empty string if no outcomes.
+    """
+    if not project_id:
+        return ""
+
+    try:
+        from uuid import UUID
+        from app.db.outcomes import list_outcomes, get_outcome_coverage
+
+        outcomes = list_outcomes(UUID(project_id))
+        if not outcomes:
+            return ""
+
+        lines = ["# Outcome Intelligence"]
+
+        # Confirmed outcomes (what we're solving for)
+        confirmed = [o for o in outcomes if o.get("status") in ("confirmed", "validated")]
+        if confirmed:
+            lines.append(f"\n{len(confirmed)} confirmed outcomes:")
+            for o in confirmed:
+                lines.append(f"- [{o.get('horizon', 'h1').upper()}] {o['title']} (strength: {o.get('strength_score', 0)})")
+
+        # Weak outcomes needing sharpen
+        weak = [o for o in outcomes if o.get("strength_score", 0) < 70]
+        if weak:
+            lines.append(f"\nOutcomes needing sharpening ({len(weak)}):")
+            for o in weak:
+                dims = o.get("strength_dimensions", {})
+                weakest = min(dims, key=lambda k: dims.get(k, 0)) if dims else "unknown"
+                lines.append(f"- {o['title'][:60]} — weakest: {weakest} ({o.get('strength_score', 0)}/100)")
+
+        # Intelligence coverage gaps
+        try:
+            coverage = get_outcome_coverage(UUID(project_id))
+            gaps = [g for c in coverage.values() for g in c.get("gaps", [])]
+            if gaps:
+                lines.append(f"\nIntelligence gaps ({len(gaps)}):")
+                for g in gaps[:5]:
+                    lines.append(f"- {g}")
+        except Exception:
+            pass
+
+        return "\n".join(lines) if len(lines) > 1 else ""
+
+    except ImportError:
+        return ""
+    except Exception:
+        return ""

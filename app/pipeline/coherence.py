@@ -33,6 +33,7 @@ COHERENCE_TOOL = {
         "type": "object",
         "required": [
             "app_name",
+            "nav_style",
             "theme",
             "nav_sections",
             "design_direction",
@@ -46,31 +47,41 @@ COHERENCE_TOOL = {
                 "type": "string",
                 "description": "Short app name for branding (e.g. 'PersonaPulse')",
             },
+            "nav_style": {
+                "type": "string",
+                "enum": ["sidebar-dark", "sidebar-light", "topnav", "icon-sidebar", "minimal"],
+                "description": "Navigation style based on style_direction and product type.",
+            },
             "theme": {
                 "type": "object",
                 "description": "Visual theme decisions",
                 "properties": {
-                    "sidebar_bg": {
+                    "nav_bg": {
                         "type": "string",
-                        "description": "Tailwind bg class for sidebar (e.g. 'bg-slate-900')",
+                        "description": "Tailwind bg class for nav area",
                     },
-                    "sidebar_text": {
+                    "nav_text": {
                         "type": "string",
-                        "description": (
-                            "Tailwind text class for sidebar text (e.g. 'text-slate-300')"
-                        ),
+                        "description": "Tailwind text class for nav text",
                     },
-                    "sidebar_active_bg": {
+                    "nav_active": {
                         "type": "string",
-                        "description": "Active nav item style (e.g. 'bg-primary/10 text-primary')",
+                        "description": "Active nav item style classes",
                     },
                     "content_bg": {
                         "type": "string",
-                        "description": "Tailwind bg class for content area (e.g. 'bg-gray-50')",
+                        "enum": [
+                            "bg-white",
+                            "bg-gray-50",
+                            "bg-slate-50",
+                            "bg-zinc-50",
+                            "bg-neutral-50",
+                        ],
+                        "description": "Tailwind bg class for content area. MUST be light.",
                     },
                     "accent_usage": {
                         "type": "string",
-                        "description": "How to use the primary/accent colors throughout the app",
+                        "description": "How to apply primary/accent colors",
                     },
                 },
             },
@@ -130,6 +141,10 @@ COHERENCE_TOOL = {
                                             "detail",
                                             "settings",
                                             "landing",
+                                            "kanban",
+                                            "map",
+                                            "timeline",
+                                            "monitoring",
                                         ],
                                         "description": "Page layout pattern",
                                     },
@@ -336,9 +351,11 @@ the solution flow. Think like a senior product designer at a top design studio.
 
 ## CRITICAL DESIGN RULES
 
-1. **TARGET 5-8 SCREENS.** Group related solution flow steps and features into logical screens. \
-A "Dashboard" screen combines metrics from multiple steps. An "Onboarding" screen merges \
-several entry-phase steps into a wizard. NEVER create 1 screen per solution flow step.
+1. **TARGET 5-8 SCREENS.** Start from solution flow steps — each step suggests a screen. \
+Merge closely related steps into one screen (e.g. two entry-phase steps → one Onboarding wizard). \
+The step's implied_pattern tells you the layout type. The step's feel_description tells you the \
+aesthetic. Features are COMPONENTS within step-driven screens, not independent screens. \
+Don't ignore the flow architecture to re-invent screens from scratch.
 
 1b. **MAX 5 COMPONENTS PER SCREEN.** Combine related features into single component sections \
 (e.g. one tabs or card_grid covering multiple features). More than 5 causes builder failures.
@@ -346,21 +363,38 @@ several entry-phase steps into a wizard. NEVER create 1 screen per solution flow
 2. **SHORT NAV LABELS.** 1-2 words max. "Dashboard" not "Comprehensive Analytics Dashboard". \
 "Listeners" not "Listener Profile & Discovery Hub". "Content" not "Content Strategy Management".
 
-3. **SECTION GROUPING.** Group nav items under 2-4 section headers in ALL CAPS. \
-E.g. "MAIN" (Dashboard, Home), "CONTENT" (Episodes, Library), "INSIGHTS" (Analytics, Reports), \
-"MANAGE" (Settings, Team).
+3. **SECTION GROUPING.** Group nav items under 2-4 section headers. \
+Derive section names from the solution flow phases and domain language: entry → "GET STARTED", \
+core_experience → domain-specific name (e.g. "STUDIO", "OPERATIONS"), output → "INSIGHTS", \
+admin → "MANAGE". Use ALL CAPS for sidebar styles, Title Case for topnav. \
+Don't always use generic names like "MAIN" — use the project's vocabulary.
 
-4. **DARK SIDEBAR.** Always use a dark sidebar (bg-slate-900 or darker) with light text. \
-This creates a professional SaaS feel. The content area should be light (bg-gray-50).
+4. **NAVIGATION STYLE.** Choose the nav_style that best fits the product's personality \
+and style_direction. If a recommended_nav_style is provided, prefer it unless the product \
+clearly demands otherwise. Options:
+   - "sidebar-dark": Dark sidebar (bg-slate-900) — enterprise SaaS, data-heavy, analytics tools
+   - "sidebar-light": Light sidebar (white/gray, border-r) — modern, approachable, creative tools
+   - "topnav": Horizontal top navigation bar — content platforms, marketing tools, simpler apps
+   - "icon-sidebar": Narrow icon-only rail (w-16) with tooltips — dense tools, maximized content
+   - "minimal": No persistent nav, hamburger or bottom bar — mobile-first, consumer apps
+   Read the style_direction and feel_description to decide. When in doubt, "sidebar-dark" for B2B, \
+   "sidebar-light" for creative/modern, "topnav" for B2C.
 
-5. **DIVERSE COMPONENTS.** Each screen should have a different feel:
-   - Dashboard → metric_grid + chart + activity_feed
-   - Content/Library → data_table or card_grid with filters
-   - Onboarding → wizard_stepper or form with progress
-   - Analytics → chart + metric_grid + tabs
-   - Settings → settings_form with sections
-   - Detail → split layout with sidebar info + main content
-   - AI features → chat_interface or card_grid with AI indicators
+4b. **CONTENT BACKGROUND MUST BE LIGHT.** The content_bg in your theme MUST be one of: \
+bg-white, bg-gray-50, bg-slate-50, bg-zinc-50, bg-neutral-50. Dark backgrounds are ONLY \
+for sidebar navigation. Forms, tables, and cards on dark backgrounds are invisible and broken.
+
+5. **DIVERSE COMPONENTS.** Each screen should have a different feel. Use the step's \
+implied_pattern as a starting point:
+   - dashboard → metric_grid + chart + activity_feed
+   - table → data_table with search/filters + stat_row summary
+   - form/wizard → wizard_stepper or form with progress + validation
+   - kanban → kanban board with columns + draggable cards
+   - timeline → timeline with milestones + status indicators
+   - map → map_view or spatial visualization + detail panel
+   - monitoring → metric_grid + chart + activity_feed with real-time indicators
+   - AI-powered steps → chat_interface OR card_grid with AI agent card, confidence indicators, \
+     and automation badges. Show the agent_name as a visible brand element.
 
 6. **BRAND APPLICATION.** Use the primary color aggressively: active nav items, CTA buttons, \
 chart accents, metric trend indicators, card borders on hover. Don't leave everything gray.
@@ -375,6 +409,21 @@ Every table has search. Every card is clickable. Specify these in component guid
 9. **SHARED DATA.** Provide canonical mock data in shared_data: metric values, sample items, \
 user names, and status options. Builders will use these exact values so cross-page references \
 are consistent (e.g. if Dashboard shows "3 pending drafts", the Content page shows 3 draft items).
+
+10. **AI AGENT VISIBILITY.** When a solution flow step has ai_config, its screen MUST showcase \
+the AI. Include at least one of: a chat_interface for conversational agents, an agent identity \
+card showing the agent_name and automation_estimate, a confidence/accuracy metric, or an \
+activity_feed of AI decisions. Use the agent_name as a branded element (e.g. "Market Sizer" as \
+a card title). Show behaviors as capability list items. Show automation_estimate as a percentage \
+badge. Human_touchpoints become "Review Required" callouts.
+
+11. **ANTI-PATTERNS (NEVER do these):**
+- Dark content backgrounds (bg-slate-800, bg-gray-900 on content area)
+- Monochrome pages where everything is the same shade of gray
+- Cards without shadow or border (float in space)
+- Invisible form inputs (inputs that blend into the background)
+- Missing hover states on interactive elements
+- Gray-on-gray text with insufficient contrast
 
 ## COMPONENT TYPES
 
@@ -447,6 +496,10 @@ def _format_context(
         lines.append(f"Body font: {t.font_body}")
         if payload.design_contract.style_direction:
             lines.append(f"Style: {payload.design_contract.style_direction}")
+        if payload.design_contract.recommended_nav_style:
+            lines.append(
+                f"Recommended nav style: {payload.design_contract.recommended_nav_style}"
+            )
         lines.append("")
 
     # Personas
@@ -474,21 +527,42 @@ def _format_context(
         )
     lines.append("")
 
-    # Solution flow — concise to reduce token count
+    # Solution flow — rich data for screen architecture
     lines.append(f"## Solution Flow ({len(payload.solution_flow_steps)} steps)")
     for s in payload.solution_flow_steps:
-        annotations = []
-        if s.ai_config:
-            role = s.ai_config.get("role", "AI") if isinstance(s.ai_config, dict) else "AI"
-            annotations.append(f"AI:{role}")
+        lines.append(f"### [{s.phase}] {s.title}")
+        lines.append(f"Goal: {s.goal[:150]}")
+        if s.story_headline:
+            lines.append(f"Story: {s.story_headline}")
         if s.implied_pattern:
-            annotations.append(s.implied_pattern)
+            lines.append(f"Pattern: {s.implied_pattern}")
+        if s.feel_description:
+            lines.append(f"Feel: {s.feel_description}")
+        if s.user_actions:
+            lines.append(f"Actions: {'; '.join(s.user_actions[:5])}")
+        if s.human_value_statement:
+            lines.append(f"Value: {s.human_value_statement}")
+        if s.how_it_works:
+            lines.append(f"Narrative: {s.how_it_works[:200]}")
+        if s.ai_config and isinstance(s.ai_config, dict):
+            agent_name = s.ai_config.get("agent_name", "")
+            agent_type = s.ai_config.get("agent_type", "")
+            role = s.ai_config.get("role", "")
+            behaviors = s.ai_config.get("behaviors", [])[:3]
+            automation = s.ai_config.get("automation_estimate")
+            lines.append(f"AI Agent: {agent_name} ({agent_type}) — {role}")
+            if behaviors:
+                lines.append(f"  Behaviors: {'; '.join(behaviors)}")
+            if automation:
+                lines.append(f"  Automation: {automation}%")
+        if s.information_fields:
+            field_names = [
+                f.get("name", "") for f in s.information_fields[:6] if isinstance(f, dict)
+            ]
+            lines.append(f"Fields: {', '.join(field_names)}")
         if s.linked_feature_ids:
-            annotations.append(f"{len(s.linked_feature_ids)}F")
-
-        ann_str = f" [{', '.join(annotations)}]" if annotations else ""
-        lines.append(f"- [{s.phase}] **{s.title}**: {s.goal[:100]}{ann_str}")
-    lines.append("")
+            lines.append(f"Features: {len(s.linked_feature_ids)} linked")
+        lines.append("")
 
     # Epic plan — concise
     epics = prebuild.epic_plan.get("vision_epics", []) if prebuild.epic_plan else []
@@ -553,6 +627,27 @@ def _fix_string_encoded_fields(plan: dict) -> dict:
                 )
             except (json.JSONDecodeError, ValueError):
                 logger.warning(f"Could not parse string field '{key}' ({len(val)} chars)")
+
+    # Fix nav_sections items that are list-wrapped dicts.
+    # The model sometimes returns [{...}] instead of {...} for a section.
+    sections = plan.get("nav_sections", [])
+    if isinstance(sections, list):
+        fixed_sections = []
+        for s in sections:
+            if isinstance(s, list):
+                # Unwrap list-wrapped sections
+                for item in s:
+                    if isinstance(item, dict):
+                        fixed_sections.append(item)
+                logger.info(f"Unwrapped list-wrapped nav_section ({len(s)} items)")
+            elif isinstance(s, dict):
+                fixed_sections.append(s)
+        if len(fixed_sections) != len(sections):
+            plan["nav_sections"] = fixed_sections
+            logger.info(
+                f"Fixed nav_sections: {len(sections)} → {len(fixed_sections)} sections"
+            )
+
     return plan
 
 

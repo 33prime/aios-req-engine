@@ -38,6 +38,7 @@ def stitch_scaffold(
     prebuild: Any,
     project_plan: dict[str, Any],
     pages: list[dict],
+    ai_demos: list[dict] | None = None,
 ) -> dict[str, str]:
     """Build the complete file tree from scaffold + plan + pages.
 
@@ -46,6 +47,7 @@ def stitch_scaffold(
         prebuild: Prebuild intelligence (not used directly here)
         project_plan: Coherence agent's project plan
         pages: List of {route, component_name, tsx} from Haiku builders
+        ai_demos: List of {agent_slug, component_name, tsx} from AI demo builders
 
     Returns:
         dict of filename → content
@@ -106,6 +108,13 @@ def stitch_scaffold(
         if component_name and tsx:
             files[f"src/pages/{component_name}.tsx"] = tsx
 
+    # ── AI panel component files ──
+    for ai_panel in ai_demos or []:
+        component_name = ai_panel.get("component_name", "")
+        tsx = ai_panel.get("tsx", "")
+        if component_name and tsx:
+            files[f"src/components/ai/{component_name}.tsx"] = tsx
+
     # ── Fallback pages for routes with no builder output ──
     built_routes = {p.get("route") for p in pages}
     for section in project_plan.get("nav_sections", []):
@@ -129,34 +138,67 @@ def stitch_scaffold(
 
 
 def _generate_layout(project_plan: dict, payload: PrototypePayload) -> str:
-    """Generate Layout.tsx with sidebar navigation from the coherence plan."""
+    """Generate Layout.tsx with navigation from the coherence plan.
+
+    Dispatches to a nav-style-specific renderer based on the plan's nav_style.
+    """
+    nav_style = project_plan.get("nav_style", "sidebar-dark")
+    renderer = {
+        "sidebar-dark": _render_sidebar_dark,
+        "sidebar-light": _render_sidebar_light,
+        "topnav": _render_topnav,
+        "icon-sidebar": _render_icon_sidebar,
+        "minimal": _render_minimal,
+    }.get(nav_style, _render_sidebar_dark)
+    return renderer(project_plan, payload)
+
+
+# -- Shared nav data helper --------------------------------------------------
+
+
+def _build_nav_data(
+    project_plan: dict, payload: PrototypePayload
+) -> dict[str, Any]:
+    """Extract common nav data used by all renderers."""
     theme = project_plan.get("theme", {})
     nav_sections = project_plan.get("nav_sections", [])
     app_name = project_plan.get("app_name", payload.project_name or "Prototype")
 
-    sidebar_bg = theme.get("sidebar_bg", "bg-slate-900")
-    sidebar_text = theme.get("sidebar_text", "text-slate-300")
-    sidebar_active = theme.get("sidebar_active_bg", "bg-primary/10 text-primary font-medium")
+    # Read theme with backward-compatible fallbacks
+    nav_bg = theme.get("nav_bg") or theme.get("sidebar_bg", "bg-slate-900")
+    nav_text = theme.get("nav_text") or theme.get("sidebar_text", "text-slate-300")
+    nav_active = (
+        theme.get("nav_active")
+        or theme.get("sidebar_active_bg", "bg-primary/10 text-primary font-medium")
+    )
     content_bg = theme.get("content_bg", "bg-gray-50")
+    # Hard fallback: content area MUST be light
+    _ALLOWED_CONTENT_BG = {
+        "bg-white",
+        "bg-gray-50",
+        "bg-slate-50",
+        "bg-zinc-50",
+        "bg-neutral-50",
+    }
+    if content_bg not in _ALLOWED_CONTENT_BG:
+        content_bg = "bg-gray-50"
 
-    # Build nav sections data
+    # Build sections data
     sections_data = []
+    flat_items = []
     for section in nav_sections:
+        if not isinstance(section, dict):
+            continue
         items = []
         for screen in section.get("screens", []):
-            items.append(
-                {
-                    "route": screen["route"],
-                    "label": screen.get("nav_label", screen.get("page_title", "")),
-                    "icon": screen.get("icon", "Circle"),
-                }
-            )
-        sections_data.append(
-            {
-                "label": section.get("label", ""),
-                "items": items,
+            item = {
+                "route": screen["route"],
+                "label": screen.get("nav_label", screen.get("page_title", "")),
+                "icon": screen.get("icon", "Circle"),
             }
-        )
+            items.append(item)
+            flat_items.append(item)
+        sections_data.append({"label": section.get("label", ""), "items": items})
 
     # Serialize nav sections as TypeScript
     nav_ts_items = []
@@ -170,31 +212,63 @@ def _generate_layout(project_plan: dict, payload: PrototypePayload) -> str:
             )
         items_joined = ",\n".join(items_ts)
         nav_ts_items.append(
-            f"  {{\n    label: '{section['label']}',\n    items: [\n{items_joined},\n    ],\n  }}"
+            f"  {{\n    label: '{section['label']}',\n"
+            f"    items: [\n{items_joined},\n    ],\n  }}"
         )
-
     nav_ts = "[\n" + ",\n".join(nav_ts_items) + ",\n]"
+
+    # Flat items TS (for topnav / icon-sidebar)
+    flat_ts_items = []
+    for item in flat_items:
+        flat_ts_items.append(
+            f"  {{ route: '{item['route']}', "
+            f"label: '{item['label']}', "
+            f"icon: '{item['icon']}' }}"
+        )
+    flat_items_ts = "[\n" + ",\n".join(flat_ts_items) + ",\n]"
 
     # Primary persona for user menu
     persona = payload.personas[0] if payload.personas else None
     user_name = persona.name if persona else "Demo User"
     user_role = persona.role if persona else "User"
-    user_initials = "".join(w[0].upper() for w in user_name.split()[:2]) if user_name else "DU"
+    user_initials = (
+        "".join(w[0].upper() for w in user_name.split()[:2]) if user_name else "DU"
+    )
 
+    return {
+        "app_name": app_name,
+        "nav_bg": nav_bg,
+        "nav_text": nav_text,
+        "nav_active": nav_active,
+        "content_bg": content_bg,
+        "sections_data": sections_data,
+        "nav_ts": nav_ts,
+        "flat_items_ts": flat_items_ts,
+        "user_name": user_name,
+        "user_role": user_role,
+        "user_initials": user_initials,
+    }
+
+
+# -- Sidebar Dark (default) --------------------------------------------------
+
+
+def _render_sidebar_dark(project_plan: dict, payload: PrototypePayload) -> str:
+    d = _build_nav_data(project_plan, payload)
     return f"""\
 import {{ NavLink, Outlet }} from 'react-router-dom'
 import {{ LucideIcon, Avatar }} from '@/components/ui'
 
-const NAV_SECTIONS = {nav_ts}
+const NAV_SECTIONS = {d["nav_ts"]}
 
 export default function Layout() {{
   return (
     <div className="flex h-screen">
       {{/* Sidebar */}}
-      <nav className="w-64 {sidebar_bg} {sidebar_text} flex flex-col shrink-0">
+      <nav className="w-64 {d["nav_bg"]} {d["nav_text"]} flex flex-col shrink-0">
         {{/* Logo */}}
         <div className="px-6 py-5 border-b border-white/10">
-          <h1 className="font-heading font-bold text-white text-lg">{app_name}</h1>
+          <h1 className="font-heading font-bold text-white text-lg">{d["app_name"]}</h1>
         </div>
 
         {{/* Nav sections */}}
@@ -212,8 +286,8 @@ export default function Layout() {{
                   className={{({{ isActive }}) =>
                     `flex items-center gap-3 px-6 py-2 text-sm transition-colors ${{
                       isActive
-                        ? '{sidebar_active} border-r-2 border-primary'
-                        : 'hover:bg-white/5 {sidebar_text}'
+                        ? '{d["nav_active"]} border-r-2 border-primary'
+                        : 'hover:bg-white/5 {d["nav_text"]}'
                     }}`
                   }}
                 >
@@ -227,17 +301,294 @@ export default function Layout() {{
 
         {{/* User menu */}}
         <div className="px-6 py-4 border-t border-white/10 flex items-center gap-3">
-          <Avatar initials="{user_initials}" name="{user_name}" size="sm" />
+          <Avatar initials="{d["user_initials"]}" name="{d["user_name"]}" size="sm" />
           <div>
-            <p className="text-sm font-medium text-white">{user_name}</p>
-            <p className="text-xs text-slate-500">{user_role}</p>
+            <p className="text-sm font-medium text-white">{d["user_name"]}</p>
+            <p className="text-xs text-slate-500">{d["user_role"]}</p>
           </div>
         </div>
       </nav>
 
       {{/* Content */}}
-      <main className="flex-1 overflow-y-auto {content_bg}">
+      <main className="flex-1 overflow-y-auto {d["content_bg"]}">
         <div className="p-8 animate-page-enter">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  )
+}}
+"""
+
+
+# -- Sidebar Light ------------------------------------------------------------
+
+
+def _render_sidebar_light(project_plan: dict, payload: PrototypePayload) -> str:
+    d = _build_nav_data(project_plan, payload)
+    # Override defaults for light sidebar
+    light_bg_default = "bg-white border-r border-gray-200"
+    light_active_default = "bg-primary/10 text-primary font-medium"
+    nav_bg = (
+        d["nav_bg"]
+        if "white" in d["nav_bg"] or "gray" in d["nav_bg"]
+        else light_bg_default
+    )
+    nav_text = d["nav_text"] if "gray" in d["nav_text"] else "text-gray-600"
+    nav_active = (
+        d["nav_active"] if "primary" in d["nav_active"] else light_active_default
+    )
+
+    return f"""\
+import {{ NavLink, Outlet }} from 'react-router-dom'
+import {{ LucideIcon, Avatar }} from '@/components/ui'
+
+const NAV_SECTIONS = {d["nav_ts"]}
+
+export default function Layout() {{
+  return (
+    <div className="flex h-screen">
+      {{/* Sidebar */}}
+      <nav className="w-64 {nav_bg} {nav_text} flex flex-col shrink-0">
+        {{/* Logo */}}
+        <div className="px-6 py-5 border-b border-gray-100">
+          <h1 className="font-heading font-bold text-gray-900 text-lg">{d["app_name"]}</h1>
+        </div>
+
+        {{/* Nav sections */}}
+        <div className="flex-1 overflow-y-auto py-4">
+          {{NAV_SECTIONS.map((section) => (
+            <div key={{section.label}} className="mb-6">
+              <h3 className={{"px-6 text-[11px] font-semibold " +
+                "text-gray-400 uppercase tracking-wider mb-2"}}>
+                {{section.label}}
+              </h3>
+              {{section.items.map((item) => (
+                <NavLink
+                  key={{item.route}}
+                  to={{item.route}}
+                  className={{({{ isActive }}) =>
+                    `flex items-center gap-3 px-6 py-2 text-sm transition-colors ${{
+                      isActive
+                        ? '{nav_active} border-r-2 border-primary'
+                        : 'hover:bg-gray-50 {nav_text}'
+                    }}`
+                  }}
+                >
+                  <LucideIcon name={{item.icon}} size={{18}} />
+                  {{item.label}}
+                </NavLink>
+              ))}}
+            </div>
+          ))}}
+        </div>
+
+        {{/* User menu */}}
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center gap-3">
+          <Avatar initials="{d["user_initials"]}" name="{d["user_name"]}" size="sm" />
+          <div>
+            <p className="text-sm font-medium text-gray-900">{d["user_name"]}</p>
+            <p className="text-xs text-gray-500">{d["user_role"]}</p>
+          </div>
+        </div>
+      </nav>
+
+      {{/* Content */}}
+      <main className="flex-1 overflow-y-auto {d["content_bg"]}">
+        <div className="p-8 animate-page-enter">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  )
+}}
+"""
+
+
+# -- Top Navigation -----------------------------------------------------------
+
+
+def _render_topnav(project_plan: dict, payload: PrototypePayload) -> str:
+    d = _build_nav_data(project_plan, payload)
+    nav_bg = d["nav_bg"] if "white" in d["nav_bg"] or "slate" in d["nav_bg"] else "bg-white"
+    border = "border-b border-gray-200"
+
+    return f"""\
+import {{ NavLink, Outlet }} from 'react-router-dom'
+import {{ LucideIcon, Avatar }} from '@/components/ui'
+
+const NAV_ITEMS = {d["flat_items_ts"]}
+
+export default function Layout() {{
+  return (
+    <div className="flex flex-col h-screen">
+      {{/* Top navigation bar */}}
+      <nav className="{nav_bg} h-16 flex items-center px-6 shrink-0 {border}">
+        <h1 className="font-heading font-bold text-lg mr-8">{d["app_name"]}</h1>
+        <div className="flex items-center gap-1 flex-1">
+          {{NAV_ITEMS.map((item) => (
+            <NavLink
+              key={{item.route}}
+              to={{item.route}}
+              className={{({{ isActive }}) =>
+                `flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${{
+                  isActive
+                    ? '{d["nav_active"]}'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }}`
+              }}
+            >
+              <LucideIcon name={{item.icon}} size={{16}} />
+              {{item.label}}
+            </NavLink>
+          ))}}
+        </div>
+        <div className="flex items-center gap-3">
+          <Avatar initials="{d["user_initials"]}" name="{d["user_name"]}" size="sm" />
+        </div>
+      </nav>
+      <main className="flex-1 overflow-y-auto {d["content_bg"]}">
+        <div className="p-8 max-w-7xl mx-auto animate-page-enter">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  )
+}}
+"""
+
+
+# -- Icon Sidebar (narrow rail) ----------------------------------------------
+
+
+def _render_icon_sidebar(project_plan: dict, payload: PrototypePayload) -> str:
+    d = _build_nav_data(project_plan, payload)
+    initial = d["app_name"][0].upper() if d["app_name"] else "P"
+
+    return f"""\
+import {{ NavLink, Outlet }} from 'react-router-dom'
+import {{ LucideIcon, Avatar }} from '@/components/ui'
+
+const NAV_ITEMS = {d["flat_items_ts"]}
+
+export default function Layout() {{
+  return (
+    <div className="flex h-screen">
+      <nav className="w-16 {d["nav_bg"]} flex flex-col items-center py-4 shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center mb-6">
+          <span className="text-white font-bold text-sm">{initial}</span>
+        </div>
+        <div className="flex-1 flex flex-col items-center gap-2">
+          {{NAV_ITEMS.map((item) => (
+            <NavLink
+              key={{item.route}}
+              to={{item.route}}
+              title={{item.label}}
+              className={{({{ isActive }}) =>
+                `w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${{
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : '{d["nav_text"]} hover:bg-white/10'
+                }}`
+              }}
+            >
+              <LucideIcon name={{item.icon}} size={{20}} />
+            </NavLink>
+          ))}}
+        </div>
+        <Avatar initials="{d["user_initials"]}" name="{d["user_name"]}" size="sm" />
+      </nav>
+      <main className="flex-1 overflow-y-auto {d["content_bg"]}">
+        <div className="p-8 animate-page-enter">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  )
+}}
+"""
+
+
+# -- Minimal (hamburger drawer) ----------------------------------------------
+
+
+def _render_minimal(project_plan: dict, payload: PrototypePayload) -> str:
+    d = _build_nav_data(project_plan, payload)
+
+    return f"""\
+import {{ useState }} from 'react'
+import {{ NavLink, Outlet }} from 'react-router-dom'
+import {{ LucideIcon, Avatar }} from '@/components/ui'
+
+const NAV_SECTIONS = {d["nav_ts"]}
+
+export default function Layout() {{
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  return (
+    <div className="flex flex-col h-screen">
+      {{/* Minimal top bar */}}
+      <div className="h-14 flex items-center px-6 border-b border-gray-200 bg-white shrink-0">
+        <button onClick={{() => setMenuOpen(true)}} className="p-2 hover:bg-gray-100 rounded-lg">
+          <LucideIcon name="Menu" size={{20}} />
+        </button>
+        <h1 className="font-heading font-bold ml-4">{d["app_name"]}</h1>
+      </div>
+
+      {{/* Drawer overlay */}}
+      {{menuOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="fixed inset-0 bg-black/30" onClick={{() => setMenuOpen(false)}} />
+          <nav className="relative w-72 bg-white h-full shadow-xl p-6 overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading font-bold text-lg">{d["app_name"]}</h2>
+              <button
+                onClick={{() => setMenuOpen(false)}}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <LucideIcon name="X" size={{18}} />
+              </button>
+            </div>
+            {{NAV_SECTIONS.map((section) => (
+              <div key={{section.label}} className="mb-6">
+                <h3 className={{"text-[11px] font-semibold " +
+                  "text-gray-400 uppercase tracking-wider mb-2"}}>
+                  {{section.label}}
+                </h3>
+                {{section.items.map((item) => (
+                  <NavLink
+                    key={{item.route}}
+                    to={{item.route}}
+                    onClick={{() => setMenuOpen(false)}}
+                    className={{({{ isActive }}) =>
+                      `flex items-center gap-3 px-3 py-2 text-sm ${{
+                        "rounded-lg transition-colors mb-1"
+                      }} ${{
+                        isActive
+                          ? '{d["nav_active"]}'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }}`
+                    }}
+                  >
+                    <LucideIcon name={{item.icon}} size={{18}} />
+                    {{item.label}}
+                  </NavLink>
+                ))}}
+              </div>
+            ))}}
+            <div className="border-t border-gray-100 pt-4 flex items-center gap-3">
+              <Avatar initials="{d["user_initials"]}" name="{d["user_name"]}" size="sm" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">{d["user_name"]}</p>
+                <p className="text-xs text-gray-500">{d["user_role"]}</p>
+              </div>
+            </div>
+          </nav>
+        </div>
+      )}}
+
+      <main className="flex-1 overflow-y-auto {d["content_bg"]}">
+        <div className="p-6 animate-page-enter">
           <Outlet />
         </div>
       </main>

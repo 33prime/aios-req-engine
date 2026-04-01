@@ -114,6 +114,17 @@ class ExtractionDirective(BaseModel):
     rendered_prompt: str = ""
 
 
+class OutcomeHealth(BaseModel):
+    """Outcome health metrics for the Pulse snapshot."""
+
+    total_outcomes: int = 0
+    confirmed_outcomes: int = 0
+    avg_strength: float = 0.0
+    weak_outcomes: list[dict] = Field(default_factory=list)     # [{id, title, strength, missing_dimension}]
+    unserved_outcomes: list[dict] = Field(default_factory=list)  # [{id, title}] — no solution_flow_steps linked
+    uncovered_outcomes: list[dict] = Field(default_factory=list) # [{id, title, missing_quadrants}]
+
+
 class ProjectPulse(BaseModel):
     """Top-level pulse snapshot for a project."""
 
@@ -125,6 +136,7 @@ class ProjectPulse(BaseModel):
     extraction_directive: ExtractionDirective = Field(default_factory=ExtractionDirective)
     # [{entity_type, entity_id, entity_name, reason}]
     auto_confirm_candidates: list[dict] = Field(default_factory=list)
+    outcome_health: OutcomeHealth = Field(default_factory=OutcomeHealth)
     config_version: str = "1.0"
     rules_fired: list[str] = Field(default_factory=list)
 

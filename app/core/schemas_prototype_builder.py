@@ -68,6 +68,10 @@ class PayloadSolutionFlowStep(BaseModel):
     open_questions: list[dict] = Field(default_factory=list)
     image_url: str | None = None
     feel_description: str | None = None
+    story_headline: str | None = None
+    user_actions: list[str] = Field(default_factory=list)
+    human_value_statement: str | None = None
+    data_model: list[dict] = Field(default_factory=list)
     confirmation_status: str = "ai_generated"
 
 
@@ -104,6 +108,7 @@ class DesignContract(BaseModel):
     tokens: DesignTokens
     brand_colors: list[str] = Field(default_factory=list)
     style_direction: str = ""
+    recommended_nav_style: str = ""
 
 
 class TechContract(BaseModel):

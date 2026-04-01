@@ -44,11 +44,14 @@ SourceAuthority = Literal["client", "consultant", "research", "prototype"]
 
 
 class EvidenceRef(BaseModel):
-    """A reference to a source chunk with an exact quote."""
+    """A reference to a source chunk with an exact quote and provenance."""
 
     chunk_id: str
     quote: str  # Exact text from source
     page_or_section: str | None = None
+    speaker: str | None = None  # Who said this (from speaker resolver)
+    speaker_role: str | None = None  # Their role (Client CEO, Nurse, etc.)
+    timestamp: str | None = None  # When in the signal (e.g., "8:14" for transcripts)
 
 
 class EntityLink(BaseModel):
@@ -101,6 +104,12 @@ class EntityPatch(BaseModel):
     # Extraction metadata
     source_authority: SourceAuthority = "research"
     mention_count: int = 1
+
+    # Enrichment fields (populated by enrich_entity_patches, NOT by extraction)
+    canonical_text: str | None = None
+    hypothetical_questions: list[str] | None = None
+    expanded_terms: list[str] | None = None
+    enrichment_data: dict | None = None  # before_after, downstream_impacts, actors, outcome_relevance
 
 
 class EntityPatchList(BaseModel):

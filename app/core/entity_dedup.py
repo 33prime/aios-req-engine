@@ -316,8 +316,18 @@ async def _check_embedding_similarity(
     if not builder:
         return None
 
-    # Build text for the new patch
-    patch_text = builder(patch.payload)
+    # Use enriched text when available (dramatically better dedup signal)
+    if patch.canonical_text:
+        parts = [patch.canonical_text]
+        if patch.hypothetical_questions:
+            parts.append("\n".join(patch.hypothetical_questions[:4]))
+        if patch.expanded_terms:
+            parts.append(", ".join(patch.expanded_terms[:10]))
+        patch_text = "\n".join(parts)
+    else:
+        # Fallback to legacy text builder
+        patch_text = builder(patch.payload)
+
     if not patch_text or len(patch_text.strip()) < 10:
         return None
 
@@ -326,14 +336,24 @@ async def _check_embedding_similarity(
     if not embeddings:
         return None
 
-    # Query DB for nearest neighbors via match_entities RPC
+    # Query entity_vectors (prefer) or fall back to match_entities
     sb = get_supabase()
-    result = sb.rpc("match_entities", {
-        "query_embedding": embeddings[0],
-        "filter_project_id": str(project_id),
-        "match_count": 5,
-        "filter_entity_types": [entity_type],
-    }).execute()
+    try:
+        result = sb.rpc("match_entity_vectors", {
+            "query_embedding": embeddings[0],
+            "filter_project_id": str(project_id),
+            "match_count": 5,
+            "filter_vector_type": "identity",
+            "filter_entity_types": [entity_type],
+        }).execute()
+    except Exception:
+        # Fallback to legacy RPC if entity_vectors table doesn't exist yet
+        result = sb.rpc("match_entities", {
+            "query_embedding": embeddings[0],
+            "filter_project_id": str(project_id),
+            "match_count": 5,
+            "filter_entity_types": [entity_type],
+        }).execute()
 
     if not result.data:
         return None

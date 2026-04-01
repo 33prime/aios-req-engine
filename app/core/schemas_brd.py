@@ -205,8 +205,16 @@ class VpStepBRDSummary(BaseModel):
     version: int | None = None
 
 
+class OutcomeLinkSummary(BaseModel):
+    """Lightweight outcome link for provenance display on capabilities."""
+    outcome_id: str
+    outcome_title: str = ""
+    link_type: str = "serves"
+    how_served: str | None = None
+
+
 class FeatureBRDSummary(BaseModel):
-    """Feature summary for BRD canvas with MoSCoW grouping."""
+    """Feature/capability summary for BRD canvas with MoSCoW grouping and outcome provenance."""
     id: str
     name: str
     description: str | None = None
@@ -220,6 +228,8 @@ class FeatureBRDSummary(BaseModel):
     stale_reason: str | None = None
     created_at: str | None = None
     version: int | None = None
+    # Provenance: which outcomes this capability serves (reverse outcome view)
+    outcome_links: list[OutcomeLinkSummary] = []
 
 
 class CompetitorBRDSummary(BaseModel):
@@ -289,6 +299,9 @@ class BRDWorkspaceData(BaseModel):
     data_entities: list[DataEntityBRDSummary] = []
     stakeholders: list[StakeholderBRDSummary] = []
     competitors: list[CompetitorBRDSummary] = []
+    project_type: str = "new_product"
+    macro_outcome: str | None = None
+    outcome_thesis: str | None = None
     readiness_score: float = 0.0
     pending_count: int = 0
     workflow_pairs: list[WorkflowPair] = []

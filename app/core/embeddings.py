@@ -72,3 +72,15 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 async def embed_texts_async(texts: list[str]) -> list[list[float]]:
     """Async wrapper around embed_texts using thread pool."""
     return await asyncio.to_thread(embed_texts, texts)
+
+
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Compute cosine similarity between two embedding vectors."""
+    import math
+
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(x * x for x in b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
