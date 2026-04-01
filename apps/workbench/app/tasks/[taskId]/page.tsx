@@ -2,13 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Trash2, RotateCcw, CheckCircle2 } from 'lucide-react'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { useTaskDetail, useTaskComments, useProfile } from '@/lib/hooks/use-api'
 import {
   updateTask,
   createTaskComment,
   deleteTaskComment,
+  deleteTask,
+  reopenTask,
+  completeTask,
   getProjectTaskActivity,
   listOrganizations,
   listOrganizationMembers,
@@ -19,6 +22,7 @@ import { PropertyPills } from './components/PropertyPills'
 import { CommentInput } from './components/CommentInput'
 import { ActivityTimeline } from './components/ActivityTimeline'
 import { SignalReviewPanel } from './components/SignalReviewPanel'
+import { ProcessingResultsCard } from '@/components/workspace/chat/ProcessingResultsCard'
 import { ReviewStatusBar } from './components/ReviewStatusBar'
 
 export default function TaskDetailPage({ params }: { params: { taskId: string } }) {
@@ -35,6 +39,7 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
   const [descDirty, setDescDirty] = useState(false)
   const [activities, setActivities] = useState<TaskActivity[]>([])
   const [members, setMembers] = useState<OrganizationMemberPublic[]>([])
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Load activities
   useEffect(() => {
@@ -102,6 +107,24 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
     mutateComments()
   }
 
+  const handleDeleteTask = async () => {
+    if (!task) return
+    await deleteTask(task.project_id, task.id)
+    router.push('/tasks')
+  }
+
+  const handleReopenTask = async () => {
+    if (!task) return
+    await reopenTask(task.project_id, task.id)
+    mutateTask()
+  }
+
+  const handleCompleteTask = async () => {
+    if (!task) return
+    await completeTask(task.project_id, task.id, { completion_method: 'task_board' })
+    mutateTask()
+  }
+
   const sidebarWidth = sidebarCollapsed ? 64 : 224
 
   if (!task) {
@@ -131,9 +154,9 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
         className="min-h-screen bg-surface-page transition-all duration-300"
         style={{ marginLeft: sidebarWidth }}
       >
-        <div className="max-w-[800px] mx-auto px-4 py-4">
+        <div className="max-w-[800px] mx-auto px-3 md:px-4 py-4">
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-4 ml-8 md:ml-0">
             <button
               onClick={() => router.push('/tasks')}
               className="text-[#999] hover:text-[#333] transition-colors"
@@ -150,6 +173,35 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
             <span className="text-[13px] text-[#333] truncate max-w-[300px]">{task.title}</span>
           </div>
 
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 mb-4">
+            {task.status !== 'completed' && task.status !== 'dismissed' && (
+              <button
+                onClick={handleCompleteTask}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-brand-primary rounded-lg hover:bg-brand-primary-hover transition-colors"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Complete
+              </button>
+            )}
+            {(task.status === 'completed' || task.status === 'dismissed') && (
+              <button
+                onClick={handleReopenTask}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666] bg-[#F0F0F0] rounded-lg hover:bg-border transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reopen
+              </button>
+            )}
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="p-2 text-[#999] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Delete task"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+
           {/* Editable title */}
           {editingTitle ? (
             <input
@@ -158,12 +210,12 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
               onChange={(e) => setTitleDraft(e.target.value)}
               onBlur={saveTitle}
               onKeyDown={(e) => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false) }}
-              className="text-[22px] font-semibold text-[#0A1E2F] w-full outline-none border-b-2 border-brand-primary bg-transparent mb-4 pb-1"
+              className="text-[24px] font-semibold text-[#0A1E2F] w-full outline-none border-b-2 border-brand-primary bg-transparent mb-4 pb-1"
             />
           ) : (
             <h1
               onClick={() => { setTitleDraft(task.title); setEditingTitle(true) }}
-              className="text-[22px] font-semibold text-[#0A1E2F] mb-4 cursor-text hover:text-[#25785A] transition-colors"
+              className="text-[24px] font-semibold text-[#0A1E2F] mb-4 cursor-text hover:text-[#25785A] transition-colors"
             >
               {task.title}
             </h1>
@@ -189,7 +241,17 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
           </div>
 
           {/* Type-specific sections */}
-          {task.task_type === 'signal_review' && task.patches_snapshot && (
+          {task.task_type === 'signal_review' && task.signal_id && (
+            <div className="mb-4">
+              <ProcessingResultsCard
+                signalId={task.signal_id}
+                projectId={task.project_id}
+                filename={task.title.replace(/^Review \d+ entities from /, '')}
+                onConfirmed={() => mutateTask()}
+              />
+            </div>
+          )}
+          {task.task_type === 'signal_review' && !task.signal_id && task.patches_snapshot && (
             <SignalReviewPanel patches={task.patches_snapshot as Record<string, unknown>} />
           )}
           {task.task_type === 'review_request' && (
@@ -249,6 +311,20 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
               currentUserId={profile?.id}
             />
           </div>
+
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/40" onClick={() => setShowDeleteConfirm(false)} />
+              <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+                <h3 className="text-[16px] font-semibold text-[#333] mb-2">Delete this task?</h3>
+                <p className="text-[13px] text-[#666] mb-6">This will permanently remove this task and its comments.</p>
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 text-[13px] font-medium text-[#666] bg-[#F0F0F0] rounded-xl hover:bg-border transition-colors">Cancel</button>
+                  <button onClick={() => { setShowDeleteConfirm(false); handleDeleteTask() }} className="px-4 py-2 text-[13px] font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors">Delete</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

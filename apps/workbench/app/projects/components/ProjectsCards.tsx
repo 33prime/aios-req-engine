@@ -11,7 +11,7 @@ import type { NextAction, TaskStatsResponse } from '@/lib/api'
 import { ACTION_ICONS } from '@/lib/action-constants'
 import { ProjectAvatar } from './ProjectAvatar'
 import { UserAvatar } from './UserAvatar'
-import { ReadinessCell } from './ReadinessCell'
+import { ReadinessCell, getReadinessScore } from './ReadinessCell'
 import { StageAdvancePopover } from './StageAdvancePopover'
 import { BuildingCardOverlay } from './BuildingCardOverlay'
 
@@ -88,6 +88,9 @@ export function ProjectsCards({
         const totalTasks = taskStats?.total ?? 0
 
         const isBuilding = project.launch_status === 'building'
+        const readinessVal = getReadinessScore(project)
+        const isAtRisk = readinessVal !== null && readinessVal < 30 && pendingTasks > 0
+        const isLowReadiness = readinessVal !== null && readinessVal < 20
 
         return (
           <div
@@ -99,8 +102,11 @@ export function ProjectsCards({
                 onProjectClick(project.id)
               }
             }}
-            className={`bg-white rounded-2xl shadow-md border border-border p-5 hover:shadow-lg cursor-pointer transition-shadow flex flex-col relative overflow-hidden ${
-              isBuilding ? 'border-brand-primary/30' : ''
+            className={`bg-white rounded-xl border shadow-sm p-5 hover:shadow-md hover:border-brand-primary/30 cursor-pointer transition-all duration-200 flex flex-col relative overflow-hidden ${
+              isBuilding ? 'border-brand-primary/30' :
+              isAtRisk ? 'border-l-[3px] border-l-amber-400 border-t border-r border-b border-border' :
+              isLowReadiness ? 'border-l-[3px] border-l-gray-300 border-t border-r border-b border-border' :
+              'border border-border'
             }`}
           >
             {/* Building overlay */}
@@ -129,8 +135,8 @@ export function ProjectsCards({
               <ReadinessCell project={project} />
             </div>
 
-            {/* Hero action */}
-            {!isBuilding && nextAction && (() => {
+            {/* Hero action — hide when it's the generic default */}
+            {!isBuilding && nextAction && !nextAction.title?.includes('Map your first workflow') && (() => {
               const ActionIcon = ACTION_ICONS[nextAction.action_type] || ArrowRight
               return (
                 <div className="mt-3 flex items-start gap-2 bg-[#F0FAF5] rounded-lg px-3 py-2">
@@ -142,9 +148,9 @@ export function ProjectsCards({
               )
             })()}
 
-            {/* Description */}
+            {/* Description — single line for scannability */}
             {project.description && (
-              <p className={`text-[11px] text-[#666] leading-relaxed mt-2.5 line-clamp-2 ${isBuilding ? 'invisible' : ''}`}>
+              <p className={`text-[11px] text-[#999] leading-relaxed mt-2.5 truncate ${isBuilding ? 'invisible' : ''}`}>
                 {project.description}
               </p>
             )}

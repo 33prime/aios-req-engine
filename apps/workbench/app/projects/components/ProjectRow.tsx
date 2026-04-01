@@ -3,7 +3,7 @@ import { formatDistanceToNow } from 'date-fns'
 import type { ProjectDetailWithDashboard, Profile } from '@/types/api'
 import { ProjectAvatar } from './ProjectAvatar'
 import { UserAvatar } from './UserAvatar'
-import { ReadinessCell } from './ReadinessCell'
+import { ReadinessCell, getReadinessScore } from './ReadinessCell'
 import { BuildingCardOverlay } from './BuildingCardOverlay'
 
 interface ProjectRowProps {
@@ -44,21 +44,19 @@ export function ProjectRow({ project, ownerProfile, currentUser, onClick }: Proj
   const ownerName = ownerProfile?.first_name || currentUser?.first_name || 'Unknown'
   const ownerPhotoUrl = ownerProfile?.photo_url || currentUser?.photo_url
 
+  const readinessVal = getReadinessScore(project)
+  const isLowReadiness = readinessVal !== null && readinessVal < 20
+
   return (
     <tr
       onClick={onClick}
-      className={`hover:bg-surface-page cursor-pointer transition-colors ${isBuilding ? 'opacity-70' : ''}`}
+      className={`hover:bg-surface-page cursor-pointer transition-colors ${isBuilding ? 'opacity-70' : ''} ${isLowReadiness ? 'border-l-[3px] border-l-amber-400' : ''}`}
     >
       <td className="px-3 py-2">
         <div className="flex items-center gap-2">
           <ProjectAvatar name={project.name} clientName={project.client_name} />
           <div className="min-w-0">
             <div className="text-xs font-medium text-text-body truncate">{project.name}</div>
-            {isBuilding ? null : project.description ? (
-              <div className="text-xs text-text-placeholder truncate max-w-md">
-                {project.description}
-              </div>
-            ) : null}
           </div>
         </div>
       </td>

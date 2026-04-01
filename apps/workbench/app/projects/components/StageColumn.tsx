@@ -10,6 +10,7 @@ interface StageColumnProps {
   currentUser: Profile | null
   onProjectClick: (projectId: string) => void
   onRefresh?: () => void
+  colorOverride?: string
 }
 
 const STAGE_COLORS = {
@@ -29,8 +30,9 @@ export function StageColumn({
   currentUser,
   onProjectClick,
   onRefresh,
+  colorOverride,
 }: StageColumnProps) {
-  const stageColor = STAGE_COLORS[stage as keyof typeof STAGE_COLORS] || 'bg-gray-100 border-gray-300'
+  const stageColor = colorOverride || STAGE_COLORS[stage as keyof typeof STAGE_COLORS] || 'bg-gray-100 border-gray-300'
 
   return (
     <div className="flex-shrink-0 min-w-60 w-60">

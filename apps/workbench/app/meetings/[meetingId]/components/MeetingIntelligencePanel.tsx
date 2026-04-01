@@ -23,6 +23,7 @@ import {
   SeedDialog,
   StatusBadge,
 } from '@/components/call-intelligence'
+import { ProcessingResultsCard } from '@/components/workspace/chat/ProcessingResultsCard'
 
 type IntelTab = 'recording' | 'insights' | 'performance' | 'signals'
 
@@ -229,11 +230,11 @@ export function MeetingIntelligencePanel({
         {/* Signals tab */}
         {activeTab === 'signals' && recording?.signal_id && (
           <div className="p-6">
-            <div className="p-4 bg-[#F0F7FA] rounded-lg border border-[#D4E8EF]">
-              <p className="text-sm text-[#044159]">
-                This meeting generated signal <code className="text-xs bg-white px-1.5 py-0.5 rounded border border-[#D4E8EF]">{recording.signal_id}</code> — entities extracted through the signal pipeline are visible in the workspace.
-              </p>
-            </div>
+            <ProcessingResultsCard
+              signalId={recording.signal_id}
+              projectId={meeting.project_id}
+              filename={meeting.title}
+            />
           </div>
         )}
         {activeTab === 'signals' && !recording?.signal_id && (

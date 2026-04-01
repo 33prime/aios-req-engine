@@ -25,10 +25,13 @@ const TYPE_ICONS: Record<string, { icon: typeof FileText; color: string }> = {
 
 interface TaskRowProps {
   task: TaskWithProject
+  accentColor?: string
   onToggleComplete: (task: TaskWithProject) => void
+  onClick?: (task: TaskWithProject) => void
+  isSelected?: boolean
 }
 
-export function TaskRow({ task, onToggleComplete }: TaskRowProps) {
+export function TaskRow({ task, accentColor, onToggleComplete, onClick, isSelected }: TaskRowProps) {
   const router = useRouter()
   const isCompleted = task.status === 'completed' || task.status === 'dismissed'
 
@@ -39,65 +42,79 @@ export function TaskRow({ task, onToggleComplete }: TaskRowProps) {
 
   return (
     <div
-      className="group flex items-center gap-3 px-3 py-2.5 hover:bg-surface-page rounded-lg cursor-pointer transition-colors"
-      onClick={() => router.push(`/tasks/${task.id}`)}
+      className={`group flex flex-col gap-0 px-3 py-2.5 mx-2 hover:bg-surface-page rounded-lg cursor-pointer transition-colors ${accentColor === '#D32F2F' ? 'border-l-2 border-l-red-400' : ''} ${isSelected ? 'bg-brand-primary-light border-l-2 border-l-brand-primary' : ''}`}
+      onClick={() => onClick ? onClick(task) : router.push(`/tasks/${task.id}`)}
     >
-      {/* Status circle */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggleComplete(task) }}
-        className="flex-shrink-0 text-[#CCC] hover:text-brand-primary transition-colors"
-      >
-        {isCompleted ? (
-          <CheckCircle2 className="w-[18px] h-[18px] text-brand-primary" />
-        ) : (
-          <Circle className="w-[18px] h-[18px]" />
+      <div className="flex items-center gap-3">
+        {/* Status circle */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleComplete(task) }}
+          className="flex-shrink-0 text-[#CCC] hover:text-brand-primary transition-colors"
+        >
+          {isCompleted ? (
+            <CheckCircle2 className="w-[18px] h-[18px] text-brand-primary" />
+          ) : (
+            <Circle className="w-[18px] h-[18px]" />
+          )}
+        </button>
+
+        {/* Type icon */}
+        <TypeIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: typeInfo.color }} />
+
+        {/* Priority dot */}
+        <div
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ backgroundColor: PRIORITY_COLORS[task.priority || 'none'] }}
+          title={`${task.priority || 'none'} priority`}
+        />
+
+        {/* Title */}
+        <span className={`flex-1 text-[13px] truncate ${isCompleted ? 'line-through text-[#999]' : 'text-[#333]'}`}>
+          {task.title}
+        </span>
+
+        {/* Remind-at indicator */}
+        {task.remind_at && !isCompleted && (
+          <span className="text-[11px] text-[#999] flex-shrink-0 flex items-center gap-0.5">
+            <Bell className="w-3 h-3" />
+            {formatDue(task.remind_at)}
+          </span>
         )}
-      </button>
 
-      {/* Type icon */}
-      <TypeIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: typeInfo.color }} />
-
-      {/* Priority dot */}
-      <div
-        className="w-2 h-2 rounded-full flex-shrink-0"
-        style={{ backgroundColor: PRIORITY_COLORS[task.priority || 'none'] }}
-        title={`${task.priority || 'none'} priority`}
-      />
-
-      {/* Title */}
-      <span className={`flex-1 text-[13px] truncate ${isCompleted ? 'line-through text-[#999]' : 'text-[#333]'}`}>
-        {task.title}
-      </span>
-
-      {/* Remind-at indicator */}
-      {task.remind_at && !isCompleted && (
-        <span className="text-[11px] text-[#999] flex-shrink-0 flex items-center gap-0.5">
-          <Bell className="w-3 h-3" />
-          {formatDue(task.remind_at)}
+        {/* Project badge — hidden on mobile */}
+        <span className="hidden sm:inline text-[11px] px-1.5 py-0.5 bg-[#F4F4F4] text-[#999] rounded flex-shrink-0 max-w-[120px] truncate">
+          {task.project_name}
         </span>
-      )}
 
-      {/* Project badge */}
-      <span className="text-[11px] px-1.5 py-0.5 bg-[#F4F4F4] text-[#999] rounded flex-shrink-0 max-w-[120px] truncate">
-        {task.project_name}
-      </span>
+        {/* Due date */}
+        {dueText && (
+          <span className={`text-[11px] flex-shrink-0 hidden sm:inline ${isOverdue ? 'text-[#D32F2F] font-medium' : 'text-[#999]'}`}>
+            {dueText}
+          </span>
+        )}
 
-      {/* Due date */}
-      {dueText && (
-        <span className={`text-[11px] flex-shrink-0 ${isOverdue ? 'text-[#D32F2F] font-medium' : 'text-[#999]'}`}>
-          {dueText}
-        </span>
-      )}
-
-      {/* Assignee avatar */}
-      {task.assigned_to && (
-        <div className="w-6 h-6 rounded-full bg-[#E8F5E9] flex items-center justify-center overflow-hidden flex-shrink-0" title={task.assigned_to_name || 'Assigned'}>
+        {/* Assignee avatar — always show slot for consistent layout */}
+        <div
+          className={`w-6 h-6 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 text-[9px] font-medium ${
+            task.assigned_to ? 'bg-gradient-to-br from-brand-primary to-[#25785A] text-white' : 'bg-[#F0F0F0] text-[#CCC]'
+          }`}
+          title={task.assigned_to_name || 'Unassigned'}
+        >
           {task.assigned_to_photo_url ? (
             <Image src={task.assigned_to_photo_url} alt="" width={24} height={24} className="w-full h-full object-cover" />
+          ) : task.assigned_to_name ? (
+            <span>{task.assigned_to_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}</span>
           ) : (
-            <User className="w-3 h-3 text-brand-primary" />
+            <User className="w-3 h-3" />
           )}
         </div>
+      </div>
+
+      {/* Description preview — desktop only */}
+      {task.description && (
+        <p className="text-[11px] text-[#999] truncate mt-0.5 hidden md:block max-w-[500px] ml-[54px]">
+          {task.description}
+        </p>
       )}
     </div>
   )

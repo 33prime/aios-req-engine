@@ -121,26 +121,34 @@ function ProjectCard({
   const router = useRouter()
   const isBuilding = project.launch_status === 'building'
   const stage = STAGE_CONFIG[project.stage] ?? { label: project.stage, bg: 'bg-[#F0F0F0]', text: 'text-[#666]' }
-  const topActions = nextActions.slice(0, 2)
+  const topActions = nextActions
+    .filter(a => !a.title?.includes('Map your first workflow'))
+    .slice(0, 2)
 
-  // Compute readiness score
+  // Compute readiness score — track hasScore to distinguish null from 0
   const readiness = project.cached_readiness_data
   let score = 0
+  let hasScore = false
   if (readiness?.dimensions) {
     for (const key of Object.keys(readiness.dimensions)) {
       const d = readiness.dimensions[key]
       if (d && typeof d.score === 'number' && typeof d.weight === 'number') {
         score += d.score * d.weight
+        hasScore = true
       }
     }
   } else {
-    score = readiness?.gate_score ?? project.readiness_score ?? 0
+    const raw = readiness?.gate_score ?? project.readiness_score ?? null
+    if (raw !== null) {
+      score = raw
+      hasScore = true
+    }
   }
 
   return (
     <div
       onClick={() => router.push(`/projects/${project.id}`)}
-      className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-border hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] cursor-pointer transition-shadow relative overflow-hidden ${
+      className={`bg-white rounded-xl border border-border shadow-sm hover:shadow-md hover:border-brand-primary/30 cursor-pointer transition-all duration-200 relative overflow-hidden ${
         isBuilding ? 'border-brand-primary/30 min-h-[220px]' : ''
       }`}
       style={{ padding: '20px' }}
@@ -169,13 +177,19 @@ function ProjectCard({
         <div className="flex items-center gap-3 flex-shrink-0">
           {!isBuilding && (
             <div className="text-right">
-              <p className="text-[12px] font-medium text-[#666]">Readiness: {Math.round(score)}%</p>
-              <div className="w-24 h-1.5 bg-border rounded-full overflow-hidden mt-1">
-                <div
-                  className="h-full bg-brand-primary rounded-full transition-all"
-                  style={{ width: `${Math.min(score, 100)}%` }}
-                />
-              </div>
+              {hasScore ? (
+                <>
+                  <p className="text-[12px] font-medium text-[#666]">Readiness: {Math.round(score)}%</p>
+                  <div className="w-24 h-1.5 bg-border rounded-full overflow-hidden mt-1">
+                    <div
+                      className="h-full bg-brand-primary rounded-full transition-all"
+                      style={{ width: `${Math.min(score, 100)}%` }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <span className="text-[12px] text-[#999]">&mdash;</span>
+              )}
             </div>
           )}
           <div
@@ -481,7 +495,7 @@ export default function HomeDashboard() {
   const hasBuilding = useMemo(() => allProjects.some((p) => p.launch_status === 'building'), [allProjects])
   useEffect(() => {
     if (!hasBuilding) return
-    const interval = setInterval(() => mutateDashboard(), 8000)
+    const interval = setInterval(() => mutateDashboard(), 30000)
     return () => clearInterval(interval)
   }, [hasBuilding, mutateDashboard])
 

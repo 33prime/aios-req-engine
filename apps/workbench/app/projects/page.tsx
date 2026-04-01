@@ -18,6 +18,7 @@ import { useProfile, useProjects, useUpcomingMeetings, useBatchDashboardData } f
 import { ProjectsTopNav } from './components/ProjectsTopNav'
 import { ProjectsTable } from './components/ProjectsTable'
 import { ProjectsKanban } from './components/ProjectsKanban'
+import { getReadinessScore } from './components/ReadinessCell'
 import { ProjectsCards } from './components/ProjectsCards'
 import { BuildingProgressModal } from './components/BuildingProgressModal'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
@@ -194,8 +195,8 @@ export default function ProjectsPage() {
       aVal = new Date(a.updated_at || a.created_at).getTime()
       bVal = new Date(b.updated_at || b.created_at).getTime()
     } else if (sortField === 'readiness_score') {
-      aVal = a.readiness_score ?? 0
-      bVal = b.readiness_score ?? 0
+      aVal = getReadinessScore(a) ?? -1
+      bVal = getReadinessScore(b) ?? -1
     }
 
     if (sortOrder === 'asc') {
@@ -272,14 +273,6 @@ export default function ProjectsPage() {
               sortOrder={sortOrder}
               onSort={handleSort}
               onProjectClick={handleProjectClick}
-            />
-          ) : viewMode === 'kanban' ? (
-            <ProjectsKanban
-              projects={sortedProjects}
-              ownerProfiles={ownerProfiles}
-              currentUser={currentUser}
-              onProjectClick={handleProjectClick}
-              onRefresh={handleRefresh}
             />
           ) : (
             <ProjectsCards

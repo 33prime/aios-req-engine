@@ -29,7 +29,7 @@ export function ClientCard({ client, onClick }: ClientCardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-white rounded-2xl border border-border shadow-md p-6 hover:shadow-lg hover:border-brand-primary/30 transition-all duration-200 group"
+      className="w-full text-left bg-white rounded-xl border border-border shadow-sm p-5 hover:shadow-md hover:border-brand-primary/30 transition-all duration-200 group"
     >
       {/* Top row: avatar + name + enrichment */}
       <div className="flex items-start gap-3 mb-3">
@@ -54,10 +54,15 @@ export function ClientCard({ client, onClick }: ClientCardProps) {
             </span>
           )}
         </div>
-        <EnrichmentIndicator status={client.enrichment_status} />
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {client.company_summary && (client.company_summary.includes('due to limited') || client.company_summary.includes('appears to be') || client.company_summary.includes('cannot be confirmed')) && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-medium">Needs input</span>
+          )}
+          <EnrichmentIndicator status={client.enrichment_status} />
+        </div>
       </div>
 
-      {/* Metrics row */}
+      {/* Metrics row + completeness */}
       <div className="flex items-center gap-4 mb-3">
         <div className="flex items-center gap-1.5 text-[12px] text-[#666]">
           <FolderKanban className="w-3 h-3" />
@@ -67,6 +72,17 @@ export function ClientCard({ client, onClick }: ClientCardProps) {
           <Users className="w-3 h-3" />
           <span>{client.stakeholder_count} {client.stakeholder_count === 1 ? 'stakeholder' : 'stakeholders'}</span>
         </div>
+        {client.profile_completeness != null && (
+          <div className="flex items-center gap-1.5 ml-auto">
+            <div className="w-12 h-1 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full ${client.profile_completeness >= 70 ? 'bg-brand-primary' : client.profile_completeness >= 40 ? 'bg-emerald-300' : 'bg-gray-300'}`}
+                style={{ width: `${Math.min(client.profile_completeness, 100)}%` }}
+              />
+            </div>
+            <span className="text-[10px] text-[#999] tabular-nums">{Math.round(client.profile_completeness)}%</span>
+          </div>
+        )}
       </div>
 
       {/* Summary */}

@@ -35,13 +35,6 @@ export function ProjectKanbanCard({ project, ownerProfile, currentUser, onClick,
         </div>
       </div>
 
-      {/* Description */}
-      {project.description && (
-        <p className="text-xs text-text-body leading-relaxed mb-2 line-clamp-2">
-          {project.description}
-        </p>
-      )}
-
       {/* Readiness Score */}
       <div className="mb-2">
         <ReadinessCell project={project} />

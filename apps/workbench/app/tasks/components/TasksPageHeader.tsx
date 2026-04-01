@@ -2,12 +2,15 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Plus } from 'lucide-react'
+import { ViewToggle } from './ViewToggle'
 
 interface TasksPageHeaderProps {
   view: 'assigned_to_me' | 'created_by_me' | 'all'
   counts: Record<string, number>
   onViewChange: (view: 'assigned_to_me' | 'created_by_me' | 'all') => void
   onAddTask: () => void
+  viewMode?: 'list' | 'kanban'
+  onViewModeChange?: (mode: 'list' | 'kanban') => void
 }
 
 const VIEW_LABELS: Record<string, string> = {
@@ -16,7 +19,7 @@ const VIEW_LABELS: Record<string, string> = {
   all: 'All tasks',
 }
 
-export function TasksPageHeader({ view, counts, onViewChange, onAddTask }: TasksPageHeaderProps) {
+export function TasksPageHeader({ view, counts, onViewChange, onAddTask, viewMode, onViewModeChange }: TasksPageHeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -31,9 +34,9 @@ export function TasksPageHeader({ view, counts, onViewChange, onAddTask }: Tasks
   const totalActive = (counts.pending || 0) + (counts.in_progress || 0)
 
   return (
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-3">
-        <h1 className="text-[22px] font-semibold text-[#0A1E2F]">Tasks</h1>
+    <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+      <div className="flex items-center gap-2 md:gap-3 min-w-0">
+        <h1 className="text-[20px] md:text-[22px] font-semibold text-[#0A1E2F] ml-8 md:ml-0 flex-shrink-0">Tasks</h1>
 
         {/* View dropdown pill */}
         <div ref={ref} className="relative">
@@ -66,14 +69,21 @@ export function TasksPageHeader({ view, counts, onViewChange, onAddTask }: Tasks
         </div>
       </div>
 
-      {/* Add task button */}
-      <button
-        onClick={onAddTask}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary text-white text-[13px] font-medium hover:bg-[#25785A] transition-colors"
-      >
-        <Plus className="w-3.5 h-3.5" />
-        Add task
-      </button>
+      <div className="flex items-center gap-3">
+        {/* View mode toggle */}
+        {viewMode && onViewModeChange && (
+          <ViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+        )}
+
+        {/* Add task button */}
+        <button
+          onClick={onAddTask}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary text-white text-[13px] font-medium hover:bg-[#25785A] transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Add task
+        </button>
+      </div>
     </div>
   )
 }

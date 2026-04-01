@@ -1,21 +1,17 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Building2, Users, FolderKanban, Brain, FileText, Loader2, ClipboardList } from 'lucide-react'
-import { getClient, enrichClient, analyzeClient, getClientIntelligence, getClientKnowledgeBase, listClientProcessDocuments } from '@/lib/api'
+import { Loader2 } from 'lucide-react'
+import { getClient, analyzeClient, getClientIntelligence, getClientKnowledgeBase, deleteClient, updateClient } from '@/lib/api'
 import type { ClientIntelligenceProfile } from '@/lib/api'
-import type { ClientDetail, ClientKnowledgeBase, ProcessDocumentSummary } from '@/types/workspace'
+import type { ClientDetail, ClientKnowledgeBase } from '@/types/workspace'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { ClientHeader } from './components/ClientHeader'
 import { ClientOverviewTab } from './components/ClientOverviewTab'
 import { ClientProjectsTab } from './components/ClientProjectsTab'
 import { ClientPeopleTab } from './components/ClientPeopleTab'
-import { ClientIntelligenceTab } from './components/ClientIntelligenceTab'
-import { ClientSourcesTab } from './components/ClientSourcesTab'
-import { ClientDocumentsTab } from './components/ClientDocumentsTab'
-
-type TabId = 'overview' | 'people' | 'projects' | 'intelligence' | 'sources' | 'documents'
+import { ClientEditModal } from './components/ClientEditModal'
 
 export default function ClientDetailPage() {
   const params = useParams()
@@ -28,16 +24,10 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [activeTab, setActiveTab] = useState<TabId>('overview')
-  const [enriching, setEnriching] = useState(false)
-  const [analyzing, setAnalyzing] = useState(false)
-  const [processDocs, setProcessDocs] = useState<ProcessDocumentSummary[]>([])
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const loadProcessDocs = useCallback(() => {
-    if (!clientId) return
-    listClientProcessDocuments(clientId).then(setProcessDocs).catch(() => {})
-  }, [clientId])
+  const [analyzing, setAnalyzing] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const loadClient = useCallback(async () => {
     if (!clientId) return
@@ -62,26 +52,10 @@ export default function ClientDetailPage() {
 
   useEffect(() => {
     loadClient()
-    loadProcessDocs()
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
     }
-  }, [loadClient, loadProcessDocs])
-
-  const handleEnrich = async () => {
-    if (!clientId || enriching) return
-    setEnriching(true)
-    try {
-      await enrichClient(clientId)
-      setTimeout(() => {
-        loadClient()
-        setEnriching(false)
-      }, 5000)
-    } catch (err) {
-      console.error('Failed to enrich client:', err)
-      setEnriching(false)
-    }
-  }
+  }, [loadClient])
 
   const handleAnalyze = async () => {
     if (!clientId || analyzing) return
@@ -89,11 +63,10 @@ export default function ClientDetailPage() {
     const startedAt = intelligence?.last_analyzed_at
     try {
       await analyzeClient(clientId)
-      // Poll every 3s until last_analyzed_at changes or 60s timeout
       let elapsed = 0
       pollRef.current = setInterval(async () => {
         elapsed += 3000
-        if (elapsed > 60000) {
+        if (elapsed > 120000) {
           if (pollRef.current) clearInterval(pollRef.current)
           setAnalyzing(false)
           loadClient()
@@ -117,27 +90,41 @@ export default function ClientDetailPage() {
     }
   }
 
-  const sidebarWidth = sidebarCollapsed ? 64 : 224
-
-  const tabs = useMemo(() => {
-    const base: { id: TabId; label: string; icon: React.ReactNode }[] = [
-      { id: 'overview', label: 'Overview', icon: <Building2 className="w-3.5 h-3.5" /> },
-      { id: 'people', label: 'People', icon: <Users className="w-3.5 h-3.5" /> },
-      { id: 'projects', label: 'Projects', icon: <FolderKanban className="w-3.5 h-3.5" /> },
-      { id: 'intelligence', label: 'Intelligence', icon: <Brain className="w-3.5 h-3.5" /> },
-      { id: 'sources', label: 'Sources', icon: <FileText className="w-3.5 h-3.5" /> },
-    ]
-    if (processDocs.length > 0) {
-      base.push({ id: 'documents', label: `Documents (${processDocs.length})`, icon: <ClipboardList className="w-3.5 h-3.5" /> })
+  const handleDelete = async () => {
+    if (!clientId) return
+    try {
+      await deleteClient(clientId)
+      router.push('/clients')
+    } catch (err) {
+      console.error('Failed to delete client:', err)
     }
-    return base
-  }, [processDocs.length])
+  }
+
+  const handleEdit = async (data: Record<string, string>) => {
+    await updateClient(clientId, data)
+    setAnalyzing(true)
+    setTimeout(async () => {
+      try {
+        await loadClient()
+      } finally {
+        setAnalyzing(false)
+      }
+    }, 3000)
+  }
+
+  const sidebarWidth = sidebarCollapsed ? 64 : 224
 
   if (loading) {
     return (
       <>
-        <AppSidebar isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
-        <div className="min-h-screen bg-[#F4F4F4] flex items-center justify-center transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
+        <AppSidebar
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+        <div
+          className="min-h-screen bg-[#F4F4F4] flex items-center justify-center transition-all duration-300"
+          style={{ marginLeft: sidebarWidth }}
+        >
           <div className="text-center">
             <Loader2 className="w-8 h-8 text-brand-primary animate-spin mx-auto mb-3" />
             <p className="text-[13px] text-[#999]">Loading client...</p>
@@ -150,8 +137,14 @@ export default function ClientDetailPage() {
   if (error || !client) {
     return (
       <>
-        <AppSidebar isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
-        <div className="min-h-screen bg-[#F4F4F4] flex items-center justify-center transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
+        <AppSidebar
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+        <div
+          className="min-h-screen bg-[#F4F4F4] flex items-center justify-center transition-all duration-300"
+          style={{ marginLeft: sidebarWidth }}
+        >
           <div className="text-center">
             <p className="text-[14px] text-[#666] mb-3">{error || 'Client not found'}</p>
             <button
@@ -168,65 +161,53 @@ export default function ClientDetailPage() {
 
   return (
     <>
-      <AppSidebar isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
-      <div className="min-h-screen bg-[#F4F4F4] transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
+      <AppSidebar
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+      <div
+        className="min-h-screen bg-[#F4F4F4] transition-all duration-300"
+        style={{ marginLeft: sidebarWidth }}
+      >
         <div className="max-w-[1200px] mx-auto px-6 py-6">
           <ClientHeader
             client={client}
-            enriching={enriching}
             analyzing={analyzing}
             intelligence={intelligence}
             onBack={() => router.push('/clients')}
-            onEnrich={handleEnrich}
             onAnalyze={handleAnalyze}
+            onEdit={() => setShowEdit(true)}
+            onDelete={handleDelete}
           />
 
-          {/* Tabs */}
-          <div className="border-b border-border mb-6">
-            <div className="flex gap-6">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`inline-flex items-center gap-1.5 pb-2.5 text-[13px] font-medium border-b-2 transition-colors ${
-                    activeTab === tab.id
-                      ? 'text-brand-primary border-brand-primary'
-                      : 'text-[#999] border-transparent hover:text-[#666]'
-                  }`}
-                >
-                  {tab.icon}
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+          {/* Primary content — single scrolling page */}
+          <ClientOverviewTab
+            client={client}
+            intelligence={intelligence}
+            knowledgeBase={knowledgeBase}
+            onKnowledgeBaseChange={() =>
+              getClientKnowledgeBase(clientId).then(setKnowledgeBase).catch(() => {})
+            }
+          />
+
+          {/* People section — inline below overview */}
+          <div className="mt-8">
+            <h2 className="text-[14px] font-semibold text-[#333] mb-4">People</h2>
+            <ClientPeopleTab clientId={clientId} roleGaps={client.role_gaps ?? []} />
           </div>
 
-          {/* Tab Content */}
-          {activeTab === 'overview' && (
-            <ClientOverviewTab
-              client={client}
-              intelligence={intelligence}
-              knowledgeBase={knowledgeBase}
-              onKnowledgeBaseChange={() => getClientKnowledgeBase(clientId).then(setKnowledgeBase).catch(() => {})}
-              onProcessDocGenerated={() => {
-                loadProcessDocs()
-                setActiveTab('documents')
-              }}
-            />
-          )}
-          {activeTab === 'people' && <ClientPeopleTab clientId={clientId} roleGaps={client.role_gaps ?? []} />}
-          {activeTab === 'projects' && (
+          {/* Projects section — inline below people */}
+          <div className="mt-8">
+            <h2 className="text-[14px] font-semibold text-[#333] mb-4">Projects</h2>
             <ClientProjectsTab client={client} onRefresh={loadClient} />
-          )}
-          {activeTab === 'intelligence' && (
-            <ClientIntelligenceTab clientId={clientId} client={client} intelligence={intelligence} />
-          )}
-          {activeTab === 'sources' && (
-            <ClientSourcesTab clientId={clientId} projects={client.projects} />
-          )}
-          {activeTab === 'documents' && (
-            <ClientDocumentsTab docs={processDocs} />
-          )}
+          </div>
+
+          <ClientEditModal
+            open={showEdit}
+            onClose={() => setShowEdit(false)}
+            onSave={handleEdit}
+            client={client}
+          />
         </div>
       </div>
     </>

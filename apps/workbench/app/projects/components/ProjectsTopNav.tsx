@@ -292,17 +292,6 @@ export function ProjectsTopNav({
           >
             <SquareStack className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => onViewModeChange('kanban')}
-            className={`p-1.5 rounded-md transition-colors ${
-              viewMode === 'kanban'
-                ? 'bg-white text-brand-primary shadow-sm'
-                : 'text-text-placeholder hover:text-text-body'
-            }`}
-            title="Kanban view"
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
         </div>
       </div>
     </div>

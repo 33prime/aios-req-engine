@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
-import { FolderKanban, Plus, Unlink, ArrowRight, ListFilter } from 'lucide-react'
-import { listProjects, linkProjectToClient, unlinkProjectFromClient, getNextActions } from '@/lib/api'
-import type { NextAction } from '@/lib/api'
+import { FolderKanban, Plus, Unlink } from 'lucide-react'
+import { listProjects, linkProjectToClient, unlinkProjectFromClient } from '@/lib/api'
 import type { ClientDetail, ClientDetailProject } from '@/types/workspace'
 import { ProjectAvatar } from '@/app/projects/components/ProjectAvatar'
 
@@ -24,40 +23,24 @@ const STAGE_LABELS: Record<string, string> = {
   live: 'Live',
 }
 
-function ProjectCard({ project, clientName, nextAction, onView, onUnlink }: {
+function ProjectCard({
+  project,
+  clientName,
+  onView,
+  onUnlink,
+}: {
   project: ClientDetailProject
   clientName: string
-  nextAction: NextAction | null
   onView: () => void
   onUnlink: () => void
 }) {
-  // Compute dimensional score like home page
-  const readiness = project.cached_readiness_data
-  let score = 0
-  if (readiness?.dimensions) {
-    for (const key of Object.keys(readiness.dimensions)) {
-      const d = readiness.dimensions[key]
-      if (d && typeof d.score === 'number' && typeof d.weight === 'number') {
-        score += d.score * d.weight
-      }
-    }
-  } else {
-    score = readiness?.score ?? project.cached_readiness_score ?? 0
-  }
-
   const stageLabel = STAGE_LABELS[project.stage || ''] || project.stage || ''
-
-  // Pending entity count
-  const totalEntities = readiness?.total_entities ?? 0
-  const confirmedEntities = readiness?.confirmed_entities ?? 0
-  const pendingEntities = totalEntities - confirmedEntities
 
   return (
     <div
       className="bg-white rounded-2xl shadow-md border border-border p-5 hover:shadow-lg cursor-pointer transition-shadow flex flex-col"
       onClick={onView}
     >
-      {/* Top row: avatar + name + stage */}
       <div className="flex items-start gap-3">
         <ProjectAvatar name={project.name} clientName={clientName} />
         <div className="flex-1 min-w-0">
@@ -71,56 +54,19 @@ function ProjectCard({ project, clientName, nextAction, onView, onUnlink }: {
         )}
       </div>
 
-      {/* Readiness bar */}
-      <div className="mt-3 flex items-center gap-2">
-        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${score > 0 ? 'bg-brand-primary' : 'bg-brand-primary'}`} />
-        <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
-          <div
-            className="h-full bg-brand-primary rounded-full transition-all"
-            style={{ width: `${Math.min(score, 100)}%` }}
-          />
-        </div>
-        <span className={`text-sm font-semibold tabular-nums ${score > 0 ? 'text-brand-primary' : 'text-brand-primary'}`}>
-          {Math.round(score)}%
-        </span>
-      </div>
-
-      {/* Next action */}
-      <div className="mt-3">
-        {nextAction ? (
-          <div className="flex items-center gap-1.5 bg-[#E8F5E9] rounded-lg px-3 py-2">
-            <ArrowRight className="w-3 h-3 text-brand-primary flex-shrink-0" />
-            <span className="text-[12px] text-brand-primary truncate">{nextAction.title}</span>
-          </div>
-        ) : (
-          <p className="text-[12px] text-[#999]">All caught up</p>
-        )}
-      </div>
-
-      {/* Description */}
       {project.description && (
         <p className="text-[12px] text-[#666] mt-3 line-clamp-2 leading-relaxed">
           {project.description}
         </p>
       )}
 
-      {/* Pending count */}
-      {pendingEntities > 0 && (
-        <div className="flex items-center gap-1.5 mt-2">
-          <ListFilter className="w-3 h-3 text-[#999]" />
-          <span className="text-[11px] text-[#999]">{pendingEntities} pending</span>
-        </div>
-      )}
-
-      {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Footer */}
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
         <span className="text-[10px] text-[#999]">
           {project.updated_at
             ? formatDistanceToNow(new Date(project.updated_at), { addSuffix: true })
-            : '—'}
+            : '\u2014'}
         </span>
         <button
           onClick={(e) => {
@@ -142,26 +88,8 @@ export function ClientProjectsTab({ client, onRefresh }: ClientProjectsTabProps)
   const [showLinkDropdown, setShowLinkDropdown] = useState(false)
   const [availableProjects, setAvailableProjects] = useState<{ id: string; name: string }[]>([])
   const [loadingProjects, setLoadingProjects] = useState(false)
-  const [nextActionsMap, setNextActionsMap] = useState<Record<string, NextAction | null>>({})
 
   const linkedProjectIds = new Set(client.projects.map((p) => p.id))
-
-  // Fetch next actions for each linked project
-  useEffect(() => {
-    async function loadNextActions() {
-      const results = await Promise.all(
-        client.projects.map((p) =>
-          getNextActions(p.id)
-            .then((res) => ({ id: p.id, action: res.actions[0] ?? null }))
-            .catch(() => ({ id: p.id, action: null }))
-        )
-      )
-      const map: Record<string, NextAction | null> = {}
-      for (const r of results) map[r.id] = r.action
-      setNextActionsMap(map)
-    }
-    if (client.projects.length > 0) loadNextActions()
-  }, [client.projects])
 
   const loadAvailableProjects = async () => {
     setLoadingProjects(true)
@@ -198,15 +126,12 @@ export function ClientProjectsTab({ client, onRefresh }: ClientProjectsTabProps)
   }
 
   const handleToggleLinkDropdown = () => {
-    if (!showLinkDropdown) {
-      loadAvailableProjects()
-    }
+    if (!showLinkDropdown) loadAvailableProjects()
     setShowLinkDropdown(!showLinkDropdown)
   }
 
   return (
     <div>
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <FolderKanban className="w-4 h-4 text-[#666]" />
@@ -248,7 +173,6 @@ export function ClientProjectsTab({ client, onRefresh }: ClientProjectsTabProps)
         </div>
       </div>
 
-      {/* Projects grid */}
       {client.projects.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-2xl border border-border shadow-md">
           <FolderKanban className="w-8 h-8 text-[#CCC] mx-auto mb-2" />
@@ -262,7 +186,6 @@ export function ClientProjectsTab({ client, onRefresh }: ClientProjectsTabProps)
               key={project.id}
               project={project}
               clientName={client.name}
-              nextAction={nextActionsMap[project.id] ?? null}
               onView={() => router.push(`/projects/${project.id}`)}
               onUnlink={() => handleUnlink(project.id)}
             />
