@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BenyBox — Outcome Discovery</title>
+<style>
+  :root {
+    --green: #3FAF7A; --green-hover: #33a06d; --green-dim: rgba(63,175,122,0.07); --green-border: rgba(63,175,122,0.15);
+    --navy: #0A1E2F; --teal: #044159; --dark-green: #2D6B4A;
+    --text-dark: #2D3748; --text-body: #4A5568; --text-muted: #718096; --text-label: #A0AEC0;
+    --border: rgba(10,30,47,0.07); --border-hover: rgba(10,30,47,0.13);
+    --bg: #FAFBFC; --bg-subtle: rgba(0,0,0,0.02);
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.04); --shadow-md: 0 2px 12px rgba(0,0,0,0.06);
+    --gold: #C49A1A; --gold-dim: rgba(196,154,26,0.07);
+    --r: 8px; --r-lg: 12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text-dark);-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden}
+
+  .app{display:flex;height:100vh;overflow:hidden}
+  .sidebar{width:48px;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:6px;flex-shrink:0}
+  .sb-icon{width:32px;height:32px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-label);font-size:14px;transition:all .12s}
+  .sb-icon:hover{background:var(--bg-subtle);color:var(--text-muted)}
+  .sb-icon.active{background:var(--green-dim);color:var(--green)}
+  .sb-logo{width:28px;height:28px;border-radius:var(--r);background:var(--navy);display:flex;align-items:center;justify-content:center;color:var(--green);font-size:11px;font-weight:800;margin-bottom:8px}
+
+  .main-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{background:#fff;border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;height:48px;flex-shrink:0}
+  .tb-name{font-size:14px;font-weight:700;color:var(--navy);margin-right:8px}
+  .tb-badge{font-size:10px;color:var(--green);margin-right:auto}
+  .phase-tabs{display:flex;gap:2px;background:var(--bg-subtle);border-radius:var(--r);padding:3px}
+  .ptab{padding:5px 14px;border-radius:6px;font-size:10.5px;font-weight:600;cursor:pointer;color:var(--text-label);border:none;background:none;transition:all .12s}
+  .ptab.active{background:#fff;color:var(--green);box-shadow:var(--shadow-sm)}
+  .ptab:hover:not(.active){color:var(--text-muted)}
+
+  .subtabs{background:#fff;border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;height:36px;flex-shrink:0;justify-content:flex-end;gap:4px}
+  .stab{font-size:11px;font-weight:600;color:var(--text-label);cursor:pointer;padding:6px 12px;border-radius:6px;transition:all .12s}
+  .stab:hover{color:var(--text-muted)}
+  .stab.active{color:var(--navy);background:var(--bg-subtle)}
+
+  .content-wrap{flex:1;display:flex;overflow:hidden}
+  .scroll-area{flex:1;overflow-y:auto;padding:0}
+  .content{max-width:780px;margin:0 auto;padding:28px 32px 60px}
+
+  /* ── Chat panel ─── */
+  .chat-panel{width:360px;border-left:1px solid var(--border);background:#fff;display:flex;flex-direction:column;flex-shrink:0}
+  .chat-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+  .chat-hdr-icon{width:24px;height:24px;border-radius:6px;background:var(--green-dim);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:12px}
+  .chat-hdr-t{font-size:12px;font-weight:700;color:var(--navy);flex:1}
+  .chat-ctx{padding:8px 16px;background:var(--green-dim);border-bottom:1px solid var(--green-border);font-size:9px;font-weight:600;color:var(--green)}
+  .chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:88%;padding:9px 12px;border-radius:10px;font-size:11px;line-height:1.55}
+  .msg.ai{background:var(--bg-subtle);color:var(--text-dark);align-self:flex-start;border:1px solid var(--border)}
+  .msg.user{background:var(--navy);color:#fff;align-self:flex-end}
+  .msg strong{font-weight:700}
+  .msg .oe{margin-top:6px;padding:6px 8px;border-radius:6px;background:var(--green-dim);border:1px solid var(--green-border);font-size:10px;color:var(--teal)}
+  .msg .oe-l{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--green);margin-bottom:3px}
+  .chat-sug{padding:8px 16px;display:flex;flex-wrap:wrap;gap:4px;border-top:1px solid var(--border)}
+  .csug{padding:4px 10px;border-radius:6px;font-size:9px;font-weight:500;cursor:pointer;background:rgba(4,65,89,0.04);border:1px solid rgba(4,65,89,0.08);color:var(--teal);transition:all .12s}
+  .csug:hover{background:rgba(4,65,89,0.08);border-color:rgba(4,65,89,0.15)}
+  .chat-upload{margin:0 16px 8px;padding:10px;border:1.5px dashed var(--border);border-radius:var(--r);text-align:center;cursor:pointer;transition:all .15s}
+  .chat-upload:hover{border-color:var(--green);background:var(--green-dim)}
+  .chat-upload .cu-t{font-size:9px;color:var(--text-muted);font-weight:500}
+  .chat-input{display:flex;gap:6px;padding:10px 16px;border-top:1px solid var(--border);align-items:center}
+  .chat-input input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);font-size:12px;outline:none;font-family:inherit}
+  .chat-input input:focus{border-color:var(--green)}
+  .chat-send{background:var(--green);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer}
+
+  /* ── Page sections ── */
+  .page-hdr{margin-bottom:24px}
+  .page-hdr h1{font-size:26px;font-weight:700;color:var(--navy);margin-bottom:4px;letter-spacing:-.02em}
+  .page-hdr p{font-size:12px;color:var(--text-muted);line-height:1.5}
+
+  /* Health */
+  .health{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:20px}
+  .health-top{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+  .score-ring{position:relative;width:56px;height:56px;flex-shrink:0}
+  .score-ring svg{transform:rotate(-90deg)}
+  .ring-bg{fill:none;stroke:rgba(0,0,0,0.04);stroke-width:5}
+  .ring-fg{fill:none;stroke:var(--green);stroke-width:5;stroke-linecap:round}
+  .score-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .score-num{font-size:17px;font-weight:800;color:var(--navy);line-height:1}
+  .score-pct{font-size:7px;color:var(--text-label);font-weight:600}
+  .health-phase{flex:1}
+  .phase-journey{display:flex;align-items:center;gap:4px;margin-bottom:6px}
+  .pj{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px}
+  .pj.on{background:var(--green);color:#fff}
+  .pj.off{color:var(--text-label)}
+  .pj-s{color:var(--text-label);font-size:9px}
+  .hm-row{display:flex;gap:16px}
+  .hm{font-size:10px;color:var(--text-muted)}.hm b{color:var(--text-dark);font-weight:700}
+  .health-nar{font-size:12px;color:var(--text-body);line-height:1.65}
+
+  /* Actions */
+  .slabel{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-label);margin-bottom:10px;margin-top:24px}
+  .agrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
+  .acard{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;cursor:pointer;transition:all .15s;position:relative}
+  .acard:hover{border-color:var(--border-hover);box-shadow:var(--shadow-md)}
+  .ac-t{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .ac-n{width:22px;height:22px;border-radius:50%;background:var(--green);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .ac-ty{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--green)}
+  .ac-tx{font-size:11px;color:var(--text-body);line-height:1.55}
+  .ac-ar{position:absolute;bottom:14px;right:14px;color:var(--text-label);font-size:14px}
+
+  /* Thesis */
+  .thesis{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:20px}
+  .thesis-l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-label);margin-bottom:8px}
+  .thesis-t{font-size:14px;color:var(--navy);font-weight:600;line-height:1.6;font-style:italic}
+
+  /* Section header */
+  .shdr{display:flex;align-items:center;gap:8px;margin-bottom:10px;margin-top:28px}
+  .shdr-i{font-size:14px}
+  .shdr-t{font-size:15px;font-weight:700;color:var(--navy)}
+  .shdr-c{font-size:11px;font-weight:600;color:var(--text-label)}
+  .shdr-a{margin-left:auto;display:flex;gap:4px}
+  .sbtn{padding:4px 10px;border-radius:6px;font-size:9.5px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text-muted);transition:all .12s}
+  .sbtn:hover{border-color:var(--border-hover);color:var(--text-dark)}
+
+  /* ═══════════════════════════════════ */
+  /* ── OUTCOME CARDS — THE MAIN SHOW ── */
+  /* ═══════════════════════════════════ */
+  .oc-list{display:flex;flex-direction:column;gap:12px}
+
+  .oc{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;transition:all .2s}
+  .oc:hover{border-color:var(--border-hover);box-shadow:var(--shadow-sm)}
+  .oc.open{border-color:var(--border-hover);box-shadow:var(--shadow-md)}
+
+  /* Outcome header — always visible */
+  .oc-hd{padding:18px 22px;cursor:pointer}
+  .oc-hd-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:8px}
+  .oc-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:var(--green-dim);color:var(--green)}
+  .oc-main{flex:1;min-width:0}
+  .oc-num-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-label);margin-bottom:3px}
+  .oc-title{font-size:15px;font-weight:700;color:var(--navy);line-height:1.4;margin-bottom:4px}
+  .oc-desc{font-size:11.5px;color:var(--text-body);line-height:1.6}
+  .oc-chev{color:var(--text-label);font-size:14px;transition:transform .2s;flex-shrink:0;margin-top:4px}
+  .oc.open .oc-chev{transform:rotate(180deg)}
+
+  /* Outcome meta row — actors, evidence, status */
+  .oc-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .oc-actors{display:flex;gap:0}
+  .oc-actor{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;border:2px solid #fff;margin-left:-4px}
+  .oc-actor:first-child{margin-left:0}
+  .oc-actor-names{font-size:10px;color:var(--text-muted);font-weight:500}
+  .oc-ev-badge{font-size:9px;color:var(--text-muted);display:flex;align-items:center;gap:3px;margin-left:auto}
+  .oc-status{font-size:9px;font-weight:600;padding:3px 10px;border-radius:5px}
+  .oc-status.candidate{background:var(--gold-dim);color:var(--gold)}
+  .oc-status.confirmed{background:var(--green-dim);color:var(--green)}
+
+  /* Tags row — linked features, suggestions */
+  .oc-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+  .oc-tag{font-size:9px;font-weight:500;padding:3px 9px;border-radius:5px;display:flex;align-items:center;gap:3px}
+  .oc-tag.feature{background:rgba(4,65,89,0.04);border:1px solid rgba(4,65,89,0.08);color:var(--teal)}
+  .oc-tag.suggest{background:rgba(63,175,122,0.04);border:1px dashed rgba(63,175,122,0.20);color:var(--green);font-style:italic}
+  .oc-tag.surface{background:rgba(10,30,47,0.03);border:1px solid rgba(10,30,47,0.08);color:var(--navy)}
+  .oc-tag-icon{font-size:10px;opacity:.6}
+
+  /* ── Expanded outcome body ── */
+  .oc-body{display:none;border-top:1px solid var(--border)}
+  .oc.open .oc-body{display:block}
+
+  /* Two-column inside expanded */
+  .oc-cols{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .oc-col{padding:16px 20px}
+  .oc-col:first-child{border-right:1px solid var(--border)}
+  .oc-col-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-label);margin-bottom:8px}
+
+  /* Actor outcomes (per-persona state changes) */
+  .ao{padding:10px 12px;border-radius:var(--r);background:var(--bg-subtle);margin-bottom:8px;border-left:3px solid}
+  .ao-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+  .ao-avatar{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;flex-shrink:0}
+  .ao-name{font-size:10px;font-weight:700;color:var(--navy)}
+  .ao-role{font-size:8.5px;color:var(--text-muted);font-weight:500}
+  .ao-state{font-size:10px;color:var(--text-body);line-height:1.5;font-style:italic}
+  .ao-metric{font-size:9px;font-weight:600;color:var(--teal);margin-top:4px;background:rgba(4,65,89,0.04);padding:3px 8px;border-radius:4px;display:inline-block}
+
+  /* Ways to achieve */
+  .wta{display:flex;flex-direction:column;gap:6px}
+  .wta-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:var(--r);background:var(--bg-subtle);border:1px solid var(--border);transition:all .12s}
+  .wta-item:hover{border-color:var(--border-hover)}
+  .wta-icon{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;margin-top:1px}
+  .wta-icon.ai{background:var(--green-dim);color:var(--green)}
+  .wta-icon.rule{background:rgba(4,65,89,0.06);color:var(--teal)}
+  .wta-icon.data{background:rgba(10,30,47,0.05);color:var(--navy)}
+  .wta-info{flex:1}
+  .wta-name{font-size:10.5px;font-weight:600;color:var(--navy);margin-bottom:1px}
+  .wta-desc{font-size:9.5px;color:var(--text-muted);line-height:1.4}
+  .wta-badge{font-size:7.5px;font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;margin-top:3px}
+  .wta-badge.created{background:var(--green-dim);color:var(--green)}
+  .wta-badge.suggested{background:var(--gold-dim);color:var(--gold)}
+
+  /* Evidence in expanded */
+  .ev-list{display:flex;flex-direction:column;gap:5px;margin-top:12px}
+  .ev{display:flex;align-items:flex-start;gap:6px;padding:6px 8px;border-radius:6px;background:var(--bg-subtle);font-size:10px;color:var(--text-body);line-height:1.5}
+  .ev-i{font-size:11px;flex-shrink:0;margin-top:1px}
+  .ev-src{font-size:8px;font-weight:600;color:var(--text-label);margin-top:2px}
+
+  /* Actions */
+  .oc-acts{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:6px;background:rgba(0,0,0,0.008)}
+  .obtn{padding:6px 14px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text-muted);transition:all .12s}
+  .obtn:hover{border-color:var(--border-hover);color:var(--text-dark)}
+  .obtn.green{background:var(--green);border-color:var(--green);color:#fff}
+  .obtn.green:hover{background:var(--green-hover)}
+
+  /* ── Actor cards ──── */
+  .actor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .act{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;transition:all .15s}
+  .act:hover{border-color:var(--border-hover);box-shadow:var(--shadow-sm)}
+  .act-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .act-av{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff}
+  .act-name{font-size:13px;font-weight:700;color:var(--navy)}
+  .act-role{font-size:9.5px;color:var(--text-muted)}
+  .act-ocs{display:flex;flex-direction:column;gap:5px}
+  .act-oc{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-body);line-height:1.4}
+  .act-oc-n{min-width:18px;height:18px;border-radius:5px;font-size:8px;font-weight:800;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .act-oc-st{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-left:auto}
+
+  /* SF hero */
+  .sf-hero{background:linear-gradient(135deg,var(--navy) 0%,var(--teal) 100%);border-radius:var(--r-lg);padding:24px;cursor:pointer;transition:all .15s;margin-bottom:20px}
+  .sf-hero:hover{box-shadow:0 8px 30px rgba(10,30,47,0.2);transform:translateY(-1px)}
+  .sf-hero-t{font-size:16px;font-weight:700;color:#fff;margin-bottom:4px}
+  .sf-hero-sub{font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:12px}
+  .sf-stats{display:flex;gap:12px}
+  .sf-s{font-size:11px;color:rgba(255,255,255,0.75)}.sf-s b{color:#fff}
+
+  .dock{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;display:flex;gap:2px;background:#fff;border-radius:var(--r-lg);box-shadow:0 4px 20px rgba(0,0,0,0.10);padding:4px;border:1px solid var(--border)}
+  .dtab{padding:7px 16px;border-radius:var(--r);font-size:10.5px;font-weight:600;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .12s}
+  .dtab:hover{background:var(--bg-subtle);color:var(--text-dark)}
+
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.08);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="sb-logo">R</div>
+    <div class="sb-icon" style="font-size:16px">⌂</div>
+    <div class="sb-icon" style="font-size:14px">◫</div>
+    <div class="sb-icon active" style="font-size:14px">◉</div>
+    <div class="sb-icon" style="font-size:14px">⊞</div>
+    <div class="sb-icon" style="font-size:13px">◈</div>
+    <div class="sb-icon" style="font-size:14px">⊕</div>
+  </div>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="tb-name">BenyBox</div>
+      <div class="tb-badge">✦</div>
+      <div class="phase-tabs">
+        <button class="ptab">Overview</button>
+        <button class="ptab active">Discovery</button>
+        <button class="ptab">Build</button>
+        <button class="ptab">Live</button>
+        <button class="ptab">Collaborate</button>
+      </div>
+    </div>
+    <div class="subtabs">
+      <div class="stab active">Outcomes</div>
+      <div class="stab">Solution Flow</div>
+      <div class="stab">Intelligence</div>
+    </div>
+
+    <div class="content-wrap">
+      <div class="scroll-area">
+        <div class="content">
+
+          <div class="page-hdr">
+            <h1>Outcome Discovery</h1>
+            <p>What must be true after this engagement that isn't true right now? Outcomes drive everything — AIOS compiles them into requirements, surfaces, and software.</p>
+          </div>
+
+          <!-- Health -->
+          <div class="health">
+            <div class="health-top">
+              <div class="score-ring">
+                <svg width="56" height="56" viewBox="0 0 56 56">
+                  <circle class="ring-bg" cx="28" cy="28" r="23"/>
+                  <circle class="ring-fg" cx="28" cy="28" r="23" stroke-dasharray="144.5" stroke-dashoffset="30"/>
+                </svg>
+                <div class="score-val"><div class="score-num">79</div><div class="score-pct">%</div></div>
+              </div>
+              <div class="health-phase">
+                <div class="phase-journey">
+                  <span class="pj on">Discovery</span><span class="pj-s">—</span>
+                  <span class="pj off">Validation</span><span class="pj-s">—</span>
+                  <span class="pj off">Prototype</span><span class="pj-s">—</span>
+                  <span class="pj off">Build</span>
+                </div>
+                <div class="hm-row">
+                  <div class="hm"><b>5</b> outcomes</div>
+                  <div class="hm">Avg strength <b>87</b></div>
+                  <div class="hm">Confirmed <b>3/5</b></div>
+                  <div class="hm">Coverage <b>4/4</b> actors</div>
+                </div>
+              </div>
+            </div>
+            <div class="health-nar">5 outcomes identified across 4 actors. Outcomes 1, 2, and 3 are confirmed with strong evidence. <strong>Outcome 4 needs sharpening</strong> — missing a concrete scenario. Outcome 5 needs validation from an actual attorney interview. Next step: sharpen O4, then share the convergence map with the client.</div>
+          </div>
+
+          <!-- Next Actions -->
+          <div class="slabel">NEXT ACTIONS</div>
+          <div class="agrid">
+            <div class="acard">
+              <div class="ac-t"><div class="ac-n">1</div><div class="ac-ty">SHARPEN</div></div>
+              <div class="ac-tx">Outcome 4 needs a crisis scenario. Ask Margaret: <em>"What happened when you moved to Florida? Were any documents invalid?"</em></div>
+              <div class="ac-ar">→</div>
+            </div>
+            <div class="acard">
+              <div class="ac-t"><div class="ac-n">2</div><div class="ac-ty">VALIDATE</div></div>
+              <div class="ac-tx">Schedule a call with an estate planning attorney to validate Outcome 5. We need Sarah's real workflow — how does she track client documents today?</div>
+              <div class="ac-ar">→</div>
+            </div>
+            <div class="acard">
+              <div class="ac-t"><div class="ac-n">3</div><div class="ac-ty">CONFIRM</div></div>
+              <div class="ac-tx">Outcomes 1–3 are strong. Share the Solution Flow convergence map with Joanna to confirm the page architecture achieves these outcomes.</div>
+              <div class="ac-ar">→</div>
+            </div>
+          </div>
+
+          <!-- Thesis -->
+          <div class="thesis">
+            <div class="thesis-l">OUTCOME THESIS</div>
+            <div class="thesis-t">"Families don't get screwed when a loved one passes. The documents exist, they're findable, they're current, and the right people can access them in a crisis — without a lawyer, without a court, without a family fight."</div>
+          </div>
+
+          <!-- OUTCOMES — THE MAIN SHOW -->
+          <div class="shdr">
+            <span class="shdr-i">◉</span>
+            <span class="shdr-t">Outcomes</span>
+            <span class="shdr-c">5</span>
+            <div class="shdr-a"><button class="sbtn">Confirm All</button></div>
+          </div>
+
+          <div class="oc-list" id="oc-list"></div>
+
+          <!-- Actors -->
+          <div class="shdr" style="margin-top:32px">
+            <span class="shdr-i">◫</span>
+            <span class="shdr-t">Actors</span>
+            <span class="shdr-c">4</span>
+          </div>
+          <div class="actor-grid" id="actors"></div>
+
+          <!-- Solution Flow Hero -->
+          <div class="shdr" style="margin-top:32px">
+            <span class="shdr-i">⊞</span>
+            <span class="shdr-t">Solution Flow</span>
+          </div>
+          <div class="sf-hero">
+            <div class="sf-hero-t">Outcome Convergence Map</div>
+            <div class="sf-hero-sub">See how 5 outcomes compile into 7 pages — and where the magic happens when they converge.</div>
+            <div class="sf-stats">
+              <div class="sf-s"><b>7</b> pages</div>
+              <div class="sf-s"><b>2</b> cross-persona</div>
+              <div class="sf-s"><b>3</b> outcomes on Vault</div>
+              <div class="sf-s"><b>100%</b> coverage</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Chat -->
+      <div class="chat-panel">
+        <div class="chat-hdr">
+          <div class="chat-hdr-icon">✦</div>
+          <div class="chat-hdr-t">Discovery Assistant</div>
+        </div>
+        <div class="chat-ctx">BenyBox · Outcome Discovery · 3 signals processed</div>
+        <div class="chat-msgs">
+          <div class="msg ai">
+            I've analyzed 3 discovery signals and identified <strong>5 outcomes</strong> across 4 actors. The strongest is "Crisis document access" — the client described a specific scenario with $12K in costs and family breakdown.
+            <div class="oe">
+              <div class="oe-l">Auto-extracted from Discovery Call #1</div>
+              <strong>Outcome:</strong> "Critical documents are accessible in a crisis — without lawyers"<br/>
+              <strong>Evidence:</strong> "When my dad passed, we spent 3 months... $12,000 in legal fees."<br/>
+              <strong>Strength: 95</strong> — specific crisis, named costs, emotional weight
+            </div>
+          </div>
+          <div class="msg user">The client keeps asking for "document upload." How do I handle feature requests?</div>
+          <div class="msg ai">
+            Feature requests are <strong>solutions, not outcomes</strong>. When a client says "I want document upload," ask: <em>"What changes for you once the documents are uploaded?"</em><br/><br/>
+            The outcome behind "document upload" is: <strong>"The gap between what Margaret has and what she needs is closed."</strong> The upload is one mechanism — but the real value is gap identification + guided closure + the score moving.
+            <div class="oe">
+              <div class="oe-l">Translated: Feature → Outcome</div>
+              <strong>"Document upload"</strong> → <strong>"Document gaps are closed"</strong><br/>
+              This auto-links to existing features: [Secure Storage], [Document Organization]. But the outcome also suggests new capabilities: gap detection, provider referrals, score tracking.
+            </div>
+          </div>
+          <div class="msg user">What should I focus on before the next client call?</div>
+          <div class="msg ai">
+            Two priorities:<br/><br/>
+            <strong>1. Sharpen Outcome 4</strong> — it's at strength 78. You need a concrete scenario. Ask: <em>"Margaret, what happened when you moved from California to Florida?"</em><br/><br/>
+            <strong>2. Validate Outcome 5</strong> — Sarah's attorney outcome needs grounding. Ask: <em>"How do you currently track which clients have stale documents?"</em><br/><br/>
+            Once both are strong, you have 5 confirmed outcomes and you're ready for the convergence map walkthrough with the client.
+          </div>
+        </div>
+        <div class="chat-sug">
+          <div class="csug">Sharpen Outcome 4</div>
+          <div class="csug">Prepare for client call</div>
+          <div class="csug">What's missing?</div>
+          <div class="csug">Add a new outcome</div>
+        </div>
+        <div class="chat-upload">
+          <div class="cu-t">↑ Drop transcript, email, or document to extract outcomes</div>
+        </div>
+        <div class="chat-input">
+          <input type="text" placeholder="Ask about outcomes, add context, or drop a file..."/>
+          <button class="chat-send">→</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="dock">
+  <div class="dtab">✦ Unlocks</div>
+  <div class="dtab">◫ Evidence</div>
+  <div class="dtab">◉ Memory</div>
+  <div class="dtab">◈ Calls</div>
+</div>
+
+<script>
+const P = [
+  {name:'Margaret',role:'Aging Parent',i:'AP',c:'#3FAF7A'},
+  {name:'David',role:'Adult Child Caregiver',i:'AC',c:'#044159'},
+  {name:'Individual',role:'Unrepresented',i:'UI',c:'#0A1E2F'},
+  {name:'Sarah',role:'Estate Planning Attorney',i:'EA',c:'#2D6B4A'},
+]
+
+const OC = [
+  { id:'o1', n:1, icon:'◉', status:'confirmed',
+    title:'Families have complete document preparedness',
+    desc:'Every family member knows exactly which documents they need, which they have, and which are missing — personalized by state, age, and family situation.',
+    actors:[
+      {name:'Margaret',c:'#3FAF7A',i:'AP',state:'From "vaguely aware she should have a will" to seeing her full state-specific document landscape with gaps highlighted.',metric:'Personalized checklist within 3 minutes'},
+      {name:'Individual',c:'#0A1E2F',i:'UI',state:'From "overwhelmed by estate planning complexity" to a clear, prioritized action list.',metric:'First document uploaded within 24 hours of onboarding'},
+    ],
+    ways:[
+      {name:'Profile-Driven Assessment Engine',desc:'7 questions → state-aware checklist of required documents',icon:'ai',badge:'created'},
+      {name:'Vault Completeness Score',desc:'Single metric showing % of required documents on file',icon:'ai',badge:'created'},
+      {name:'State Legal Requirements DB',desc:'50-state rules engine mapping profile to document needs',icon:'rule',badge:'suggested'},
+    ],
+    tags:[
+      {type:'feature',text:'Profile Onboarding'},
+      {type:'feature',text:'Document Needs Assessment'},
+      {type:'feature',text:'Vault Score'},
+      {type:'suggest',text:'+ State-specific rules engine'},
+    ],
+    evidence:[
+      {icon:'◈',text:'"I didn\'t even know I needed a Transfer-on-Death deed"',src:'Discovery Call #1 — 14:32'},
+      {icon:'◫',text:'60% of Americans lack basic estate planning documents',src:'AARP 2024 study'},
+    ],
+    surfaces:['Onboarding','Vault Dashboard'],
+  },
+  { id:'o2', n:2, icon:'⚡', status:'confirmed',
+    title:'Critical documents are accessible in a crisis — without lawyers',
+    desc:'When a family emergency happens, the right person can find and present the right document in under 90 seconds — no court orders, no attorney fees, no family conflict.',
+    actors:[
+      {name:'David',c:'#044159',i:'AC',state:'From "no idea what documents mom has" to opening his phone and showing the doctor the Healthcare POA.',metric:'Crisis-to-document < 90 seconds. Legal fees: $0.'},
+      {name:'Margaret',c:'#3FAF7A',i:'AP',state:'From "hoping David can figure it out" to knowing her documents are pre-shared and David has an Emergency Card.',metric:'Emergency Access Card generated and delivered'},
+    ],
+    ways:[
+      {name:'Emergency Access Card',desc:'QR-coded card David keeps in his wallet — one-tap vault access',icon:'ai',badge:'created'},
+      {name:'Shared Vault Browser',desc:'Category-filtered document list optimized for speed',icon:'data',badge:'created'},
+      {name:'Document Presenter',desc:'Full-screen view optimized for showing to a third party',icon:'data',badge:'suggested'},
+    ],
+    tags:[
+      {type:'feature',text:'Family Sharing'},
+      {type:'feature',text:'Emergency Access Card'},
+      {type:'suggest',text:'+ Document Presenter mode'},
+      {type:'suggest',text:'+ Access audit logging'},
+    ],
+    evidence:[
+      {icon:'◈',text:'"When my dad passed, we spent 3 months finding documents. $12,000 in legal fees. My sister and I weren\'t speaking by the end."',src:'Discovery Call #1 — 8:14'},
+      {icon:'◈',text:'"If my dad had organized everything, we wouldn\'t have needed the lawyer at all."',src:'Discovery Call #1 — 12:47'},
+    ],
+    surfaces:['Family Sharing','Emergency Access','Audit & Compliance'],
+  },
+  { id:'o3', n:3, icon:'↗', status:'confirmed',
+    title:'Document gaps close — not just identified',
+    desc:'The distance between "what you have" and "what you need" shrinks actively. Users don\'t just see gaps — they close them, guided by cost estimates, provider referrals, and priority ranking.',
+    actors:[
+      {name:'Margaret',c:'#3FAF7A',i:'AP',state:'From "5 critical gaps she doesn\'t know about" to either 100% complete or consciously accepting specific gaps.',metric:'Vault completeness ≥ 85% within 60 days'},
+    ],
+    ways:[
+      {name:'Gap & Referral Engine',desc:'Per-gap guidance: what it is, why you need it, how to get it, estimated cost',icon:'ai',badge:'created'},
+      {name:'Guided Upload Loop',desc:'AI auto-categorize → checklist closes → score jumps',icon:'ai',badge:'created'},
+      {name:'Service Provider Matching',desc:'Attorneys, notaries, agents near you with availability',icon:'data',badge:'suggested'},
+    ],
+    tags:[
+      {type:'feature',text:'Secure Storage'},
+      {type:'feature',text:'Service Provider Referrals'},
+      {type:'surface',text:'→ Vault Dashboard'},
+    ],
+    evidence:[
+      {icon:'◈',text:'"I know I need a will but I have no idea what else I\'m missing."',src:'Discovery Call #1 — 6:22'},
+    ],
+    surfaces:['Vault Dashboard'],
+  },
+  { id:'o4', n:4, icon:'↻', status:'candidate',
+    title:'Document landscape stays current without active effort',
+    desc:'Life changes — divorce, relocation, new children — automatically surface new document requirements and flag stale ones. The system thinks ahead so families don\'t have to.',
+    actors:[
+      {name:'Margaret',c:'#3FAF7A',i:'AP',state:'From "divorced, moved to Florida, documents now partially invalid" to life changes auto-surfacing new requirements.',metric:'Stale docs flagged within 48 hours of threshold'},
+    ],
+    ways:[
+      {name:'Life Event Trigger',desc:'Profile change → re-run assessment → diff old vs new requirements',icon:'ai',badge:'suggested'},
+      {name:'Staleness Detection',desc:'Monitor documents against type-specific refresh intervals',icon:'rule',badge:'created'},
+      {name:'Proactive Notifications',desc:'Push/email alerts before documents expire',icon:'data',badge:'suggested'},
+    ],
+    tags:[
+      {type:'feature',text:'Staleness Detection'},
+      {type:'suggest',text:'+ Life Event re-assessment'},
+      {type:'suggest',text:'+ Notification system'},
+    ],
+    evidence:[
+      {icon:'◫',text:'Average POA refresh recommendation: 3-5 years. Most families never update.',src:'ABA guidelines'},
+    ],
+    surfaces:['Vault Dashboard','Settings'],
+  },
+  { id:'o5', n:5, icon:'◫', status:'candidate',
+    title:'Attorneys have portfolio-level visibility across all clients',
+    desc:'Estate planning attorneys see which clients have stale or missing documents at a glance, enabling proactive outreach and creating a new aftercare revenue stream.',
+    actors:[
+      {name:'Sarah',c:'#2D6B4A',i:'EA',state:'From "manually checking each client vault" to one dashboard showing 12 at-risk clients, outreach in one click.',metric:'At-risk clients identified in < 10 seconds'},
+    ],
+    ways:[
+      {name:'Portfolio Dashboard',desc:'Risk-sorted client list with completeness scores and staleness flags',icon:'data',badge:'suggested'},
+      {name:'Document Handoff',desc:'Attorney uploads finalized docs directly into client vault',icon:'data',badge:'created'},
+      {name:'Bulk Outreach',desc:'Select at-risk clients → personalized message template',icon:'ai',badge:'suggested'},
+    ],
+    tags:[
+      {type:'feature',text:'Family Sharing (B2B)'},
+      {type:'suggest',text:'+ Portfolio Dashboard'},
+      {type:'suggest',text:'+ Bulk outreach templates'},
+    ],
+    evidence:[
+      {icon:'◈',text:'"I manage 80 clients and I have no way to know which ones have stale documents."',src:'Discovery Call #2 — Sarah, 3:18'},
+    ],
+    surfaces:['Attorney Portal','Audit & Compliance'],
+  },
+]
+
+function render() {
+  const list = document.getElementById('oc-list')
+  list.innerHTML = OC.map(o => {
+    const actorDots = o.actors.map(a =>
+      `<div class="oc-actor" style="background:${a.c}" title="${a.name}">${a.i}</div>`
+    ).join('')
+    const actorNames = o.actors.map(a=>a.name).join(', ')
+
+    const tags = o.tags.map(t => {
+      const cls = t.type === 'suggest' ? 'suggest' : t.type === 'surface' ? 'surface' : 'feature'
+      const icon = t.type === 'suggest' ? '✦' : t.type === 'surface' ? '⊞' : '◇'
+      return `<span class="oc-tag ${cls}"><span class="oc-tag-icon">${icon}</span>${t.text}</span>`
+    }).join('')
+
+    // Expanded: actor outcomes
+    const actorRows = o.actors.map(a => `
+      <div class="ao" style="border-color:${a.c}">
+        <div class="ao-top">
+          <div class="ao-avatar" style="background:${a.c}">${a.i}</div>
+          <div class="ao-name">${a.name}</div>
+          <div class="ao-role">${P.find(p=>p.name===a.name)?.role||''}</div>
+        </div>
+        <div class="ao-state">${a.state}</div>
+        <div class="ao-metric">${a.metric}</div>
+      </div>
+    `).join('')
+
+    const waysHtml = o.ways.map(w => `
+      <div class="wta-item">
+        <div class="wta-icon ${w.icon}">${w.icon==='ai'?'✦':w.icon==='rule'?'◇':'⊞'}</div>
+        <div class="wta-info">
+          <div class="wta-name">${w.name}</div>
+          <div class="wta-desc">${w.desc}</div>
+        </div>
+        <div class="wta-badge ${w.badge}">${w.badge==='created'?'Created':'Suggested'}</div>
+      </div>
+    `).join('')
+
+    const evHtml = o.evidence.map(e => `
+      <div class="ev"><div class="ev-i">${e.icon}</div><div>"${e.text}"<div class="ev-src">${e.src}</div></div></div>
+    `).join('')
+
+    const surfPills = o.surfaces.map(s => `<span class="oc-tag surface"><span class="oc-tag-icon">⊞</span>${s}</span>`).join('')
+
+    return `
+      <div class="oc" id="oc-${o.id}" onclick="toggle('${o.id}')">
+        <div class="oc-hd">
+          <div class="oc-hd-top">
+            <div class="oc-icon">${o.icon}</div>
+            <div class="oc-main">
+              <div class="oc-num-label">OUTCOME ${o.n}</div>
+              <div class="oc-title">${o.title}</div>
+              <div class="oc-desc">${o.desc}</div>
+            </div>
+            <div class="oc-chev">▾</div>
+          </div>
+          <div class="oc-meta">
+            <div class="oc-actors">${actorDots}</div>
+            <div class="oc-actor-names">${actorNames}</div>
+            <div class="oc-ev-badge">◫ ${o.evidence.length} sources</div>
+            <div class="oc-status ${o.status}">${o.status==='confirmed'?'✓ Confirmed':'Candidate'}</div>
+          </div>
+          <div class="oc-tags">${tags}</div>
+        </div>
+        <div class="oc-body">
+          <div class="oc-cols">
+            <div class="oc-col">
+              <div class="oc-col-label">ACTOR OUTCOMES</div>
+              ${actorRows}
+              <div style="margin-top:14px">
+                <div class="oc-col-label">EVIDENCE</div>
+                <div class="ev-list">${evHtml}</div>
+              </div>
+            </div>
+            <div class="oc-col">
+              <div class="oc-col-label">WAYS TO ACHIEVE</div>
+              <div class="wta">${waysHtml}</div>
+              <div style="margin-top:14px">
+                <div class="oc-col-label">COMPILES TO SURFACES</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${surfPills}</div>
+              </div>
+            </div>
+          </div>
+          <div class="oc-acts">
+            ${o.status==='candidate'?'<button class="obtn green">Confirm Outcome</button>':'<span style="font-size:10px;font-weight:600;color:var(--green);padding:6px 0">✓ Confirmed by consultant</span>'}
+            <button class="obtn">Sharpen</button>
+            <button class="obtn">Ask Client</button>
+            <button class="obtn">View in Flow</button>
+          </div>
+        </div>
+      </div>
+    `
+  }).join('')
+
+  // Actors
+  const ag = document.getElementById('actors')
+  ag.innerHTML = P.map(p => {
+    const pOcs = OC.filter(o => o.actors.some(a=>a.name===p.name))
+    return `
+      <div class="act">
+        <div class="act-top">
+          <div class="act-av" style="background:${p.c}">${p.i}</div>
+          <div><div class="act-name">${p.name}</div><div class="act-role">${p.role}</div></div>
+        </div>
+        <div class="act-ocs">
+          ${pOcs.map(o=>`
+            <div class="act-oc">
+              <div class="act-oc-n" style="background:${o.status==='confirmed'?'var(--green)':'var(--gold)'}">${o.n}</div>
+              <div style="flex:1">${o.title}</div>
+              <div class="act-oc-st" style="background:${o.status==='confirmed'?'var(--green)':'var(--gold)'}"></div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `
+  }).join('')
+}
+
+function toggle(id) {
+  const el = document.getElementById(`oc-${id}`)
+  // Close others
+  document.querySelectorAll('.oc.open').forEach(e => { if(e.id !== `oc-${id}`) e.classList.remove('open') })
+  el.classList.toggle('open')
+}
+
+render()
+</script>
+</body>
+</html>

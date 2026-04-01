@@ -1,0 +1,628 @@
+{
+  "project_id": "517d1c9c-80ca-419c-99b2-48c74c67117d",
+  "phase": "before",
+  "timestamp": "2026-03-30 23:18:15",
+  "queries": [
+    {
+      "query": "What's causing the biggest pain?",
+      "type": "intent",
+      "description": "Broad pain query",
+      "legacy_results": [
+        {
+          "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+          "entity_type": "business_driver",
+          "entity_name": "Critical documents locked in safes or stored without shared access force families to seek court orders to access them, causing delays, costs, and government involvement during already difficult times.",
+          "similarity": 0.2676
+        },
+        {
+          "entity_id": "325fbc5c-72ba-4d74-85c9-1c390c65ea7d",
+          "entity_type": "business_driver",
+          "entity_name": "The majority of adults do not have essential estate planning documents such as a power of attorney, leaving them and their families vulnerable in emergencies or at death.",
+          "similarity": 0.2126
+        },
+        {
+          "entity_id": "0de3938f-c3d8-48da-8e65-ee128c6294b1",
+          "entity_type": "persona",
+          "entity_name": "Aging Parent",
+          "similarity": 0.192
+        },
+        {
+          "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Gap Identification and Service Provider Referral",
+          "similarity": 0.1569
+        },
+        {
+          "entity_id": "1e5963d0-71ff-49ba-8271-4e9a2fed6cec",
+          "entity_type": "unlock",
+          "entity_name": "Surface a 'Family Vault Health Report' to adult child caregivers showing the parent's document completeness, staleness, and gap priorities without exposing document contents",
+          "similarity": 0.149
+        }
+      ],
+      "legacy_top_sim": 0.2676,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What should we focus on next?",
+      "type": "intent",
+      "description": "Strategic priority",
+      "legacy_results": [
+        {
+          "entity_id": "96e59e2a-6ac3-40fb-8a5c-0871993f6e38",
+          "entity_type": "unlock",
+          "entity_name": "Predict which users are at highest risk of churning before completing their vault by correlating profile completion rate, days-since-last-upload, and checklist gap count",
+          "similarity": 0.3009
+        },
+        {
+          "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Gap Identification and Service Provider Referral",
+          "similarity": 0.2464
+        },
+        {
+          "entity_id": "9b71dafc-a668-465d-935a-9327ca5de769",
+          "entity_type": "unlock",
+          "entity_name": "Surface a real-time Vault Completeness Score on every user's dashboard using checklist and document data",
+          "similarity": 0.238
+        },
+        {
+          "entity_id": "c2bf1dfc-c88e-48fa-8a48-2b4c6e5c4b20",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Vault Completeness Score Dashboard",
+          "similarity": 0.2355
+        },
+        {
+          "entity_id": "51d0abf7-96ee-4e25-83a9-dcdcb7df49f8",
+          "entity_type": "unlock",
+          "entity_name": "Build an anonymized State Preparedness Benchmark that shows users how their Vault Completeness Score compares to peers with similar profiles in their state",
+          "similarity": 0.2293
+        }
+      ],
+      "legacy_top_sim": 0.3009,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "How does data flow through the system?",
+      "type": "intent",
+      "description": "Architecture query",
+      "legacy_results": [
+        {
+          "entity_id": "09d9301a-778c-420b-97df-256083b3e14b",
+          "entity_type": "unlock",
+          "entity_name": "Trigger profile-change reassessments automatically when User Profile fields that affect document requirements are updated",
+          "similarity": 0.2748
+        },
+        {
+          "entity_id": "9b71dafc-a668-465d-935a-9327ca5de769",
+          "entity_type": "unlock",
+          "entity_name": "Surface a real-time Vault Completeness Score on every user's dashboard using checklist and document data",
+          "similarity": 0.2707
+        },
+        {
+          "entity_id": "4f538bbd-2e00-4ffe-a669-25344b4ae9a7",
+          "entity_type": "unlock",
+          "entity_name": "Pre-populate the Attorney Partner's client onboarding form using existing User Profile data to eliminate redundant intake work",
+          "similarity": 0.2637
+        },
+        {
+          "entity_id": "1e5963d0-71ff-49ba-8271-4e9a2fed6cec",
+          "entity_type": "unlock",
+          "entity_name": "Surface a 'Family Vault Health Report' to adult child caregivers showing the parent's document completeness, staleness, and gap priorities without exposing document contents",
+          "similarity": 0.2623
+        },
+        {
+          "entity_id": "3d121168-d919-4dc7-85d6-0e85782bd809",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Audit Trail and Access Log Review",
+          "similarity": 0.2588
+        }
+      ],
+      "legacy_top_sim": 0.2748,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "Who are the key decision makers?",
+      "type": "intent",
+      "description": "Stakeholder query",
+      "legacy_results": [
+        {
+          "entity_id": "c444a39c-29f1-457f-8561-65aba095c4c9",
+          "entity_type": "persona",
+          "entity_name": "Unrepresented Individual",
+          "similarity": 0.2719
+        },
+        {
+          "entity_id": "0de3938f-c3d8-48da-8e65-ee128c6294b1",
+          "entity_type": "persona",
+          "entity_name": "Aging Parent",
+          "similarity": 0.2695
+        },
+        {
+          "entity_id": "eed2b719-2c38-44c9-a457-4e9618f9e955",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Permission Management and Access Revocation",
+          "similarity": 0.2628
+        },
+        {
+          "entity_id": "c4927bed-215a-4900-8938-ce1c9f329dee",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Family Sharing Setup and Role-Based Access Grant",
+          "similarity": 0.2592
+        },
+        {
+          "entity_id": "951f9853-c4e3-4265-9df2-15de40b256d2",
+          "entity_type": "feature",
+          "entity_name": "Document Sharing with Third Parties",
+          "similarity": 0.2436
+        }
+      ],
+      "legacy_top_sim": 0.2719,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What's blocking progress?",
+      "type": "intent",
+      "description": "Blocker query",
+      "legacy_results": [
+        {
+          "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+          "entity_type": "business_driver",
+          "entity_name": "Critical documents locked in safes or stored without shared access force families to seek court orders to access them, causing delays, costs, and government involvement during already difficult times.",
+          "similarity": 0.3024
+        },
+        {
+          "entity_id": "96e59e2a-6ac3-40fb-8a5c-0871993f6e38",
+          "entity_type": "unlock",
+          "entity_name": "Predict which users are at highest risk of churning before completing their vault by correlating profile completion rate, days-since-last-upload, and checklist gap count",
+          "similarity": 0.2489
+        },
+        {
+          "entity_id": "c2bf1dfc-c88e-48fa-8a48-2b4c6e5c4b20",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Vault Completeness Score Dashboard",
+          "similarity": 0.2465
+        },
+        {
+          "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Gap Identification and Service Provider Referral",
+          "similarity": 0.2364
+        },
+        {
+          "entity_id": "51d0abf7-96ee-4e25-83a9-dcdcb7df49f8",
+          "entity_type": "unlock",
+          "entity_name": "Build an anonymized State Preparedness Benchmark that shows users how their Vault Completeness Score compares to peers with similar profiles in their state",
+          "similarity": 0.2133
+        }
+      ],
+      "legacy_top_sim": 0.3024,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What features are must-have?",
+      "type": "specific",
+      "description": "Feature priority",
+      "legacy_results": [
+        {
+          "entity_id": "9b71dafc-a668-465d-935a-9327ca5de769",
+          "entity_type": "unlock",
+          "entity_name": "Surface a real-time Vault Completeness Score on every user's dashboard using checklist and document data",
+          "similarity": 0.3511
+        },
+        {
+          "entity_id": "1d16ed38-6b6d-4953-94cd-08caba2b6556",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Personalized Document Needs Assessment",
+          "similarity": 0.3312
+        },
+        {
+          "entity_id": "f1af838e-3e38-4f3a-803e-98b32f866c86",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Guided Document Upload and Auto-Categorization Loop",
+          "similarity": 0.3227
+        },
+        {
+          "entity_id": "103ee61b-2097-4935-ba1d-84ce9f91e286",
+          "entity_type": "data_entity",
+          "entity_name": "Document Checklist Item",
+          "similarity": 0.3223
+        },
+        {
+          "entity_id": "bfb76d90-233f-4bd2-ac01-473fe9ed9b3a",
+          "entity_type": "unlock",
+          "entity_name": "Automatically score and surface each user's Vault Readiness by life-event risk tier using User Profile and Document Checklist Item data",
+          "similarity": 0.3197
+        }
+      ],
+      "legacy_top_sim": 0.3511,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What workflows exist?",
+      "type": "specific",
+      "description": "Workflow listing",
+      "legacy_results": [
+        {
+          "entity_id": "0c79b148-d4d9-414e-ba8c-53d44fa32c5f",
+          "entity_type": "unlock",
+          "entity_name": "Enable attorney partners to generate a co-branded 'Estate Readiness Report' for clients using aggregated Document Checklist Item and Document data from the client's vault",
+          "similarity": 0.3005
+        },
+        {
+          "entity_id": "5512d401-2b24-46ff-97e5-798fd449d66f",
+          "entity_type": "unlock",
+          "entity_name": "Generate a 'Life Event Re-Assessment' prompt when User Profile fields change, automatically updating the Document Checklist to reflect new document needs",
+          "similarity": 0.2998
+        },
+        {
+          "entity_id": "09d9301a-778c-420b-97df-256083b3e14b",
+          "entity_type": "unlock",
+          "entity_name": "Trigger profile-change reassessments automatically when User Profile fields that affect document requirements are updated",
+          "similarity": 0.2956
+        },
+        {
+          "entity_id": "96e59e2a-6ac3-40fb-8a5c-0871993f6e38",
+          "entity_type": "unlock",
+          "entity_name": "Predict which users are at highest risk of churning before completing their vault by correlating profile completion rate, days-since-last-upload, and checklist gap count",
+          "similarity": 0.2888
+        },
+        {
+          "entity_id": "4f538bbd-2e00-4ffe-a669-25344b4ae9a7",
+          "entity_type": "unlock",
+          "entity_name": "Pre-populate the Attorney Partner's client onboarding form using existing User Profile data to eliminate redundant intake work",
+          "similarity": 0.283
+        }
+      ],
+      "legacy_top_sim": 0.3005,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What constraints do we have?",
+      "type": "specific",
+      "description": "Constraint listing",
+      "legacy_results": [
+        {
+          "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+          "entity_type": "business_driver",
+          "entity_name": "Critical documents locked in safes or stored without shared access force families to seek court orders to access them, causing delays, costs, and government involvement during already difficult times.",
+          "similarity": 0.2414
+        },
+        {
+          "entity_id": "1e5963d0-71ff-49ba-8271-4e9a2fed6cec",
+          "entity_type": "unlock",
+          "entity_name": "Surface a 'Family Vault Health Report' to adult child caregivers showing the parent's document completeness, staleness, and gap priorities without exposing document contents",
+          "similarity": 0.2274
+        },
+        {
+          "entity_id": "01aa4ced-45dc-4f67-b0ef-be534b5abb55",
+          "entity_type": "unlock",
+          "entity_name": "Enable selective, time-limited document sharing with third parties (doctors, financial advisors) using a scoped token derived from Family Access Permission and Document data",
+          "similarity": 0.2161
+        },
+        {
+          "entity_id": "103ee61b-2097-4935-ba1d-84ce9f91e286",
+          "entity_type": "data_entity",
+          "entity_name": "Document Checklist Item",
+          "similarity": 0.2156
+        },
+        {
+          "entity_id": "9b71dafc-a668-465d-935a-9327ca5de769",
+          "entity_type": "unlock",
+          "entity_name": "Surface a real-time Vault Completeness Score on every user's dashboard using checklist and document data",
+          "similarity": 0.2098
+        }
+      ],
+      "legacy_top_sim": 0.2414,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "How do the personas relate to the features?",
+      "type": "cross",
+      "description": "Persona-feature mapping",
+      "legacy_results": [
+        {
+          "entity_id": "ac3a14eb-c466-4040-82b4-e8d853d50411",
+          "entity_type": "data_entity",
+          "entity_name": "User Profile",
+          "similarity": 0.4636
+        },
+        {
+          "entity_id": "cb99be7e-9952-4284-b497-01e53c774767",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Trigger-Aware Profile Onboarding",
+          "similarity": 0.3996
+        },
+        {
+          "entity_id": "09d9301a-778c-420b-97df-256083b3e14b",
+          "entity_type": "unlock",
+          "entity_name": "Trigger profile-change reassessments automatically when User Profile fields that affect document requirements are updated",
+          "similarity": 0.3597
+        },
+        {
+          "entity_id": "1d16ed38-6b6d-4953-94cd-08caba2b6556",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Personalized Document Needs Assessment",
+          "similarity": 0.3579
+        },
+        {
+          "entity_id": "5512d401-2b24-46ff-97e5-798fd449d66f",
+          "entity_type": "unlock",
+          "entity_name": "Generate a 'Life Event Re-Assessment' prompt when User Profile fields change, automatically updating the Document Checklist to reflect new document needs",
+          "similarity": 0.3564
+        }
+      ],
+      "legacy_top_sim": 0.4636,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What's the connection between the pain points and the solution?",
+      "type": "cross",
+      "description": "Pain-solution link",
+      "legacy_results": [
+        {
+          "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Gap Identification and Service Provider Referral",
+          "similarity": 0.2342
+        },
+        {
+          "entity_id": "cb99be7e-9952-4284-b497-01e53c774767",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Trigger-Aware Profile Onboarding",
+          "similarity": 0.2304
+        },
+        {
+          "entity_id": "09d9301a-778c-420b-97df-256083b3e14b",
+          "entity_type": "unlock",
+          "entity_name": "Trigger profile-change reassessments automatically when User Profile fields that affect document requirements are updated",
+          "similarity": 0.2258
+        },
+        {
+          "entity_id": "4f538bbd-2e00-4ffe-a669-25344b4ae9a7",
+          "entity_type": "unlock",
+          "entity_name": "Pre-populate the Attorney Partner's client onboarding form using existing User Profile data to eliminate redundant intake work",
+          "similarity": 0.2212
+        },
+        {
+          "entity_id": "5512d401-2b24-46ff-97e5-798fd449d66f",
+          "entity_type": "unlock",
+          "entity_name": "Generate a 'Life Event Re-Assessment' prompt when User Profile fields change, automatically updating the Document Checklist to reflect new document needs",
+          "similarity": 0.2173
+        }
+      ],
+      "legacy_top_sim": 0.2342,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "Where are the bottlenecks?",
+      "type": "synonym",
+      "description": "Synonym for pain/constraint",
+      "legacy_results": [
+        {
+          "entity_id": "96e59e2a-6ac3-40fb-8a5c-0871993f6e38",
+          "entity_type": "unlock",
+          "entity_name": "Predict which users are at highest risk of churning before completing their vault by correlating profile completion rate, days-since-last-upload, and checklist gap count",
+          "similarity": 0.2429
+        },
+        {
+          "entity_id": "c2bf1dfc-c88e-48fa-8a48-2b4c6e5c4b20",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Vault Completeness Score Dashboard",
+          "similarity": 0.2157
+        },
+        {
+          "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Gap Identification and Service Provider Referral",
+          "similarity": 0.2142
+        },
+        {
+          "entity_id": "51d0abf7-96ee-4e25-83a9-dcdcb7df49f8",
+          "entity_type": "unlock",
+          "entity_name": "Build an anonymized State Preparedness Benchmark that shows users how their Vault Completeness Score compares to peers with similar profiles in their state",
+          "similarity": 0.1752
+        },
+        {
+          "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+          "entity_type": "business_driver",
+          "entity_name": "Critical documents locked in safes or stored without shared access force families to seek court orders to access them, causing delays, costs, and government involvement during already difficult times.",
+          "similarity": 0.1742
+        }
+      ],
+      "legacy_top_sim": 0.2429,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What needs automation?",
+      "type": "synonym",
+      "description": "Implied feature need",
+      "legacy_results": [
+        {
+          "entity_id": "09d9301a-778c-420b-97df-256083b3e14b",
+          "entity_type": "unlock",
+          "entity_name": "Trigger profile-change reassessments automatically when User Profile fields that affect document requirements are updated",
+          "similarity": 0.3374
+        },
+        {
+          "entity_id": "5512d401-2b24-46ff-97e5-798fd449d66f",
+          "entity_type": "unlock",
+          "entity_name": "Generate a 'Life Event Re-Assessment' prompt when User Profile fields change, automatically updating the Document Checklist to reflect new document needs",
+          "similarity": 0.2981
+        },
+        {
+          "entity_id": "f1af838e-3e38-4f3a-803e-98b32f866c86",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Guided Document Upload and Auto-Categorization Loop",
+          "similarity": 0.286
+        },
+        {
+          "entity_id": "0de3938f-c3d8-48da-8e65-ee128c6294b1",
+          "entity_type": "persona",
+          "entity_name": "Aging Parent",
+          "similarity": 0.2622
+        },
+        {
+          "entity_id": "cb99be7e-9952-4284-b497-01e53c774767",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Trigger-Aware Profile Onboarding",
+          "similarity": 0.262
+        }
+      ],
+      "legacy_top_sim": 0.3374,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "Risk areas in the project",
+      "type": "synonym",
+      "description": "Synonym for constraints/blockers",
+      "legacy_results": [
+        {
+          "entity_id": "bfb76d90-233f-4bd2-ac01-473fe9ed9b3a",
+          "entity_type": "unlock",
+          "entity_name": "Automatically score and surface each user's Vault Readiness by life-event risk tier using User Profile and Document Checklist Item data",
+          "similarity": 0.3629
+        },
+        {
+          "entity_id": "1e5963d0-71ff-49ba-8271-4e9a2fed6cec",
+          "entity_type": "unlock",
+          "entity_name": "Surface a 'Family Vault Health Report' to adult child caregivers showing the parent's document completeness, staleness, and gap priorities without exposing document contents",
+          "similarity": 0.2954
+        },
+        {
+          "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Gap Identification and Service Provider Referral",
+          "similarity": 0.2933
+        },
+        {
+          "entity_id": "103ee61b-2097-4935-ba1d-84ce9f91e286",
+          "entity_type": "data_entity",
+          "entity_name": "Document Checklist Item",
+          "similarity": 0.2901
+        },
+        {
+          "entity_id": "96e59e2a-6ac3-40fb-8a5c-0871993f6e38",
+          "entity_type": "unlock",
+          "entity_name": "Predict which users are at highest risk of churning before completing their vault by correlating profile completion rate, days-since-last-upload, and checklist gap count",
+          "similarity": 0.2813
+        }
+      ],
+      "legacy_top_sim": 0.3629,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    }
+  ],
+  "project_name": "BenyBox",
+  "entity_counts": {
+    "features": 12,
+    "personas": 4,
+    "business_drivers": 11,
+    "workflows": 11,
+    "constraints": 5,
+    "stakeholders": 1
+  },
+  "entity_vectors_count": 0
+}

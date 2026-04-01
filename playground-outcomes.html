@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Outcomes — What Must Be True</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #3FAF7A;
+  --green-dark: #25785A;
+  --green-darker: #1a6344;
+  --green-pale: rgba(63,175,122,0.08);
+  --accent: #044159;
+  --accent-pale: rgba(4,65,89,0.06);
+  --navy: #0A1E2F;
+  --navy-pale: rgba(10,30,47,0.04);
+  --t1: #1D1D1F; --t2: #333; --t3: #4B4B4B; --t4: #7B7B7B; --t5: #999;
+  --border: #E5E5E5; --border-s: #D4D4D4;
+  --bg: #FAFAFA; --card: #FFF; --subtle: #F5F5F5;
+  --warm: #6B5B3E; --warm-pale: rgba(107,91,62,0.06);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--t2);height:100vh;overflow:hidden}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-s);border-radius:3px}
+
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* ── Tab Bar ─────────────────────────────────────────── */
+.tab-bar{background:var(--card);border-bottom:1px solid var(--border);padding:0 40px;display:flex;align-items:center;height:42px;flex-shrink:0}
+.tabs{display:flex;gap:0;height:100%}
+.tab{padding:0 18px;font-size:12px;font-weight:600;color:var(--t5);cursor:pointer;border:none;background:none;font-family:inherit;height:100%;display:flex;align-items:center;gap:6px;position:relative;transition:color .2s}
+.tab:hover{color:var(--t3)}
+.tab.active{color:var(--green-dark)}
+.tab.active::after{content:'';position:absolute;bottom:0;left:12px;right:12px;height:2px;background:var(--green);border-radius:1px 1px 0 0}
+.tab-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px}
+.tab.active .tab-badge{background:var(--green-pale);color:var(--green-dark)}
+.tab:not(.active) .tab-badge{background:var(--subtle);color:var(--t5)}
+.auto-badge{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 6px;border-radius:4px;background:var(--green-pale);color:var(--green-dark)}
+
+/* ── Header ──────────────────────────────────────────── */
+.page-header{background:var(--card);border-bottom:1px solid var(--border);padding:24px 40px 18px;flex-shrink:0}
+.macro-row{display:flex;align-items:flex-start;gap:16px;margin-bottom:18px}
+.macro-marker{width:10px;height:10px;border-radius:50%;background:var(--green);margin-top:8px;flex-shrink:0;box-shadow:0 0 0 4px var(--green-pale)}
+.macro-text{flex:1}
+.macro-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--t5);margin-bottom:5px}
+.macro-statement{font-size:22px;font-weight:700;color:var(--t1);line-height:1.35;letter-spacing:-.02em}
+
+.header-stats{display:flex;gap:24px;align-items:center;padding:12px 20px;background:var(--subtle);border-radius:10px}
+.stat{display:flex;align-items:baseline;gap:6px}
+.stat-val{font-size:20px;font-weight:700;color:var(--t1)}
+.stat-lbl{font-size:11px;color:var(--t5);font-weight:500}
+.stat-divider{width:1px;height:20px;background:var(--border)}
+.strength-indicator{display:flex;align-items:center;gap:6px}
+.mini-ring{position:relative;width:28px;height:28px}
+.mini-ring svg{transform:rotate(-90deg)}
+.mini-ring .rbg{stroke:var(--border);stroke-width:3;fill:none}
+.mini-ring .rfill{stroke-width:3;fill:none;stroke-linecap:round}
+.mini-ring-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--t2)}
+
+.horizon-row{display:flex;align-items:center;gap:8px;margin-top:14px}
+.horizon-label{font-size:10px;font-weight:600;color:var(--t5);text-transform:uppercase;letter-spacing:.05em}
+.h-pill{padding:5px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--t4);transition:all .2s;display:flex;align-items:center;gap:6px}
+.h-pill:hover{border-color:var(--border-s);color:var(--t2)}
+.h-pill.active{background:var(--green-pale);border-color:rgba(63,175,122,0.25);color:var(--green-dark)}
+.h-pill .hd{width:6px;height:6px;border-radius:50%}
+.h-pill.h1 .hd{background:var(--green)}
+.h-pill.h2 .hd{background:var(--accent)}
+.h-pill.h3 .hd{background:var(--t5)}
+
+/* ── Scroll Area ─────────────────────────────────────── */
+.scroll{flex:1;overflow-y:auto;padding:28px 40px 80px}
+.content{max-width:960px;margin:0 auto}
+
+/* ── Outcome Cards Grid ──────────────────────────────── */
+.outcomes-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
+.section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t5);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-label .sl-line{flex:1;height:1px;background:var(--border)}
+
+/* ── Core Outcome Card ───────────────────────────────── */
+.core-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:0;transition:all .25s;overflow:hidden;cursor:pointer}
+.core-card:hover{border-color:rgba(63,175,122,0.3);box-shadow:0 4px 16px rgba(0,0,0,0.04)}
+.core-card.expanded{border-color:rgba(63,175,122,0.35);box-shadow:0 6px 20px rgba(63,175,122,0.08);grid-column:1/-1}
+
+.card-top{padding:20px 22px 0;display:flex;align-items:flex-start;gap:12px}
+.card-ring{flex-shrink:0;position:relative;width:36px;height:36px}
+.card-ring svg{transform:rotate(-90deg)}
+.card-ring .rbg{stroke:var(--subtle);stroke-width:3;fill:none}
+.card-ring .rfill{stroke-width:3;fill:none;stroke-linecap:round}
+.card-ring-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--t2)}
+.card-badges{display:flex;gap:5px;margin-left:auto;flex-shrink:0}
+.badge{font-size:9px;font-weight:600;padding:2px 8px;border-radius:5px;letter-spacing:.02em}
+.badge-h1{background:var(--green-pale);color:var(--green-dark)}
+.badge-h2{background:var(--accent-pale);color:var(--accent)}
+.badge-status{background:var(--subtle);color:var(--t5)}
+.badge-status.emerging{background:rgba(63,175,122,0.08);color:var(--green-dark)}
+
+.card-title{font-size:16px;font-weight:700;color:var(--t1);line-height:1.4;letter-spacing:-.015em;padding:10px 22px 0;flex:1}
+
+/* What Helps */
+.what-helps{padding:14px 22px 0}
+.wh-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t5);margin-bottom:8px}
+.wh-list{display:flex;flex-direction:column;gap:5px}
+.wh-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--t3);line-height:1.45}
+.wh-dot{width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:6px}
+
+/* Persona outcomes */
+.persona-outcomes{padding:14px 22px 18px}
+.po-divider{height:1px;background:var(--subtle);margin-bottom:12px}
+.po-row{display:flex;align-items:center;gap:10px;padding:7px 0}
+.po-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0}
+.po-text{flex:1;font-size:12px;color:var(--t2);line-height:1.4}
+.po-text em{font-style:normal;color:var(--t1);font-weight:600}
+.po-strength{font-size:10px;font-weight:700;color:var(--t4);flex-shrink:0;width:24px;text-align:center}
+.po-strength.strong{color:var(--green-dark)}
+.po-strength.moderate{color:var(--t4)}
+.po-strength.weak{color:#D97706}
+
+.card-footer{padding:10px 22px 14px;display:flex;align-items:center;gap:8px;font-size:10px;color:var(--t5)}
+.card-footer .foot-stat{display:flex;align-items:center;gap:4px}
+.foot-dot{width:4px;height:4px;border-radius:50%;background:var(--t5)}
+
+/* ── Expanded Card Detail ────────────────────────────── */
+.card-expand{max-height:0;opacity:0;overflow:hidden;transition:all .35s ease}
+.core-card.expanded .card-expand{max-height:1500px;opacity:1}
+
+.expand-inner{padding:0 22px 22px}
+.expand-divider{height:1px;background:var(--border);margin-bottom:16px}
+
+/* Individual outcome detail */
+.ind-outcome{padding:14px 16px;background:var(--subtle);border-radius:10px;margin-bottom:10px;cursor:pointer;transition:all .2s}
+.ind-outcome:hover{background:rgba(63,175,122,0.04);border:1px solid rgba(63,175,122,0.12);padding:13px 15px}
+.ind-outcome:last-child{margin-bottom:0}
+.ind-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.ind-persona{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--t2)}
+.ind-badges{display:flex;gap:4px;margin-left:auto}
+.ind-title{font-size:13px;font-weight:600;color:var(--t1);line-height:1.4;margin-bottom:8px}
+.ind-title::before{content:'\201C';color:var(--green);font-weight:400}
+.ind-title::after{content:'\201D';color:var(--green);font-weight:400}
+
+/* Transform */
+.transform{display:grid;grid-template-columns:1fr 28px 1fr;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px}
+.t-side{padding:12px 14px}
+.t-side.before{background:rgba(4,65,89,0.015)}
+.t-side.after{background:rgba(63,175,122,0.015)}
+.t-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.t-side.before .t-label{color:var(--accent)}
+.t-side.after .t-label{color:var(--green-dark)}
+.t-text{font-size:11px;line-height:1.5;color:var(--t3)}
+.t-arrow{display:flex;align-items:center;justify-content:center;background:var(--subtle);color:var(--green);font-size:14px}
+
+/* Evidence */
+.evidence{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--t5)}
+.ev-dots{display:flex;gap:3px}
+.ev-d{width:7px;height:7px;border-radius:50%}
+.ev-d.toward{background:var(--green)}
+.ev-d.away{background:#D97706}
+.ev-d.reframe{background:var(--accent)}
+
+/* Sharpen prompt */
+.sharpen{padding:10px 12px;background:rgba(4,65,89,0.03);border-radius:7px;border-left:2px solid var(--accent);font-size:11px;color:var(--t3);line-height:1.5;margin-top:8px}
+.sharpen strong{color:var(--accent)}
+.sharpen em{color:var(--t2)}
+
+/* ── H3 Section ──────────────────────────────────────── */
+.h3-section{margin-top:8px}
+.h3-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.h3-top{padding:18px 22px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:background .15s}
+.h3-top:hover{background:var(--subtle)}
+.h3-icon{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--navy-pale),var(--accent-pale));display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.h3-info{flex:1}
+.h3-title{font-size:15px;font-weight:700;color:var(--t1)}
+.h3-sub{font-size:11px;color:var(--t4);margin-top:2px}
+.h3-pulse{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:5px;background:var(--navy-pale);color:var(--accent);display:flex;align-items:center;gap:5px}
+.h3-pulse .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:pulse 2s ease infinite}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+.h3-chevron{color:var(--t5);font-size:13px;transition:transform .2s}
+
+.h3-body{padding:0 22px 20px;display:none}
+.h3-card.open .h3-body{display:block}
+.h3-card.open .h3-chevron{transform:rotate(180deg)}
+
+.h3-unlock{padding:14px 16px;background:var(--subtle);border-radius:9px;margin-bottom:8px;border-left:3px solid var(--accent)}
+.h3-unlock-title{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:4px}
+.h3-unlock-desc{font-size:11px;color:var(--t3);line-height:1.55}
+.h3-unlock-scale{font-size:10px;color:var(--t5);margin-top:6px;font-style:italic}
+
+.h3-insight{padding:12px 14px;background:rgba(63,175,122,0.03);border-radius:8px;border:1px dashed rgba(63,175,122,0.2);font-size:11px;color:var(--t3);line-height:1.55;margin-top:4px}
+.h3-insight strong{color:var(--green-dark)}
+
+/* ── Add Outcome ─────────────────────────────────────── */
+.add-card{border:1px dashed var(--border);border-radius:14px;display:flex;align-items:center;justify-content:center;gap:8px;padding:32px;cursor:pointer;transition:all .2s;color:var(--t5);font-size:13px;font-weight:500;min-height:200px}
+.add-card:hover{border-color:var(--green);background:var(--green-pale);color:var(--green-dark)}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media(max-width:800px){.outcomes-grid{grid-template-columns:1fr}}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.core-card{animation:fadeIn .4s ease backwards}
+.core-card:nth-child(2){animation-delay:.05s}
+.core-card:nth-child(3){animation-delay:.1s}
+.core-card:nth-child(4){animation-delay:.15s}
+.core-card:nth-child(5){animation-delay:.2s}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Tab Bar -->
+<div class="tab-bar">
+  <div class="tabs">
+    <button class="tab active">◎ Outcomes <span class="tab-badge">4</span></button>
+    <button class="tab">📋 BRD <span class="auto-badge">Auto</span></button>
+    <button class="tab" style="opacity:.4;pointer-events:none">⬡ Flow</button>
+    <button class="tab" style="opacity:.4;pointer-events:none">⚡ AI</button>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="page-header">
+  <div class="macro-row">
+    <div class="macro-marker"></div>
+    <div class="macro-text">
+      <div class="macro-label">Macro Outcome — BenyBox</div>
+      <div class="macro-statement">Families don't get screwed with legal and financial work when a loved one passes</div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="header-stats">
+      <div class="stat"><span class="stat-val">4</span><span class="stat-lbl">Core Outcomes</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><span class="stat-val">12</span><span class="stat-lbl">Individual</span></div>
+      <div class="stat-divider"></div>
+      <div class="strength-indicator">
+        <div class="mini-ring">
+          <svg width="28" height="28" viewBox="0 0 28 28"><circle class="rbg" cx="14" cy="14" r="11"/><circle class="rfill" cx="14" cy="14" r="11" style="stroke:var(--green);stroke-dasharray:69.1;stroke-dashoffset:22"/></svg>
+          <span class="mini-ring-val">68</span>
+        </div>
+        <span class="stat-lbl">Avg Strength</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat"><span class="stat-val" style="font-size:16px;color:var(--green-dark)">2 / 12</span><span class="stat-lbl">Emerging</span></div>
+    </div>
+
+    <div class="horizon-row" style="margin-top:0">
+      <span class="horizon-label">Horizon</span>
+      <button class="h-pill h1 active" onclick="filterH(this,'h1')"><span class="hd"></span>H1 Prove It</button>
+      <button class="h-pill h2" onclick="filterH(this,'h2')"><span class="hd"></span>H2 Scale It</button>
+      <button class="h-pill h3" onclick="filterH(this,'h3')"><span class="hd"></span>H3 Platform</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scroll Content -->
+<div class="scroll">
+<div class="content">
+
+<div class="section-label">Core Outcomes <span class="sl-line"></span></div>
+
+<div class="outcomes-grid">
+
+<!-- ═══════════════════════════════════════════════════════
+     CORE OUTCOME 1: Know the landscape
+     ═══════════════════════════════════════════════════════ -->
+<div class="core-card" data-horizon="h1" onclick="toggleCard(this, event)">
+  <div class="card-top">
+    <div class="card-ring">
+      <svg width="36" height="36" viewBox="0 0 36 36"><circle class="rbg" cx="18" cy="18" r="14"/><circle class="rfill" cx="18" cy="18" r="14" style="stroke:var(--green);stroke-dasharray:88;stroke-dashoffset:17"/></svg>
+      <span class="card-ring-val">81</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-h1">H1</span>
+      <span class="badge badge-status emerging">Emerging</span>
+    </div>
+  </div>
+
+  <div class="card-title">Families know their complete document landscape — what they have, what's missing, and why it matters</div>
+
+  <div class="what-helps">
+    <div class="wh-label">What Helps This Outcome</div>
+    <div class="wh-list">
+      <div class="wh-item"><span class="wh-dot"></span>Knowing what's legally required based on where you live</div>
+      <div class="wh-item"><span class="wh-dot"></span>A profile that understands your situation — age, state, family structure</div>
+      <div class="wh-item"><span class="wh-dot"></span>A clear picture of what you have vs. what's missing</div>
+    </div>
+  </div>
+
+  <div class="persona-outcomes">
+    <div class="po-divider"></div>
+    <div class="po-row"><span class="po-avatar" style="background:#3FAF7A">M</span><span class="po-text"><em>Margaret:</em> I know which 12 documents my California situation requires</span><span class="po-strength strong">85</span></div>
+    <div class="po-row"><span class="po-avatar" style="background:#7B7B7B">U</span><span class="po-text"><em>Unrepresented:</em> I know what I need without paying $500/hr</span><span class="po-strength strong">85</span></div>
+    <div class="po-row"><span class="po-avatar" style="background:#6B5B3E">S</span><span class="po-text"><em>Sarah:</em> I can see which of my clients have gaps</span><span class="po-strength moderate">65</span></div>
+  </div>
+
+  <div class="card-footer">
+    <span class="foot-stat">3 of 4 personas</span>
+    <span class="foot-dot"></span>
+    <span class="foot-stat">6 signals</span>
+    <span class="foot-dot"></span>
+    <span class="foot-stat">Strongest: Margaret (85)</span>
+  </div>
+
+  <!-- Expanded Detail -->
+  <div class="card-expand">
+    <div class="expand-inner">
+      <div class="expand-divider"></div>
+
+      <div class="ind-outcome" onclick="event.stopPropagation()">
+        <div class="ind-head">
+          <span class="ind-persona"><span class="po-avatar" style="background:#3FAF7A;width:20px;height:20px;font-size:8px">M</span> Margaret</span>
+          <div class="ind-badges"><span class="badge badge-status emerging">Emerging</span><span class="po-strength strong" style="font-size:11px">85</span></div>
+        </div>
+        <div class="ind-title">I know exactly which documents my family needs — and which are missing</div>
+        <div class="transform">
+          <div class="t-side before"><div class="t-label">Today</div><div class="t-text">Vaguely knows she should "have a will" but can't name the 12 specific documents California requires for her situation.</div></div>
+          <div class="t-arrow">→</div>
+          <div class="t-side after"><div class="t-label">Must Be True</div><div class="t-text">Opens one screen: "You need these 12. You have 7. These 5 are the gap. Here's how to close each one."</div></div>
+        </div>
+        <div class="evidence">
+          <div class="ev-dots"><span class="ev-d toward"></span><span class="ev-d toward"></span><span class="ev-d reframe"></span></div>
+          <span>3 signals · Last: Session 1 · Client described crisis scenario</span>
+        </div>
+      </div>
+
+      <div class="ind-outcome" onclick="event.stopPropagation()">
+        <div class="ind-head">
+          <span class="ind-persona"><span class="po-avatar" style="background:#7B7B7B;width:20px;height:20px;font-size:8px">U</span> Unrepresented</span>
+          <div class="ind-badges"><span class="badge badge-status">Not Started</span><span class="po-strength strong" style="font-size:11px">85</span></div>
+        </div>
+        <div class="ind-title">I know what I need without paying $500/hr to find out</div>
+        <div class="transform">
+          <div class="t-side before"><div class="t-label">Today</div><div class="t-text">Googled "do I need a power of attorney" and got 47 contradictory answers. Can't afford an attorney. Gave up.</div></div>
+          <div class="t-arrow">→</div>
+          <div class="t-side after"><div class="t-label">Must Be True</div><div class="t-text">Answers 7 questions. Gets a clear, state-specific list: "You need these 8. Here's what each does. Here's how to get them for under $200."</div></div>
+        </div>
+        <div class="evidence">
+          <div class="ev-dots"><span class="ev-d toward"></span><span class="ev-d toward"></span></div>
+          <span>2 signals · Client mentioned cost barrier multiple times</span>
+        </div>
+      </div>
+
+      <div class="ind-outcome" onclick="event.stopPropagation()">
+        <div class="ind-head">
+          <span class="ind-persona"><span class="po-avatar" style="background:#6B5B3E;width:20px;height:20px;font-size:8px">S</span> Sarah</span>
+          <div class="ind-badges"><span class="badge badge-status">Not Started</span><span class="po-strength moderate" style="font-size:11px">65</span></div>
+        </div>
+        <div class="ind-title">I can see which of my clients are documentarily vulnerable</div>
+        <div class="sharpen">
+          <strong>Sharpen this.</strong> Sarah's version of "knowing the landscape" is portfolio-level, not personal. Ask: <em>"Sarah, how do you currently know if a client followed through after you handed them documents?"</em>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     CORE OUTCOME 2: Accessible in crisis
+     ═══════════════════════════════════════════════════════ -->
+<div class="core-card" data-horizon="h1" onclick="toggleCard(this, event)">
+  <div class="card-top">
+    <div class="card-ring">
+      <svg width="36" height="36" viewBox="0 0 36 36"><circle class="rbg" cx="18" cy="18" r="14"/><circle class="rfill" cx="18" cy="18" r="14" style="stroke:var(--green-dark);stroke-dasharray:88;stroke-dashoffset:5"/></svg>
+      <span class="card-ring-val">84</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-h1">H1</span>
+      <span class="badge badge-status">Not Started</span>
+    </div>
+  </div>
+
+  <div class="card-title">Critical documents are reachable the moment crisis hits — not weeks later through a lawyer</div>
+
+  <div class="what-helps">
+    <div class="wh-label">What Helps This Outcome</div>
+    <div class="wh-list">
+      <div class="wh-item"><span class="wh-dot"></span>A central place only the right people can access</div>
+      <div class="wh-item"><span class="wh-dot"></span>A fast way in during an emergency — no passwords, no friction</div>
+      <div class="wh-item"><span class="wh-dot"></span>Something you can show a doctor or hospital on the spot</div>
+    </div>
+  </div>
+
+  <div class="persona-outcomes">
+    <div class="po-divider"></div>
+    <div class="po-row"><span class="po-avatar" style="background:#044159">D</span><span class="po-text"><em>David:</em> I can present mom's Healthcare POA in 90 seconds in the ER</span><span class="po-strength strong">94</span></div>
+    <div class="po-row"><span class="po-avatar" style="background:#044159">D</span><span class="po-text"><em>David:</em> I can act on mom's behalf at a hospital without a court order</span><span class="po-strength strong">82</span></div>
+    <div class="po-row"><span class="po-avatar" style="background:#3FAF7A">M</span><span class="po-text"><em>Margaret:</em> The right people can reach my documents when it matters</span><span class="po-strength moderate">72</span></div>
+  </div>
+
+  <div class="card-footer">
+    <span class="foot-stat">2 of 4 personas</span>
+    <span class="foot-dot"></span>
+    <span class="foot-stat">7 signals</span>
+    <span class="foot-dot"></span>
+    <span class="foot-stat">Strongest: David (94) — the selling scenario</span>
+  </div>
+
+  <div class="card-expand">
+    <div class="expand-inner">
+      <div class="expand-divider"></div>
+
+      <div class="ind-outcome" onclick="event.stopPropagation()">
+        <div class="ind-head">
+          <span class="ind-persona"><span class="po-avatar" style="background:#044159;width:20px;height:20px;font-size:8px">D</span> David</span>
+          <div class="ind-badges"><span class="badge badge-status">Not Started</span><span class="po-strength strong" style="font-size:11px">94</span></div>
+        </div>
+        <div class="ind-title">I can find and present mom's legal documents in minutes — not months</div>
+        <div class="transform">
+          <div class="t-side before"><div class="t-label">Today</div><div class="t-text">Mom unconscious in ICU. David calls her attorney — voicemail. Calls sister — she doesn't know where anything is. 3 months and $12,000 later, they have access.</div></div>
+          <div class="t-arrow">→</div>
+          <div class="t-side after"><div class="t-label">Must Be True</div><div class="t-text">Phone buzzes. Opens BenyBox. Shows doctor the Healthcare POA. Crisis to document: 90 seconds. No lawyer. No court. No family fight.</div></div>
+        </div>
+        <div class="evidence">
+          <div class="ev-dots"><span class="ev-d toward"></span><span class="ev-d toward"></span><span class="ev-d toward"></span><span class="ev-d reframe"></span></div>
+          <span>4 signals · Strongest individual outcome in the project · <strong style="color:var(--green-dark)">This is the scenario that sells.</strong></span>
+        </div>
+      </div>
+
+      <div class="ind-outcome" onclick="event.stopPropagation()">
+        <div class="ind-head">
+          <span class="ind-persona"><span class="po-avatar" style="background:#044159;width:20px;height:20px;font-size:8px">D</span> David</span>
+          <div class="ind-badges"><span class="po-strength strong" style="font-size:11px">82</span></div>
+        </div>
+        <div class="ind-title">I can act on mom's behalf at a hospital without a court order</div>
+        <div class="transform">
+          <div class="t-side before"><div class="t-label">Today</div><div class="t-text">Hospital asks for legal authority. David doesn't have it. 48-hour delay while mom is in the ICU alone.</div></div>
+          <div class="t-arrow">→</div>
+          <div class="t-side after"><div class="t-label">Must Be True</div><div class="t-text">David shows the Emergency Access Card. Hospital scans it. Verified Healthcare POA appears. David is authorized in minutes.</div></div>
+        </div>
+      </div>
+
+      <div class="ind-outcome" onclick="event.stopPropagation()">
+        <div class="ind-head">
+          <span class="ind-persona"><span class="po-avatar" style="background:#3FAF7A;width:20px;height:20px;font-size:8px">M</span> Margaret</span>
+          <div class="ind-badges"><span class="po-strength moderate" style="font-size:11px">72</span></div>
+        </div>
+        <div class="ind-title">The right people can reach my documents when it matters</div>
+        <div class="sharpen">
+          <strong>Strengthen.</strong> This is Margaret's side of David's outcome. It's currently vague — "right people" and "when it matters" need specificity. Ask: <em>"Margaret, who specifically should be able to see your documents? Under what circumstances?"</em>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     CORE OUTCOME 3: Stays current
+     ═══════════════════════════════════════════════════════ -->
+<div class="core-card" data-horizon="h1" onclick="toggleCard(this, event)">
+  <div class="card-top">
+    <div class="card-ring">
+      <svg width="36" height="36" viewBox="0 0 36 36"><circle class="rbg" cx="18" cy="18" r="14"/><circle class="rfill" cx="18" cy="18" r="14" style="stroke:var(--green);stroke-dasharray:88;stroke-dashoffset:31"/></svg>
+      <span class="card-ring-val">65</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-h1">H1</span>
+      <span class="badge badge-status">Not Started</span>
+    </div>
+  </div>
+
+  <div class="card-title">Document preparedness stays current as life changes — without effort or expense</div>
+
+  <div class="what-helps">
+    <div class="wh-label">What Helps This Outcome</div>
+    <div class="wh-list">
+      <div class="wh-item"><span class="wh-dot"></span>Getting flagged when something goes stale before it matters</div>
+      <div class="wh-item"><span class="wh-dot"></span>Life changes automatically surfacing new requirements</div>
+      <div class="wh-item"><span class="wh-dot"></span>Seeing what changed and why — not just "update needed"</div>
+    </div>
+  </div>
+
+  <div class="persona-outcomes">
+    <div class="po-divider"></div>
+    <div class="po-row"><span class="po-avatar" style="background:#3FAF7A">M</span><span class="po-text"><em>Margaret:</em> When my life changes, my document plan updates without me hiring a lawyer</span><span class="po-strength moderate">60</span></div>
+    <div class="po-row"><span class="po-avatar" style="background:#044159">D</span><span class="po-text"><em>David:</em> I know mom's documents are current and complete — I'm not guessing</span><span class="po-strength moderate">75</span></div>
+  </div>
+
+  <div class="card-footer">
+    <span class="foot-stat">2 of 4 personas</span>
+    <span class="foot-dot"></span>
+    <span class="foot-stat">3 signals</span>
+    <span class="foot-dot"></span>
+    <span class="foot-stat">H2 dependency — needs H1 vault first</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     CORE OUTCOME 4: Professional guidance connects
+     ═══════════════════════════════════════════════════════ -->
+<div class="core-card" data-horizon="h2" onclick="toggleCard(this, event)">
+  <div class="card-top">
+    <div class="card-ring">
+      <svg width="36" height="36" viewBox="0 0 36 36"><circle class="rbg" cx="18" cy="18" r="14"/><circle class="rfill" cx="18" cy="18" r="14" style="stroke:var(--accent);stroke-dasharray:88;stroke-dashoffset:38"/></svg>
+      <span class="card-ring-val">57</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-h2">H2</span>
+      <span class="badge badge-status">Not Started</span>
+    </div>
+  </div>
+
+  <div class="card-title">Professional guidance connects to the solution — closing gaps becomes easy, not intimidating</div>
+
+  <div class="what-helps">
+    <div class="wh-label">What Helps This Outcome</div>
+    <div class="wh-list">
+      <div class="wh-item"><span class="wh-dot" style="background:var(--accent)"></span>Affordable, guided paths to close each document gap</div>
+      <div class="wh-item"><span class="wh-dot" style="background:var(--accent)"></span>Attorneys delivering documents directly where they're needed</div>
+      <div class="wh-item"><span class="wh-dot" style="background:var(--accent)"></span>Professionals seeing the full picture of their clients' preparedness</div>
+    </div>
+  </div>
+
+  <div class="persona-outcomes">
+    <div class="po-divider"></div>
+    <div class="po-row"><span class="po-avatar" style="background:#7B7B7B">U</span><span class="po-text"><em>Unrepresented:</em> I can close gaps through affordable channels with guidance</span><span class="po-strength strong">78</span></div>
+    <div class="po-row"><span class="po-avatar" style="background:#6B5B3E">S</span><span class="po-text"><em>Sarah:</em> I can deliver finished documents straight into a client's vault</span><span class="po-strength moderate">62</span></div>
+    <div class="po-row"><span class="po-avatar" style="background:#6B5B3E">S</span><span class="po-text"><em>Sarah:</em> My practice has a scalable aftercare model</span><span class="po-strength weak">38</span></div>
+  </div>
+
+  <div class="card-footer">
+    <span class="foot-stat">2 of 4 personas</span>
+    <span class="foot-dot"></span>
+    <span class="foot-stat">2 signals</span>
+    <span class="foot-dot"></span>
+    <span class="foot-stat" style="color:#D97706">Sarah's aftercare (38) needs work</span>
+  </div>
+
+  <div class="card-expand">
+    <div class="expand-inner">
+      <div class="expand-divider"></div>
+
+      <div class="ind-outcome" onclick="event.stopPropagation()">
+        <div class="ind-head">
+          <span class="ind-persona"><span class="po-avatar" style="background:#7B7B7B;width:20px;height:20px;font-size:8px">U</span> Unrepresented</span>
+          <div class="ind-badges"><span class="po-strength strong" style="font-size:11px">78</span></div>
+        </div>
+        <div class="ind-title">I can get these documents through affordable channels with guidance</div>
+        <div class="transform">
+          <div class="t-side before"><div class="t-label">Today</div><div class="t-text">Thinks a will costs $2,000. Doesn't know a notarized POA costs $50. No one has told her the options.</div></div>
+          <div class="t-arrow">→</div>
+          <div class="t-side after"><div class="t-label">Must Be True</div><div class="t-text">Each gap shows: what it is, why she needs it, 3 ways to get it (DIY / LegalZoom $79 / local attorney $250), and "start now."</div></div>
+        </div>
+      </div>
+
+      <div class="ind-outcome" onclick="event.stopPropagation()">
+        <div class="ind-head">
+          <span class="ind-persona"><span class="po-avatar" style="background:#6B5B3E;width:20px;height:20px;font-size:8px">S</span> Sarah</span>
+          <div class="ind-badges"><span class="po-strength weak" style="font-size:11px">38</span></div>
+        </div>
+        <div class="ind-title">My practice has a scalable aftercare model — not just draft-and-forget</div>
+        <div class="sharpen">
+          <strong>Needs sharpening.</strong> "Scalable aftercare" is vague. No scenario. No observable. Ask Sarah: <em>"If you could check on all your clients' document health in 5 minutes a week — what would that be worth to your practice? What would you charge clients for that?"</em>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Add new outcome -->
+<div class="add-card" onclick="this.style.borderColor='var(--green)'">
+  + Add Core Outcome
+</div>
+
+</div><!-- /outcomes-grid -->
+
+<!-- ═══════════════════════════════════════════════════════
+     H3: WHAT IF THIS WORKS FOR EVERYONE
+     ═══════════════════════════════════════════════════════ -->
+<div class="h3-section">
+<div class="section-label">What If This Works For Everyone? <span class="sl-line"></span></div>
+
+<div class="h3-card open">
+  <div class="h3-top" onclick="this.parentElement.classList.toggle('open')">
+    <div class="h3-icon">🔭</div>
+    <div class="h3-info">
+      <div class="h3-title">H3 Platform Computation</div>
+      <div class="h3-sub">Always running in the background. Not building — seeing. Refreshes when H1/H2 change.</div>
+    </div>
+    <div class="h3-pulse"><span class="dot"></span> Computing</div>
+    <span class="h3-chevron">▾</span>
+  </div>
+  <div class="h3-body">
+    <div class="h3-unlock">
+      <div class="h3-unlock-title">If "families know their gaps" works at scale...</div>
+      <div class="h3-unlock-desc">Insurance companies want policyholders to have document prep as a benefit. Pre-fill life insurance docs and beneficiary designations directly into vaults. The assessment engine becomes infrastructure.</div>
+      <div class="h3-unlock-scale">50M households · $890B life insurance market · B2B2C channel</div>
+    </div>
+    <div class="h3-unlock">
+      <div class="h3-unlock-title">If "David can present in 90 seconds" works at scale...</div>
+      <div class="h3-unlock-desc">Hospitals want to integrate. ER admissions query for legal authority verification at point of care. Emergency access becomes healthcare infrastructure.</div>
+      <div class="h3-unlock-scale">6,100 US hospitals · Integration licensing · Reduces document request burden 40%</div>
+    </div>
+    <div class="h3-unlock">
+      <div class="h3-unlock-title">If "Sarah delivers to vault" works at scale...</div>
+      <div class="h3-unlock-desc">The document creation point shifts. Attorneys draft INSIDE the vault, not email after. BenyBox becomes document lifecycle, not storage. The product category changes entirely.</div>
+      <div class="h3-unlock-scale">65,000 estate planning attorneys · $200/mo practice license</div>
+    </div>
+    <div class="h3-insight">
+      <strong>H3 Insight → H1:</strong> Design the vault to accept documents from external sources — not just uploads. Don't build the insurance API. But don't hardcode "upload" as the only input method.
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+
+<script>
+function toggleCard(card, e) {
+  if (e.target.closest('.ind-outcome')) return;
+  const wasExpanded = card.classList.contains('expanded');
+  // Close all
+  document.querySelectorAll('.core-card.expanded').forEach(c => c.classList.remove('expanded'));
+  // Toggle clicked
+  if (!wasExpanded) card.classList.add('expanded');
+}
+
+function filterH(btn, h) {
+  document.querySelectorAll('.h-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+
+  document.querySelectorAll('.core-card').forEach(card => {
+    const ch = card.dataset.horizon;
+    if (h === 'all' || ch === h) {
+      card.style.display = '';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+
+  document.querySelector('.h3-section').style.display = (h === 'h3' || h === 'all') ? '' : 'none';
+}
+</script>
+</body>
+</html>

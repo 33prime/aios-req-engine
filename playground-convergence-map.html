@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BenyBox — Solution Flow</title>
+<style>
+  :root {
+    --navy: #0A1E2F; --green: #3FAF7A; --green-dim: rgba(63,175,122,0.06);
+    --teal: #044159; --surface: #FAFBFC; --card-bg: #FFFFFF;
+    --border: rgba(10,30,47,0.06); --text: #1D1D1F; --text-dim: #7B7B7B;
+    --text-faint: #A0AEC0; --gold: #C49A1A; --gold-dim: rgba(196,154,26,0.06);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif;background:var(--surface);color:var(--text);overflow:hidden;height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+
+  .hdr{background:var(--navy);padding:10px 22px 8px;flex-shrink:0;z-index:100}
+  .hr{display:flex;align-items:center;gap:12px}
+  .hr+.hr{margin-top:6px}
+  .ht{font-size:13px;font-weight:700;color:#fff}
+  .ht em{font-style:normal;color:var(--green)}
+  .hs{flex:1;font-size:11px;color:rgba(255,255,255,0.35);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ha{display:flex;gap:4px;flex-shrink:0}
+  .bh{padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,0.08);background:transparent;color:rgba(255,255,255,0.40);transition:all .12s}
+  .bh:hover{border-color:rgba(255,255,255,0.18);color:#fff}
+  .bh.gr{border-color:rgba(63,175,122,0.25);background:rgba(63,175,122,0.06);color:var(--green)}
+  .bh.gr:hover{background:rgba(63,175,122,0.14);border-color:var(--green)}
+
+  .pp{display:flex;gap:4px}
+  .pill{display:flex;align-items:center;gap:3px;padding:2px 8px 2px 2px;border-radius:14px;font-size:9.5px;font-weight:500;cursor:pointer;border:1px solid rgba(255,255,255,0.06);background:transparent;color:rgba(255,255,255,0.35);transition:all .12s}
+  .pill:hover{border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.6)}
+  .pill.on{background:rgba(255,255,255,0.04);color:#fff}
+  .pdot{width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:#fff}
+  .sts{margin-left:auto;display:flex;gap:4px}
+  .st{display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.04)}
+  .st b{font-size:10px;color:var(--green)}
+  .st span{font-size:7px;text-transform:uppercase;letter-spacing:.3px;color:rgba(255,255,255,0.22);font-weight:600}
+
+  .cw{flex:1;overflow:hidden;position:relative;cursor:grab}
+  .cw:active{cursor:grabbing}
+  .cv{position:absolute;top:0;left:0;transform-origin:0 0;width:5000px;height:3000px}
+  .svl{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
+
+  /* ── Outcome nodes ───── */
+  .oc{position:absolute;width:210px;border-radius:9px;padding:9px 11px;cursor:grab;z-index:3;border:1.5px solid;transition:box-shadow .2s,opacity .3s}
+  .oc:active{cursor:grabbing}
+  .oc:hover{box-shadow:0 4px 16px rgba(0,0,0,0.05);z-index:12}
+  .oc.dim{opacity:.06;pointer-events:none}
+  .oc-h{display:flex;align-items:flex-start;gap:5px;margin-bottom:4px}
+  .oc-n{min-width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;flex-shrink:0}
+  .oc-p{font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px}
+  .oc-t{font-size:10px;font-weight:700;line-height:1.35}
+  .oc-s{font-size:8.5px;line-height:1.45;font-style:italic;opacity:.6;margin-bottom:3px}
+  .oc-m{font-size:7.5px;padding:2px 5px;border-radius:4px;font-weight:500;display:inline-block}
+  .str{display:flex;align-items:center;gap:3px;margin-top:4px}
+  .str-l{font-size:6.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .str-ds{display:flex;gap:1.5px}
+  .str-d{width:3.5px;height:3.5px;border-radius:50%}
+
+  /* ── Page cards — size scales with outcomes ── */
+  .pg{
+    position:absolute;background:var(--card-bg);border-radius:11px;cursor:pointer;
+    border:1.5px solid var(--border);display:flex;flex-direction:column;overflow:visible;
+    z-index:2;box-shadow:0 1px 4px rgba(0,0,0,0.03);
+    transition:all .3s ease;
+  }
+  .pg:hover{box-shadow:0 8px 28px rgba(0,0,0,0.06);border-color:rgba(0,0,0,0.08);z-index:10}
+  .pg.dim{opacity:.05;pointer-events:none}
+
+  /* Size tiers */
+  .pg.sz-1{width:230px}
+  .pg.sz-2{width:280px}
+  .pg.sz-3{width:340px}
+
+  /* Convergence glow — left border */
+  .pg.c-1{border-left:3px solid rgba(10,30,47,0.12)}
+  .pg.c-2{border-left:4px solid rgba(63,175,122,0.35)}
+  .pg.c-3{border-left:5px solid var(--green)}
+
+  /* Cross-persona convergence — special glow */
+  .pg.xp{box-shadow:0 1px 4px rgba(0,0,0,0.03),-4px 0 16px rgba(63,175,122,0.06),4px 0 16px rgba(4,65,89,0.04)}
+  .pg.xp:hover{box-shadow:0 8px 28px rgba(0,0,0,0.06),-4px 0 20px rgba(63,175,122,0.10),4px 0 20px rgba(4,65,89,0.06)}
+
+  /* Expanded state */
+  .pg.expanded{z-index:20!important;box-shadow:0 12px 40px rgba(0,0,0,0.10);border-color:var(--green)}
+  .pg.expanded.sz-1{width:380px}
+  .pg.expanded.sz-2{width:420px}
+  .pg.expanded.sz-3{width:460px}
+
+  .bar{height:22px;display:flex;align-items:center;padding:0 7px;gap:3px;border-bottom:1px solid rgba(0,0,0,0.03);background:rgba(0,0,0,0.012);border-radius:11px 11px 0 0}
+  .dd{width:4.5px;height:4.5px;border-radius:50%}
+  .dd.r{background:rgba(220,80,80,0.22)}.dd.y{background:rgba(212,180,50,0.30)}.dd.g{background:rgba(63,175,122,0.28)}
+  .bar-url{flex:1;margin:0 4px;font-size:7px;font-weight:500;color:var(--text-faint);background:rgba(0,0,0,0.02);padding:1px 6px;border-radius:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar-rb{display:flex;gap:2px;flex-shrink:0}
+  .rb{width:5px;height:5px;border-radius:2px}
+
+  .pg-bd{padding:8px 11px 5px}
+  .pg-t{font-weight:700;color:var(--navy);line-height:1.2;margin-bottom:2px}
+  .pg .pg-t{font-size:13px}
+  .pg.sz-3 .pg-t{font-size:15px}
+  .pg-desc{font-size:9px;color:var(--text-dim);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+  /* Convergence box */
+  .cvg{padding:7px 9px;margin:3px 8px 4px;border-radius:7px;background:linear-gradient(135deg,rgba(63,175,122,0.025) 0%,rgba(4,65,89,0.015) 100%);border:1px solid rgba(63,175,122,0.07)}
+  .cvg-l{font-size:6.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--green);margin-bottom:3px;display:flex;align-items:center;gap:3px}
+  .cvg-ct{background:var(--green);color:#fff;padding:0 3px;border-radius:2px;font-size:6.5px;font-weight:800}
+  .cvg-xp{background:var(--teal);color:#fff;padding:0 4px;border-radius:2px;font-size:6px;font-weight:700;margin-left:2px}
+  .cvg-txt{font-size:9.5px;color:var(--teal);line-height:1.5;font-weight:500}
+  .cvg-unlock{margin-top:4px;font-size:8.5px;color:#2A8F5F;font-weight:600;line-height:1.4}
+
+  /* Outcome chips */
+  .pg-ocs{padding:3px 9px 6px;display:flex;flex-wrap:wrap;gap:3px}
+  .pg-oc{font-size:7.5px;font-weight:600;padding:2px 6px;border-radius:3px;display:flex;align-items:center;gap:3px;white-space:nowrap}
+  .pg-oc .od{width:4px;height:4px;border-radius:2px;flex-shrink:0}
+
+  .pg-ft{display:flex;align-items:center;padding:0 11px 6px}
+  .pg-ft-txt{font-size:7px;font-weight:600;color:var(--text-faint)}
+
+  /* ── Expanded detail section ── */
+  .exp-detail{display:none;padding:0 10px 10px}
+  .pg.expanded .exp-detail{display:block}
+  .pg.expanded .pg-desc{-webkit-line-clamp:unset}
+  .exp-divider{height:1px;background:var(--border);margin:6px 0 8px}
+  .exp-section-label{font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-faint);margin-bottom:6px}
+
+  /* Outcome detail rows in expanded view */
+  .exp-oc{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,0.03)}
+  .exp-oc:last-child{border-bottom:none}
+  .exp-oc-avatar{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0}
+  .exp-oc-body{flex:1;min-width:0}
+  .exp-oc-persona{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:1px}
+  .exp-oc-title{font-size:9.5px;font-weight:600;color:var(--navy);line-height:1.35;margin-bottom:2px}
+  .exp-oc-state{font-size:8.5px;color:var(--text-dim);font-style:italic;line-height:1.4}
+  .exp-oc-how{font-size:8.5px;color:#2A8F5F;font-weight:600;margin-top:3px;line-height:1.4}
+  .exp-oc-num{min-width:16px;height:16px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:#fff;flex-shrink:0;margin-top:2px}
+
+  /* Connected pages */
+  .exp-conn{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+  .exp-conn-pill{font-size:8px;font-weight:500;padding:2px 7px;border-radius:4px;background:rgba(0,0,0,0.03);color:var(--text-dim)}
+
+  /* Ghost */
+  .ghost{position:absolute;width:240px;min-height:65px;border:1.5px dashed rgba(63,175,122,0.20);border-radius:10px;background:rgba(63,175,122,0.01);cursor:pointer;transition:all .2s;z-index:2;padding:11px 13px}
+  .ghost:hover{border-color:var(--green);background:rgba(63,175,122,0.03)}
+  .ghost-t{font-size:10px;font-weight:600;color:var(--green);margin-bottom:3px}
+  .ghost-s{font-size:8.5px;color:var(--text-dim);line-height:1.4}
+
+  /* Tray */
+  .tray{position:fixed;bottom:0;left:0;right:0;z-index:80;background:#fff;border-top:1px solid var(--border)}
+  .tray.col .tb{display:none}
+  .th{display:flex;align-items:center;padding:5px 22px;cursor:pointer;gap:7px;user-select:none}
+  .th:hover{background:rgba(0,0,0,.005)}
+  .tl{font-size:10px;font-weight:600;color:var(--text-dim)}
+  .tc{font-size:9px;font-weight:700;padding:1px 5px;border-radius:7px}
+  .tc.has{background:var(--gold-dim);color:var(--gold)}.tc.zero{background:var(--green-dim);color:var(--green)}
+  .tcv{margin-left:auto;font-size:9px;color:var(--text-faint);transition:transform .2s}
+  .tray:not(.col) .tcv{transform:rotate(180deg)}
+  .tb{padding:0 22px 7px;display:flex;gap:4px;flex-wrap:wrap}
+  .ti{padding:3px 9px;border-radius:5px;font-size:9.5px;font-weight:500;border:1px solid rgba(4,65,89,0.07);background:rgba(4,65,89,0.02);color:var(--teal)}
+  .tray-ok{font-size:11px;color:var(--green);font-weight:600}
+
+  .zc{position:fixed;bottom:55px;right:14px;display:flex;flex-direction:column;gap:2px;z-index:90}
+  .zb{width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:#fff;color:var(--text-dim);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .zb:hover{border-color:var(--green);color:var(--green)}
+  .zl{font-size:8px;text-align:center;color:var(--text-faint)}
+
+  .conn{fill:none;transition:stroke .3s,opacity .3s,stroke-width .3s}
+  .conn.dim{opacity:.02}
+  .nav-conn{fill:none;stroke:rgba(10,30,47,0.05);stroke-width:1;stroke-dasharray:4 3}
+  .nav-conn.dim{opacity:.02}
+  .nav-label{font-family:inherit;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hr">
+    <div class="ht"><em>AIOS</em> Solution Flow</div>
+    <div class="hs">BenyBox — outcomes converge across surfaces. Bigger card = more outcomes solved.</div>
+    <div class="ha">
+      <button class="bh" onclick="fitView()">Fit</button>
+    </div>
+  </div>
+  <div class="hr">
+    <div class="pp" id="pbar"></div>
+    <div class="sts">
+      <div class="st"><b id="s-oc">5</b><span>Outcomes</span></div>
+      <div class="st"><b id="s-pg">0</b><span>Pages</span></div>
+      <div class="st"><b id="s-xp">0</b><span>Cross-Persona</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="cw" id="wrap">
+  <div class="cv" id="cv">
+    <svg class="svl" id="svg" width="5000" height="3000">
+      <defs>
+        <marker id="ah" markerWidth="6" markerHeight="5" refX="5" refY="2.5" orient="auto"><path d="M0,.5 L5,2.5 L0,4.5" fill="rgba(0,0,0,.10)"/></marker>
+      </defs>
+    </svg>
+  </div>
+</div>
+
+<div class="zc">
+  <button class="zb" onclick="zoomIn()">+</button>
+  <div class="zl" id="zl">75%</div>
+  <button class="zb" onclick="zoomOut()">−</button>
+</div>
+
+<div class="tray" id="tray">
+  <div class="th" onclick="toggleTray()">
+    <div class="tl">Intelligence</div>
+    <div class="tc" id="ttc">0</div>
+    <div class="tcv">▲</div>
+  </div>
+  <div class="tb" id="ttb"></div>
+</div>
+
+<script>
+const CL=[
+  {bg:'rgba(63,175,122,0.045)',bd:'rgba(63,175,122,0.18)',f:'#3FAF7A',t:'#1a5c3a',l:'rgba(63,175,122,0.09)'},
+  {bg:'rgba(4,65,89,0.04)',bd:'rgba(4,65,89,0.16)',f:'#044159',t:'#044159',l:'rgba(4,65,89,0.07)'},
+  {bg:'rgba(196,154,26,0.035)',bd:'rgba(196,154,26,0.18)',f:'#C49A1A',t:'#7a6010',l:'rgba(196,154,26,0.07)'},
+  {bg:'rgba(10,30,47,0.025)',bd:'rgba(10,30,47,0.13)',f:'#0A1E2F',t:'#0A1E2F',l:'rgba(10,30,47,0.05)'},
+  {bg:'rgba(45,107,74,0.04)',bd:'rgba(45,107,74,0.16)',f:'#2D6B4A',t:'#2D6B4A',l:'rgba(45,107,74,0.07)'},
+]
+
+const PERSONAS=[
+  {name:'Margaret',full:'Aging Parent',i:'AP',c:'#3FAF7A',admin:false},
+  {name:'David',full:'Adult Child',i:'AC',c:'#044159',admin:false},
+  {name:'Individual',full:'Unrepresented',i:'UI',c:'#0A1E2F',admin:false},
+  {name:'Sarah',full:'Attorney',i:'EA',c:'#2D6B4A',admin:false},
+]
+
+let outcomes=[
+  {id:'o1',n:1,x:30,y:40,ci:0,persona:'Margaret',
+   title:'Knows exactly which documents her family needs — and which are missing',
+   state:'Vaguely aware she should have a will → sees her complete, state-specific document landscape with gaps highlighted',
+   metric:'Personalized checklist within 3 min of profile',strength:92,pages:['p1','p2']},
+  {id:'o2',n:2,x:30,y:250,ci:1,persona:'David',
+   title:'Can find and present his mother\'s documents in under 90 seconds during a crisis',
+   state:'No idea what docs mom has → opens phone, shows doctor the Healthcare POA',
+   metric:'Crisis-to-document < 90 seconds',strength:95,pages:['p3','p4','p6']},
+  {id:'o3',n:3,x:30,y:460,ci:2,persona:'Margaret',
+   title:'The gap between what she has and what she needs is closed',
+   state:'5 critical gaps she doesn\'t know about → 100% complete or consciously accepting gaps',
+   metric:'Vault completeness ≥ 85% within 60 days',strength:88,pages:['p2']},
+  {id:'o4',n:4,x:30,y:650,ci:3,persona:'Margaret',
+   title:'Her document landscape stays current without thinking about it',
+   state:'Divorced, moved states, documents now invalid → life changes auto-surface new requirements',
+   metric:'Stale docs flagged within 48hrs',strength:78,pages:['p2']},
+  {id:'o5',n:5,x:30,y:840,ci:4,persona:'Sarah',
+   title:'Has portfolio-level visibility across all her clients',
+   state:'Manually checking each vault → one dashboard, at-risk clients identified, outreach in one click',
+   metric:'At-risk clients in < 10 seconds',strength:82,pages:['p5','p6']},
+]
+
+let pages=[
+  {id:'p1',title:'Onboarding',route:'/onboarding',x:380,y:30,
+   outcomes:['o1'],
+   desc:'Margaret answers 7 profile questions. The assessment engine generates her personalized, state-specific document checklist. She sees her landscape for the first time.',
+   convergence:null,
+   howServed:{o1:'Profile triggers the assessment engine — Margaret sees her full document landscape within 3 minutes.'},
+   connectedTo:['p2']},
+
+  {id:'p2',title:'Vault Dashboard',route:'/vault',x:400,y:280,
+   outcomes:['o1','o3','o4'],
+   desc:'The home base. The Completeness Score is one metric that drives three state changes simultaneously.',
+   convergence:{
+     insight:'The Completeness Score tells Margaret what\'s missing (O1), motivates gap closure (O3), and surfaces staleness (O4) — all in one glance. One metric, three outcomes.',
+     unlock:'Margaret never needs separate screens for tracking, uploading, or monitoring. The vault IS the experience. This is why BenyBox isn\'t Dropbox.',
+   },
+   howServed:{
+     o1:'Document grid organized by category with gap indicators. She sees exactly what she has and doesn\'t.',
+     o3:'Upload loop with AI auto-categorization closes checklist items. Gap cards guide her to service providers. Score jumps on every upload.',
+     o4:'Staleness alerts surface automatically. Life event trigger re-runs assessment. Score drops visibly when docs expire.',
+   },
+   connectedTo:['p3','p7']},
+
+  {id:'p3',title:'Family Sharing',route:'/family',x:380,y:600,
+   outcomes:['o2'],
+   desc:'Margaret invites David, sets access tiers, generates his Emergency Access Card. This is the setup that makes the crisis moment possible.',
+   convergence:null,
+   howServed:{o2:'Invite flow + access tiers + Emergency Card generation. David gets a QR-coded card he can keep in his wallet.'},
+   connectedTo:['p4']},
+
+  {id:'p4',title:'Emergency Access',route:'/emergency/:token',x:740,y:100,
+   outcomes:['o2'],
+   desc:'David\'s crisis view — fast-path auth via QR code, category-filtered vault, full-screen document presenter optimized for showing to a doctor.',
+   convergence:null,
+   howServed:{o2:'One-tap QR auth → category search → full-screen document presenter. Designed for a panicked person in an ER at 2am.'},
+   connectedTo:['p6']},
+
+  {id:'p5',title:'Attorney Portal',route:'/attorney',x:740,y:520,
+   outcomes:['o5'],
+   desc:'Sarah registers as B2B partner, links to client vaults, uploads finalized docs directly into vaults, sees portfolio health.',
+   convergence:null,
+   howServed:{o5:'Portfolio dashboard with risk-sorted client list. Completeness scores, staleness flags, one-click outreach templates.'},
+   connectedTo:['p6','p2']},
+
+  {id:'p6',title:'Audit & Compliance',route:'/audit',x:1060,y:320,
+   outcomes:['o2','o5'],
+   desc:'One tamper-evident access log serves two personas and two outcomes.',
+   convergence:{
+     insight:'The same audit trail serves David\'s legal defense in a crisis (O2) and Sarah\'s compliance reporting to clients (O5). Two personas, two use cases, one surface.',
+     unlock:'Audit isn\'t a cost center — it\'s a trust engine. David proves consent. Sarah proves diligence. The log is the same.',
+   },
+   howServed:{
+     o2:'Every document access is logged with timestamp, method, and viewer. David can prove to a court that Margaret consented to his access.',
+     o5:'Sarah sees a compliance dashboard across all client vaults. Access patterns, document freshness, consent status — all auditable.',
+   },
+   connectedTo:[]},
+
+  {id:'p7',title:'Settings',route:'/settings',x:1060,y:650,
+   outcomes:['o4'],
+   desc:'Profile updates, notification preferences, permission management, vault configuration.',
+   convergence:null,
+   howServed:{o4:'Notification preferences for staleness alerts. Profile update triggers re-assessment on life events.'},
+   connectedTo:[]},
+]
+
+const navLinks=[
+  ['p1','p2','completes onboarding'],['p2','p3','sets up sharing'],
+  ['p3','p4','enables emergency access'],['p2','p7',''],
+  ['p5','p2','uploads to client vault'],['p5','p6',''],['p4','p6','access logged'],
+]
+
+const ghosts=[
+  {x:1060,y:100,title:'Notification Center',route:'/notifications',
+   reason:'Outcomes 2 & 4 generate real-time events but no surface manages them.',oids:['o2','o4']},
+]
+
+// ── State ────────────────
+let activeOC=null,activePersona=null,expandedPage=null
+let scale=0.72,panX=20,panY=10,isPanning=false,panStart={x:0,y:0}
+let dragNode=null,dragOff={x:0,y:0},nextId=50
+const wrap=document.getElementById('wrap'),cv=document.getElementById('cv')
+
+// ── Helpers ──────────────
+function getUniquePersonas(page) {
+  const ps = new Set()
+  page.outcomes.forEach(oid => {
+    const o = outcomes.find(oo=>oo.id===oid)
+    if (o) { const p = PERSONAS.find(pp=>pp.name===o.persona); if (p && !p.admin) ps.add(o.persona) }
+  })
+  return ps
+}
+function isXP(page) { return getUniquePersonas(page).size >= 2 }
+function sizeClass(page) { const n=page.outcomes.length; return n>=3?'sz-3':n>=2?'sz-2':'sz-1' }
+function convClass(page) { const n=page.outcomes.length; return n>=3?'c-3':n>=2?'c-2':'c-1' }
+
+// ── Render ───────────────
+function render() {
+  renderPersonas(); renderNodes(); renderConnections(); renderTray(); updateStats()
+}
+
+function renderPersonas() {
+  document.getElementById('pbar').innerHTML = PERSONAS.map((p,i) => `
+    <button class="pill ${activePersona===i?'on':''}" style="${activePersona===i?`border-color:${p.c}`:''}" onclick="toggleP(${i})">
+      <div class="pdot" style="background:${p.c}">${p.i}</div>${p.name}
+    </button>
+  `).join('')
+}
+
+function renderNodes() {
+  cv.querySelectorAll('.oc,.pg,.ghost').forEach(e=>e.remove())
+
+  // Outcome nodes
+  outcomes.forEach((o,i) => {
+    const c=CL[o.ci]
+    const isDim=(activeOC!==null&&activeOC!==i)||(activePersona!==null&&o.persona!==PERSONAS[activePersona].name)
+    const el=document.createElement('div')
+    el.className=`oc ${isDim?'dim':''}`
+    el.id=`n-${o.id}`
+    el.style.cssText=`left:${o.x}px;top:${o.y}px;background:${c.bg};border-color:${isDim?'transparent':c.bd}`
+    const pObj=PERSONAS.find(p=>p.name===o.persona)
+    const strDots=[20,40,60,80,100].map(t=>`<div class="str-d" style="background:${o.strength>=t?c.f:'rgba(0,0,0,.05)'}"></div>`).join('')
+    el.innerHTML=`
+      <div class="oc-h">
+        <div class="oc-n" style="background:${c.f}">${o.n}</div>
+        <div>
+          <div class="oc-p" style="color:${pObj?pObj.c:c.t}">${o.persona}</div>
+          <div class="oc-t" style="color:${c.t}">${o.title}</div>
+        </div>
+      </div>
+      <div class="oc-s" style="color:${c.t}">${o.state}</div>
+      <div class="oc-m" style="background:${c.l};color:${c.t}">${o.metric}</div>
+      <div class="str"><span class="str-l" style="color:${c.t}">Strength</span><div class="str-ds">${strDots}</div></div>
+    `
+    el.addEventListener('click',()=>toggleOC(i))
+    el.addEventListener('mousedown',e=>{e.preventDefault();dragNode=o;dragOff={x:e.clientX/scale-o.x+panX/scale,y:e.clientY/scale-o.y+panY/scale};el.style.zIndex=50})
+    cv.appendChild(el)
+  })
+
+  // Page cards
+  pages.forEach(p => {
+    const ocIds=p.outcomes
+    const isDim=(activeOC!==null&&!ocIds.includes(outcomes[activeOC]?.id))||(activePersona!==null&&!ocIds.some(oid=>{const o=outcomes.find(oo=>oo.id===oid);return o&&o.persona===PERSONAS[activePersona].name}))
+    const xp=isXP(p)
+    const isExpanded=expandedPage===p.id
+    const el=document.createElement('div')
+    el.className=`pg ${sizeClass(p)} ${convClass(p)} ${xp?'xp':''} ${isDim?'dim':''} ${isExpanded?'expanded':''}`
+    el.id=`n-${p.id}`
+    el.style.left=p.x+'px';el.style.top=p.y+'px'
+
+    const ribbons=ocIds.map(oid=>{const o=outcomes.find(oo=>oo.id===oid);return o?`<div class="rb" style="background:${CL[o.ci].f}"></div>`:''}).join('')
+
+    const chips=ocIds.map(oid=>{
+      const o=outcomes.find(oo=>oo.id===oid);if(!o)return''
+      const c=CL[o.ci],pObj=PERSONAS.find(pp=>pp.name===o.persona)
+      const short=o.title.split(' ').slice(0,5).join(' ')
+      return `<div class="pg-oc" style="background:${c.l};color:${c.t}"><div class="od" style="background:${c.f}"></div>${o.persona}: ${short}…</div>`
+    }).join('')
+
+    // Convergence box (compact)
+    let cvgHtml=''
+    if(p.convergence&&ocIds.length>=2){
+      cvgHtml=`
+        <div class="cvg">
+          <div class="cvg-l">
+            <span class="cvg-ct">${ocIds.length}</span> OUTCOMES CONVERGE
+            ${xp?'<span class="cvg-xp">CROSS-PERSONA</span>':''}
+          </div>
+          <div class="cvg-txt">${p.convergence.insight}</div>
+          ${!isExpanded?`<div class="cvg-unlock">→ ${p.convergence.unlock}</div>`:''}
+        </div>`
+    }
+
+    // Expanded detail
+    let expHtml=''
+    if(isExpanded){
+      const ocRows=ocIds.map(oid=>{
+        const o=outcomes.find(oo=>oo.id===oid);if(!o)return''
+        const c=CL[o.ci],pObj=PERSONAS.find(pp=>pp.name===o.persona)
+        const how=p.howServed?.[oid]||''
+        return `
+          <div class="exp-oc">
+            <div class="exp-oc-num" style="background:${c.f}">${o.n}</div>
+            <div class="exp-oc-avatar" style="background:${pObj?pObj.c:c.f}">${pObj?pObj.i:''}</div>
+            <div class="exp-oc-body">
+              <div class="exp-oc-persona" style="color:${pObj?pObj.c:c.t}">${o.persona}</div>
+              <div class="exp-oc-title">${o.title}</div>
+              <div class="exp-oc-state">${o.state}</div>
+              ${how?`<div class="exp-oc-how">How this page achieves it: ${how}</div>`:''}
+            </div>
+          </div>
+        `
+      }).join('')
+
+      const connPills=(p.connectedTo||[]).map(cid=>{
+        const cp=pages.find(pp=>pp.id===cid);if(!cp)return''
+        return `<span class="exp-conn-pill">→ ${cp.title}</span>`
+      }).join('')
+
+      expHtml=`
+        <div class="exp-detail">
+          <div class="exp-divider"></div>
+          ${p.convergence?`<div style="padding:0 2px 8px"><div class="cvg-unlock" style="font-size:9.5px">→ ${p.convergence.unlock}</div></div>`:''}
+          <div class="exp-section-label">How each outcome is achieved</div>
+          ${ocRows}
+          ${connPills?`<div style="margin-top:8px"><div class="exp-section-label">Navigates to</div><div class="exp-conn">${connPills}</div></div>`:''}
+        </div>
+      `
+    }
+
+    el.innerHTML=`
+      <div class="bar">
+        <div class="dd r"></div><div class="dd y"></div><div class="dd g"></div>
+        <div class="bar-url">${p.route}</div>
+        <div class="bar-rb">${ribbons}</div>
+      </div>
+      <div class="pg-bd">
+        <div class="pg-t">${p.title}</div>
+        <div class="pg-desc">${p.desc}</div>
+      </div>
+      ${cvgHtml}
+      <div class="pg-ocs">${chips}</div>
+      ${expHtml}
+      <div class="pg-ft"><span class="pg-ft-txt">${ocIds.length} outcome${ocIds.length!==1?'s':''} ${xp?'· cross-persona':''}${p.connectedTo?.length?' · '+p.connectedTo.length+' connections':''}</span></div>
+    `
+
+    el.addEventListener('click',e=>{
+      if(e.defaultPrevented)return
+      expandedPage=expandedPage===p.id?null:p.id
+      render()
+      requestAnimationFrame(()=>renderConnections())
+    })
+    el.addEventListener('mousedown',e=>{
+      if(e.detail>1)return // don't drag on double-click
+      // Only start drag if not clicking on expanded detail
+      if(e.target.closest('.exp-detail'))return
+      const startX=e.clientX,startY=e.clientY
+      let dragging=false
+      const onMove=ev=>{
+        if(!dragging&&(Math.abs(ev.clientX-startX)>4||Math.abs(ev.clientY-startY)>4)){
+          dragging=true; dragNode=p; dragOff={x:startX/scale-p.x+panX/scale,y:startY/scale-p.y+panY/scale}; el.style.zIndex=50
+          e.preventDefault()
+        }
+        if(dragging){
+          p.x=ev.clientX/scale-dragOff.x+panX/scale; p.y=ev.clientY/scale-dragOff.y+panY/scale
+          el.style.left=p.x+'px'; el.style.top=p.y+'px'
+          renderConnections()
+        }
+      }
+      const onUp=()=>{window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);if(dragging){el.style.zIndex='';dragNode=null}else{/* click handled by click listener */}}
+      window.addEventListener('mousemove',onMove)
+      window.addEventListener('mouseup',onUp)
+    })
+    cv.appendChild(el)
+  })
+
+  // Ghosts
+  ghosts.forEach(g=>{
+    const isDim=activeOC!==null&&!g.oids.includes(outcomes[activeOC]?.id)
+    const el=document.createElement('div')
+    el.className='ghost'
+    el.style.cssText=`left:${g.x}px;top:${g.y}px;${isDim?'opacity:.04':''}`
+    const dots=g.oids.map(oid=>{const o=outcomes.find(oo=>oo.id===oid);return o?`<span style="display:inline-block;width:5px;height:5px;border-radius:2px;background:${CL[o.ci].f};margin-right:2px"></span>`:''}).join('')
+    el.innerHTML=`<div class="ghost-t">⊕ ${g.title} <span style="font-weight:400;opacity:.5;font-size:8px">${g.route}</span></div><div class="ghost-s">${dots} ${g.reason}</div>`
+    el.addEventListener('click',()=>{
+      ghosts.splice(ghosts.indexOf(g),1)
+      pages.push({id:`p${++nextId}`,title:g.title,route:g.route,x:g.x,y:g.y,outcomes:g.oids,desc:g.reason,convergence:g.oids.length>=2?{insight:'Convergence surface for events from multiple outcomes.',unlock:'One feed, multiple outcome streams.'}:null,howServed:{},connectedTo:[]})
+      render()
+    })
+    cv.appendChild(el)
+  })
+}
+
+function renderConnections(){
+  const svg=document.getElementById('svg')
+  const defs=svg.querySelector('defs').outerHTML
+  svg.innerHTML=defs
+
+  outcomes.forEach((o,oi)=>{
+    const c=CL[o.ci],oEl=document.getElementById(`n-${o.id}`)
+    if(!oEl)return
+    o.pages.forEach(pid=>{
+      const pg=pages.find(pp=>pp.id===pid),pEl=document.getElementById(`n-${pid}`)
+      if(!pg||!pEl)return
+      const W=parseInt(getComputedStyle(pEl).width)||280
+      const ox=o.x+210,oy=o.y+oEl.offsetHeight/2,px=pg.x,py=pg.y+pEl.offsetHeight/2
+      let opacity=.14,sw=2,cls='conn'
+      if(activeOC!==null){if(activeOC===oi){opacity=.5;sw=3}else{cls+=' dim'}}
+      else if(activePersona!==null){const pn=PERSONAS[activePersona].name;if(o.persona===pn){opacity=.35;sw=2.5}else{cls+=' dim'}}
+      const dx=px-ox,cpx=Math.max(60,Math.abs(dx)*.35)
+      const d=`M${ox},${oy} C${ox+cpx},${oy} ${px-cpx},${py} ${px},${py}`
+      const path=document.createElementNS('http://www.w3.org/2000/svg','path')
+      path.setAttribute('d',d);path.setAttribute('class',cls)
+      path.style.cssText=`stroke:${c.f};opacity:${opacity};stroke-width:${sw}`
+      path.setAttribute('marker-end','url(#ah)')
+      svg.appendChild(path)
+    })
+  })
+
+  navLinks.forEach(([fid,tid,label])=>{
+    const fp=pages.find(p=>p.id===fid),tp=pages.find(p=>p.id===tid)
+    if(!fp||!tp)return
+    const fEl=document.getElementById(`n-${fid}`),tEl=document.getElementById(`n-${tid}`)
+    if(!fEl||!tEl)return
+    const W=parseInt(getComputedStyle(fEl).width)||280
+    const fx=fp.x+W,fy=fp.y+fEl.offsetHeight/2,tx=tp.x,ty=tp.y+tEl.offsetHeight/2
+    let isDim=false
+    if(activeOC!==null){const oid=outcomes[activeOC]?.id;if(!fp.outcomes.includes(oid)&&!tp.outcomes.includes(oid))isDim=true}
+    if(activePersona!==null){const pn=PERSONAS[activePersona].name;const hasF=fp.outcomes.some(oid=>{const o=outcomes.find(oo=>oo.id===oid);return o&&o.persona===pn});const hasT=tp.outcomes.some(oid=>{const o=outcomes.find(oo=>oo.id===oid);return o&&o.persona===pn});if(!hasF&&!hasT)isDim=true}
+    const dx=tx-fx;let d
+    if(dx>30){const cpx=Math.abs(dx)*.3;d=`M${fx},${fy} C${fx+cpx},${fy} ${tx-cpx},${ty} ${tx},${ty}`}
+    else{const arc=70,midY=Math.min(fy,ty)-arc;d=`M${fx},${fy} C${fx+arc},${fy} ${fx+arc},${midY} ${(fx+tx)/2},${midY} S${tx-arc},${ty} ${tx},${ty}`}
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path')
+    path.setAttribute('d',d);path.setAttribute('class',`nav-conn ${isDim?'dim':''}`)
+    path.setAttribute('marker-end','url(#ah)');svg.appendChild(path)
+    if(label&&!isDim){
+      const lx=(fx+tx)/2,ly=(fy+ty)/2-5
+      const txt=document.createElementNS('http://www.w3.org/2000/svg','text')
+      txt.setAttribute('x',lx);txt.setAttribute('y',ly);txt.setAttribute('text-anchor','middle')
+      txt.setAttribute('font-size','7');txt.setAttribute('fill','rgba(10,30,47,.12)')
+      txt.setAttribute('font-weight','500');txt.setAttribute('class','nav-label')
+      txt.textContent=label;svg.appendChild(txt)
+    }
+  })
+}
+
+function renderTray(){
+  const tb=document.getElementById('ttb'),tc=document.getElementById('ttc')
+  const alerts=[]
+  outcomes.filter(o=>o.strength<80).forEach(o=>alerts.push(`O${o.n} strength ${o.strength} — "${o.title.split(' ').slice(0,6).join(' ')}…" needs sharpening`))
+  const uncovered=outcomes.filter(o=>o.pages.length===0)
+  uncovered.forEach(o=>alerts.push(`O${o.n} has no surface — ${o.persona}'s outcome is unserved`))
+  if(ghosts.length)alerts.push(`${ghosts.length} convergence opportunity — ${ghosts.map(g=>g.title).join(', ')}`)
+  tc.textContent=alerts.length;tc.className=`tc ${alerts.length?'has':'zero'}`
+  if(!alerts.length){tb.innerHTML='<div class="tray-ok">✓ All outcomes served, all strong</div>';return}
+  tb.innerHTML=alerts.map(a=>`<div class="ti">${a}</div>`).join('')
+}
+
+function updateStats(){
+  document.getElementById('s-pg').textContent=pages.length
+  const xpCount=pages.filter(p=>isXP(p)).length
+  document.getElementById('s-xp').textContent=xpCount
+}
+
+function toggleOC(i){activeOC=activeOC===i?null:i;activePersona=null;expandedPage=null;render()}
+function toggleP(i){activePersona=activePersona===i?null:i;activeOC=null;expandedPage=null;render()}
+function toggleTray(){document.getElementById('tray').classList.toggle('col')}
+
+function applyT(){cv.style.transform=`translate(${panX}px,${panY}px) scale(${scale})`;document.getElementById('zl').textContent=Math.round(scale*100)+'%'}
+function zoomIn(){scale=Math.min(scale+.1,2);applyT()}
+function zoomOut(){scale=Math.max(scale-.1,.25);applyT()}
+function fitView(){
+  const pad=40;let mx=Infinity,my=Infinity,Mx=-Infinity,My=-Infinity
+  outcomes.forEach(o=>{mx=Math.min(mx,o.x);my=Math.min(my,o.y);Mx=Math.max(Mx,o.x+210);My=Math.max(My,o.y+170)})
+  pages.forEach(p=>{mx=Math.min(mx,p.x);my=Math.min(my,p.y);Mx=Math.max(Mx,p.x+350);My=Math.max(My,p.y+350)})
+  const w=Mx-mx+pad*2,h=My-my+pad*2
+  scale=Math.min(wrap.clientWidth/w,(wrap.clientHeight-30)/h,.92)
+  panX=(wrap.clientWidth-w*scale)/2-mx*scale+pad*scale
+  panY=(wrap.clientHeight-h*scale)/2-my*scale+pad*scale
+  applyT()
+}
+
+wrap.addEventListener('wheel',e=>{e.preventDefault();const d=e.deltaY>0?-.05:.05,old=scale;scale=Math.max(.25,Math.min(2,scale+d));const r=wrap.getBoundingClientRect();panX=(e.clientX-r.left)-((e.clientX-r.left)-panX)*(scale/old);panY=(e.clientY-r.top)-((e.clientY-r.top)-panY)*(scale/old);applyT()},{passive:false})
+wrap.addEventListener('mousedown',e=>{if(e.target===wrap||e.target===cv||e.target.tagName==='svg'){isPanning=true;panStart={x:e.clientX-panX,y:e.clientY-panY};if(expandedPage){expandedPage=null;render()}}})
+window.addEventListener('mousemove',e=>{if(isPanning){panX=e.clientX-panStart.x;panY=e.clientY-panStart.y;applyT()}})
+window.addEventListener('mouseup',()=>{isPanning=false})
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(expandedPage){expandedPage=null;render()}else if(activeOC!==null){activeOC=null;render()}else if(activePersona!==null){activePersona=null;render()}}})
+
+render();applyT();setTimeout(fitView,80)
+</script>
+</body>
+</html>

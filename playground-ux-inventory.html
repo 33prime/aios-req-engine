@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BenyBox — UX Inventory</title>
+<style>
+:root {
+  --navy: #0A1E2F; --green: #3FAF7A; --green-dark: #2A8F5F; --green-pale: rgba(63,175,122,0.08);
+  --teal: #044159; --teal-pale: rgba(4,65,89,0.06);
+  --gold: #C49A1A; --gold-pale: rgba(196,154,26,0.08);
+  --red: #D94F4F; --red-pale: rgba(217,79,79,0.08);
+  --t1: #1D1D1F; --t2: #333; --t3: #4A5568; --t4: #718096; --t5: #A0AEC0;
+  --bg: #F7F8FA; --card: #FFF; --border: #E2E8F0; --subtle: #EDF2F7;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t2);-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#CBD5E0;border-radius:3px}
+
+/* Header */
+.hdr{background:var(--navy);padding:20px 32px 16px;position:sticky;top:0;z-index:100}
+.hdr-top{display:flex;align-items:center;gap:16px;margin-bottom:10px}
+.hdr-logo{font-size:11px;font-weight:800;color:var(--green);letter-spacing:.02em}
+.hdr-title{font-size:18px;font-weight:700;color:#fff;flex:1}
+.hdr-thesis{font-size:11px;color:rgba(255,255,255,0.5);font-style:italic;max-width:600px;line-height:1.5}
+.hdr-stats{display:flex;gap:16px;margin-top:8px}
+.stat{display:flex;flex-direction:column;align-items:center;padding:4px 14px;border-radius:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)}
+.stat-val{font-size:16px;font-weight:700;color:var(--green)}
+.stat-lbl{font-size:7px;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,0.3);font-weight:600}
+
+/* Persona filter pills */
+.persona-bar{display:flex;gap:6px;margin-top:10px;align-items:center}
+.persona-label{font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-right:4px}
+.ppill{display:flex;align-items:center;gap:4px;padding:3px 10px 3px 3px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);cursor:pointer;background:0;color:rgba(255,255,255,0.4);font:500 10px inherit;transition:all .15s}
+.ppill:hover{color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.15)}
+.ppill.on{background:rgba(255,255,255,0.08);border-color:var(--pc,rgba(255,255,255,0.2));color:#fff}
+.ppill .dot{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff}
+.ppill-clear{font-size:9px;color:rgba(255,255,255,0.3);cursor:pointer;margin-left:8px;text-decoration:underline}
+.ppill-clear:hover{color:rgba(255,255,255,0.6)}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;background:var(--card);border-bottom:1px solid var(--border);padding:0 32px;position:sticky;top:90px;z-index:90}
+.tab{padding:10px 18px;font-size:11px;font-weight:600;color:var(--t4);cursor:pointer;border:none;background:none;font-family:inherit;position:relative;transition:color .15s}
+.tab:hover{color:var(--t2)}
+.tab.on{color:var(--green-dark)}
+.tab.on::after{content:'';position:absolute;bottom:0;left:12px;right:12px;height:2px;background:var(--green);border-radius:1px 1px 0 0}
+.tab .tbadge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:4px}
+.tab.on .tbadge{background:var(--green-pale);color:var(--green-dark)}
+.tab:not(.on) .tbadge{background:var(--subtle);color:var(--t5)}
+
+/* Main */
+.main{max-width:1200px;margin:0 auto;padding:24px 32px 80px}
+.section-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t5);margin:28px 0 12px;display:flex;align-items:center;gap:8px}
+.section-hdr .line{flex:1;height:1px;background:var(--border)}
+.hidden{display:none}
+
+/* ── Outcome Cards ── */
+.outcome-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-bottom:24px}
+.oc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.oc:hover{border-color:rgba(63,175,122,0.3);box-shadow:0 2px 12px rgba(0,0,0,0.04)}
+.oc.on{border-color:var(--green);box-shadow:0 0 0 2px var(--green-pale)}
+.oc-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.oc-ring{position:relative;width:36px;height:36px;flex-shrink:0}
+.oc-ring svg{transform:rotate(-90deg)}
+.oc-ring .rbg{stroke:var(--subtle);stroke-width:3;fill:none}
+.oc-ring .rfg{stroke-width:3;fill:none;stroke-linecap:round}
+.oc-ring-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--t2)}
+.oc-badges{display:flex;gap:4px}
+.badge{font-size:8px;font-weight:600;padding:2px 7px;border-radius:4px}
+.badge-h1{background:var(--green-pale);color:var(--green-dark)}
+.badge-h2{background:var(--teal-pale);color:var(--teal)}
+.oc-title{font-size:12px;font-weight:600;color:var(--t1);line-height:1.4;margin-bottom:6px}
+.oc-actors{display:flex;gap:3px;flex-wrap:wrap}
+.oc-actor{font-size:8px;font-weight:500;padding:2px 6px;border-radius:3px;background:var(--subtle);color:var(--t3)}
+.oc-tension{position:absolute;top:8px;right:8px;font-size:8px;font-weight:700;color:var(--gold);background:var(--gold-pale);padding:1px 5px;border-radius:3px}
+
+/* ── Screen Cards ── */
+.tier-label{font-size:11px;font-weight:700;color:var(--navy);margin:20px 0 8px;display:flex;align-items:center;gap:8px}
+.tier-label .tdesc{font-weight:400;color:var(--t4);font-size:10px}
+.screen-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:all .2s}
+.sc:hover{border-color:rgba(0,0,0,0.12);box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+.sc.dimmed{opacity:0.12;pointer-events:none}
+.sc.highlighted{border-color:var(--green);border-left:4px solid var(--green)}
+.sc-hdr{padding:12px 16px;cursor:pointer;display:flex;align-items:flex-start;gap:12px}
+.sc-idx{min-width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.sc-idx.entry{background:var(--teal-pale);color:var(--teal)}
+.sc-idx.core{background:var(--green-pale);color:var(--green-dark)}
+.sc-idx.output{background:rgba(10,30,47,0.06);color:var(--navy)}
+.sc-idx.admin{background:var(--subtle);color:var(--t4)}
+.sc-main{flex:1;min-width:0}
+.sc-title{font-size:13px;font-weight:600;color:var(--t1);line-height:1.3}
+.sc-meta{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center}
+.sc-pattern{font-size:8px;font-weight:600;padding:2px 6px;border-radius:3px;background:var(--subtle);color:var(--t4);text-transform:uppercase;letter-spacing:.03em}
+.sc-ai{font-size:8px;font-weight:600;padding:2px 6px;border-radius:3px;background:var(--teal-pale);color:var(--teal)}
+.sc-convergence{font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;background:var(--green-pale);color:var(--green-dark)}
+.sc-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.sc-outcomes{display:flex;gap:2px}
+.sc-odot{width:8px;height:8px;border-radius:50%}
+.sc-personas{display:flex;gap:0}
+.sc-pavatar{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:#fff;border:2px solid var(--card);margin-left:-4px}
+.sc-pavatar:first-child{margin-left:0}
+.sc-chev{color:var(--t5);font-size:12px;transition:transform .2s;margin-top:4px}
+.sc.open .sc-chev{transform:rotate(180deg)}
+
+/* Expanded */
+.sc-body{display:none;border-top:1px solid var(--border)}
+.sc.open .sc-body{display:block}
+.sc-cols{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.sc-col{padding:14px 16px}
+.sc-col:first-child{border-right:1px solid var(--border)}
+.sc-col-label{font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t5);margin-bottom:8px}
+.sc-moment{font-size:11px;color:var(--t2);line-height:1.6;font-style:italic;padding:8px 10px;background:var(--subtle);border-radius:6px;border-left:3px solid var(--green);margin-bottom:10px}
+.sc-behavior{font-size:10px;color:var(--t3);line-height:1.5;padding:2px 0}
+.sc-behavior::before{content:'';display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--teal);margin-right:6px;vertical-align:middle}
+.sc-intel-row{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:10px}
+.sc-intel-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.sc-intel-dot.has{background:var(--green)}.sc-intel-dot.gap{background:var(--red-pale);border:1px solid var(--red)}
+.sc-intel-q{font-weight:600;color:var(--t4);width:70px;text-transform:capitalize}
+.sc-intel-name{color:var(--t2)}
+.sc-vocab{margin-top:8px}
+.sc-vocab-use{font-size:9px;color:var(--green-dark);font-weight:500}
+.sc-vocab-not{font-size:9px;color:var(--red);font-weight:500;margin-top:2px}
+.sc-connections{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.sc-conn{font-size:8px;font-weight:500;padding:2px 7px;border-radius:4px;background:rgba(0,0,0,0.03);color:var(--t3)}
+.sc-outcome-detail{padding:6px 8px;border-radius:6px;margin-bottom:6px;border-left:3px solid}
+.sc-outcome-title{font-size:10px;font-weight:600;color:var(--t1);margin-bottom:2px}
+.sc-outcome-how{font-size:9px;color:var(--t3);line-height:1.4}
+
+/* ── Intelligence Grid ── */
+.intel-grid{display:grid;grid-template-columns:auto repeat(4,1fr);gap:1px;background:var(--border);border-radius:8px;overflow:hidden;margin-bottom:24px}
+.ig-cell{background:var(--card);padding:8px 10px;font-size:10px}
+.ig-hdr{font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.04em;font-size:8px;text-align:center}
+.ig-outcome{font-weight:600;color:var(--t1);font-size:9px;line-height:1.3}
+.ig-item{text-align:center}
+.ig-item.has{background:rgba(63,175,122,0.04)}
+.ig-item.gap{background:var(--red-pale)}
+.ig-name{font-size:8px;font-weight:500;color:var(--t3)}
+
+/* ── Tension Map ── */
+.tension-list{display:flex;flex-direction:column;gap:8px;margin-bottom:24px}
+.tension{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.tension-sides{display:flex;align-items:center;gap:8px;flex:1}
+.tension-side{font-size:10px;font-weight:600;padding:4px 10px;border-radius:5px}
+.tension-side.a{background:var(--green-pale);color:var(--green-dark)}
+.tension-side.b{background:var(--teal-pale);color:var(--teal)}
+.tension-arrow{font-size:14px;color:var(--gold)}
+.tension-resolution{font-size:9px;color:var(--t3);flex:1}
+.tension-surface{font-size:9px;font-weight:600;color:var(--navy);background:var(--subtle);padding:3px 8px;border-radius:4px;white-space:nowrap}
+
+@media(max-width:800px){.sc-cols{grid-template-columns:1fr}.sc-col:first-child{border-right:none;border-bottom:1px solid var(--border)}.outcome-row{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="hdr-logo">AIOS</div>
+    <div class="hdr-title">BenyBox — UX Inventory</div>
+    <div class="hdr-thesis">Families don't get screwed with legal and financial work when a loved one passes</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div class="hdr-stats" id="stats"></div>
+    <div class="persona-bar">
+      <span class="persona-label">Journey</span>
+      <div id="personaPills"></div>
+      <span class="ppill-clear" id="clearFilter" style="display:none" onclick="clearPersona()">Clear</span>
+    </div>
+  </div>
+</div>
+
+<div class="tabs" id="tabs"></div>
+
+<div class="main" id="main"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA — from BenyBox outcome graph + build contract
+// ═══════════════════════════════════════════════════════════
+
+const PERSONAS = [
+  {id:'margaret',name:'Margaret',full:'Aging Parent',i:'M',c:'#3FAF7A'},
+  {id:'david',name:'David',full:'Adult Child Caregiver',i:'D',c:'#044159'},
+  {id:'unrepresented',name:'Individual',full:'Unrepresented',i:'U',c:'#0A1E2F'},
+  {id:'sarah',name:'Sarah',full:'Estate Planning Attorney',i:'S',c:'#2D6B4A'},
+];
+
+const OUTCOMES = [
+  {id:'o1',n:1,title:'Families know exactly which documents are missing and have a clear path to close gaps',
+   strength:83,horizon:'h1',personas:['margaret','unrepresented','sarah'],
+   tension:null,
+   actors:[
+     {persona:'margaret',title:'I can see exactly which documents I\'m missing for my age, state, and situation',before:'Unsure which documents they actually need',after:'Personalized checklist and live Vault Completeness Score',metric:'75%+ complete profile + assessment; Score visible within 3 min'},
+     {persona:'unrepresented',title:'I can understand what I need without paying $500/hr',before:'Cannot afford attorney fees; intimidated',after:'Guided plain-language assessment surfaces specific document requirements',metric:'60%+ upload at least one doc within 30 days'},
+     {persona:'sarah',title:'I can hand off a completed document environment to clients',before:'Clients leave with docs they don\'t understand',after:'Attorney-referred clients onboarded into structured vault',metric:'Client vault activation within 48hrs of attorney referral'},
+   ]},
+  {id:'o2',n:2,title:'Critical documents are instantly accessible to the right family members during emergencies',
+   strength:93,horizon:'h1',personas:['david','margaret','sarah'],
+   tension:'o5',
+   actors:[
+     {persona:'david',title:'I can present mom\'s Healthcare POA in under 90 seconds in the ER',before:'No secure centralized place; scrambles during crisis',after:'Shared vault access + pre-generated Emergency Access Card',metric:'Emergency retrieval < 90 seconds; 50%+ share vault within 30 days'},
+     {persona:'margaret',title:'I can grant my adult child access to exactly the documents they need',before:'Difficulty sharing securely without losing control',after:'Role-based sharing with full audit trail',metric:'50%+ invite at least one family member within 30 days'},
+     {persona:'sarah',title:'I can stop worrying that documents are locked in a safe',before:'Attorney-drafted docs end up inaccessible',after:'Documents stored, shared, and accessible to designated family',metric:'Zero cases where docs inaccessible due to storage failure'},
+   ]},
+  {id:'o3',n:3,title:'Users consistently engage with their document vault over time — not just at onboarding',
+   strength:89,horizon:'h2',personas:['margaret','david','unrepresented'],
+   tension:null,
+   actors:[
+     {persona:'margaret',title:'I can see my vault getting more complete over time',before:'No feedback loop for document adequacy or staleness',after:'Live Completeness Score + stale document alerts',metric:'5+ docs uploaded per user within 30 days; staleness alerts opened by 40%+'},
+     {persona:'david',title:'I can trust the documents I access are current',before:'No mechanism to flag outdated documents',after:'Stale alerts notify both parent and family members',metric:'100% of shared docs surface upload date and freshness'},
+     {persona:'unrepresented',title:'I can build my vault incrementally — not all at once',before:'No structured way to make incremental progress',after:'Score shows progress after every upload; next steps recommended',metric:'60%+ upload at least one doc; 30%+ reach 50% completeness'},
+   ]},
+  {id:'o4',n:4,title:'BenyBox is the trusted infrastructure layer for estate planning attorneys',
+   strength:83,horizon:'h2',personas:['sarah','margaret','unrepresented'],
+   tension:null,
+   actors:[
+     {persona:'sarah',title:'I can onboard a client into BenyBox as part of my engagement',before:'No structured post-drafting handoff exists',after:'Dedicated vault setup workflow; pre-populate categories',metric:'Adopted by 3+ law office partners in first 6 months'},
+     {persona:'margaret',title:'I leave my attorney\'s office with documents already organized',before:'Leaves with paper docs or PDFs they don\'t know how to store',after:'Attorney-initiated onboarding = vault pre-configured',metric:'80%+ of attorney-referred users have 3+ docs within 30 days'},
+     {persona:'unrepresented',title:'I can get referred to affordable legal help',before:'No bridge between self-service and attorney',after:'Service provider referral links within gap assessment',metric:'Referral click-through > 25% for attorney-required docs'},
+   ]},
+  {id:'o5',n:5,title:'Sensitive family documents are shared with confidence — zero unauthorized access',
+   strength:93,horizon:'h1',personas:['margaret','david','unrepresented'],
+   tension:'o2',
+   actors:[
+     {persona:'margaret',title:'I can share documents knowing I see every access event',before:'Difficulty sharing without losing control',after:'Auditable consent trail; view access log anytime',metric:'Zero unauthorized access at 90-day audit; 100% consent-gated'},
+     {persona:'david',title:'I can access documents knowing the platform is built for sensitive data',before:'Existing solutions lack appropriate security posture',after:'Purpose-built compliant sharing with emergency access',metric:'100% of access events consent-gated and logged'},
+     {persona:'unrepresented',title:'I can upload sensitive documents trusting they are stored compliantly',before:'Skeptical of uploading sensitive docs to cloud',after:'Onboarding communicates compliance posture explicitly',metric:'Upload rate > 70% among onboarded users; zero residency violations'},
+   ]},
+];
+
+const OC_COLORS = {o1:'#3FAF7A',o2:'#044159',o3:'#C49A1A',o4:'#2D6B4A',o5:'#8B5CF6'};
+
+const SCREENS = [
+  {idx:0,title:'Trigger-Aware Profile Onboarding',phase:'entry',pattern:'wizard',
+   ai:{name:'Profile Compass',desc:'Maps profile → state-specific requirements'},
+   outcomes:['o1'],personas:['margaret','unrepresented'],
+   moment:'Margaret answers 7 profile questions — age, state, marital status, children. Takes 3 minutes. The Assessment Engine generates her personalized, state-specific document checklist. She sees her landscape for the first time: "You need 12 documents for your California situation."',
+   behavior:['7 questions max — enough to generate landscape, refine later','Unrepresented sees cost context: "A notarized POA costs $50, not $2,000"','Progressive disclosure — don\'t overwhelm, guide'],
+   intel:{knowledge:'State Legal Requirements DB',scoring:'n/a',decision:'Assessment Trigger',ai:'Profile Compass'},
+   vocab:{use:['document landscape','personalized checklist','profile'],not:['estate planning wizard','onboarding form']},
+   connections:{from:[],to:[1]}},
+  {idx:1,title:'Personalized Document Needs Assessment',phase:'entry',pattern:'form',
+   ai:{name:'Document Needs Agent',desc:'State rules engine for gap identification'},
+   outcomes:['o1'],personas:['margaret','unrepresented'],
+   moment:'"You need these 12 documents. Check the ones you already have." Margaret checks 7. "5 gaps found. Priority order below." She sees "Transfer-on-Death Deed" — she didn\'t know this existed. That\'s the "how did it know?" moment.',
+   behavior:['Checklist format — check what you have, system shows what\'s missing','Priority ordering by urgency × cost × impact','Transfer-on-Death Deed is the surprise — inferred from state + property status'],
+   intel:{knowledge:'Document Type Taxonomy',scoring:'Gap Urgency Score',decision:'Gap Priority Ranker',ai:'Document Needs Agent'},
+   vocab:{use:['gap','priority','required','recommended'],not:['missing files','incomplete']},
+   connections:{from:[0],to:[2,3]}},
+  {idx:2,title:'Document Vault Initialization',phase:'entry',pattern:'dashboard',
+   ai:{name:'Vault Architect',desc:'Pre-configures categories from assessment'},
+   outcomes:['o1'],personas:['margaret','unrepresented'],
+   moment:'Vault auto-created with categories matching assessment results. Margaret sees empty slots for each required document. The structure is already there — she just needs to fill it.',
+   behavior:['Categories pre-configured from assessment (not manual setup)','Empty slots show what\'s needed — vault IS the checklist','First upload CTA is prominent'],
+   intel:{knowledge:'Document Type Taxonomy',scoring:'Vault Completeness Score',decision:'n/a',ai:'Vault Architect'},
+   vocab:{use:['vault','category','document slot'],not:['folder','directory','file manager']},
+   connections:{from:[1],to:[3]}},
+  {idx:3,title:'Guided Document Upload + Auto-Categorization',phase:'core_experience',pattern:'wizard',
+   ai:{name:'DocGuard Tagger',desc:'Auto-categorize, extract metadata, validate'},
+   outcomes:['o1','o3'],personas:['margaret','unrepresented'],convergence:2,
+   moment:'Margaret uploads her Healthcare POA. System auto-categorizes it, extracts metadata (date, state, named agents), and immediately updates her Completeness Score. Score jumps from 58% to 67%. Gap card disappears. She wants to upload more.',
+   behavior:['Auto-categorization on upload (no manual tagging)','Metadata extraction: date, state, named agents, expiration','Immediate score recalculation — the feedback loop IS the engagement','Gap card disappears on upload — instant visual closure'],
+   intel:{knowledge:'Document Type Taxonomy',scoring:'Vault Completeness Score',decision:'n/a',ai:'DocGuard Tagger'},
+   vocab:{use:['auto-categorize','completeness score','upload'],not:['file upload','attachment','browse files']},
+   connections:{from:[2],to:[4,5]}},
+  {idx:4,title:'Gap Identification + Service Provider Referral',phase:'core_experience',pattern:'card',
+   ai:{name:'Gap Agent',desc:'Surfaces gaps with actionable referrals'},
+   outcomes:['o1'],personas:['margaret','unrepresented'],
+   moment:'Top gap card: "Transfer-on-Death Deed — Required in California. Average cost: $150. 3 providers near you." Three paths: DIY guide $0, LegalZoom $79, Local attorney $250. She didn\'t know she needed this, and now she knows how to get it.',
+   behavior:['Per-gap: what it is, why you need it, how to get it, estimated cost','3 paths: DIY / online service / attorney','Cost shown IMMEDIATELY — "$50, not $2,000"','Referral revenue model, not paywall'],
+   intel:{knowledge:'State Legal Requirements DB',scoring:'Gap Urgency Score',decision:'Gap Priority Ranker',ai:'Gap Agent'},
+   vocab:{use:['gap','provider','estimated cost','path to close'],not:['missing document','error','incomplete']},
+   connections:{from:[3],to:[5]}},
+  {idx:5,title:'Vault Completeness Score Dashboard',phase:'core_experience',pattern:'dashboard',
+   ai:{name:'Vault Sentinel',desc:'Real-time completeness + staleness monitoring'},
+   outcomes:['o1','o3'],personas:['margaret','unrepresented','david'],convergence:2,
+   moment:'Margaret logs in. Score: 67%. 4 gaps remain, sorted by urgency. Top gap: Transfer-on-Death Deed. She also sees: "Healthcare POA uploaded 2019 — California recommends refreshing every 3 years." Staleness surfaced proactively. One screen drives three outcomes.',
+   behavior:['Completeness Score: BIGGEST element, not decorative','Score changes on every upload (instant feedback)','Staleness alerts surface proactively','Gap cards link to ACTION (referrals, costs)','Score DROP matters (expired docs = decrease)','Per-persona framing: Margaret sees "You need 12, you have 8." David sees "Mom\'s vault: 67% complete."'],
+   intel:{knowledge:'State Legal Requirements DB',scoring:'Vault Completeness Score',decision:'Gap Priority Ranker + Staleness Alert Trigger',ai:'Vault Sentinel + Life Event Detector'},
+   vocab:{use:['completeness score','document landscape','gap','staleness'],not:['file manager','upload center','document storage']},
+   connections:{from:[3,4],to:[6,7,8]}},
+  {idx:6,title:'Life Event Re-Assessment',phase:'core_experience',pattern:'card',
+   ai:{name:'Life Event Agent',desc:'Detects life changes → re-runs assessment'},
+   outcomes:['o3'],personas:['margaret','unrepresented'],
+   moment:'Margaret updates her profile: moved from California to Florida. System diffs old vs new requirements: "3 documents no longer required. 2 new documents needed for Florida." Score recalculates. New gap cards appear.',
+   behavior:['Profile change → automatic re-assessment','Diff view: old requirements vs new','New gaps surfaced with state-specific context','Score recalculates immediately'],
+   intel:{knowledge:'Life Event Impact Map',scoring:'Document Freshness Score',decision:'Re-Assessment Trigger',ai:'Life Event Detector'},
+   vocab:{use:['life event','re-assessment','updated requirements'],not:['profile update','settings change']},
+   connections:{from:[5],to:[5]}},
+  {idx:7,title:'Document Staleness Detection + Refresh Alerts',phase:'core_experience',pattern:'card',
+   ai:{name:'Staleness Agent',desc:'Monitors refresh intervals, alerts proactively'},
+   outcomes:['o3'],personas:['margaret','unrepresented'],
+   moment:'"Your Financial POA was signed in 2019. California recommends refreshing every 3 years. Your attorney Sarah Chen drafted this document — contact her to refresh." Staleness isn\'t buried in settings. It\'s a first-class alert.',
+   behavior:['Proactive alerts BEFORE documents expire','Escalation: owner → family members (30 days) → attorney (90 days)','Links back to attorney who drafted (if known)','Score drops when docs go stale — visible consequence'],
+   intel:{knowledge:'Document Refresh Intervals',scoring:'Document Freshness Score',decision:'Staleness Alert Trigger',ai:'Staleness Agent'},
+   vocab:{use:['stale','refresh','alert','current'],not:['expired','outdated','old']},
+   connections:{from:[5],to:[5,13]}},
+  {idx:8,title:'Family Sharing Setup + Role-Based Access',phase:'core_experience',pattern:'wizard',
+   ai:{name:'Access Architect',desc:'Configures permissions + generates Emergency Card'},
+   outcomes:['o2','o5'],personas:['margaret','david'],convergence:2,
+   moment:'Margaret selects "Adult Child — Emergency Access" for David. System explains: "David can access Healthcare POA, Financial POA, Emergency Contacts. He will NOT see your will or trust unless you grant additional access." She taps "Generate Emergency Card." Consent trail starts here.',
+   behavior:['Role-based access tiers (not "share all")','Per-document granularity (healthcare ≠ financial)','Emergency Access Card generation (QR → wallet)','Consent trail starts HERE (every sharing action logged)','Invitation flow = acquisition (David creates account)'],
+   intel:{knowledge:'Consent Requirements DB',scoring:'Trust Score',decision:'Permission Gate + Consent Validation Gate',ai:'Access Architect'},
+   vocab:{use:['sharing','access level','Emergency Access Card','consent'],not:['permissions','roles','admin']},
+   connections:{from:[5],to:[9,10]}},
+  {idx:9,title:'Emergency Access — David\'s View',phase:'core_experience',pattern:'splitview',
+   ai:{name:'Crisis Document Finder',desc:'Context-aware document surfacing in crisis'},
+   outcomes:['o2'],personas:['david'],
+   moment:'2am. Mom in ICU. David scans QR code from wallet. Fast-path auth — no password, no friction. Category-filtered vault shows healthcare docs first. Full-screen document presenter. Healthcare POA loads. Shows doctor. Crisis resolved. 90 seconds. $0.',
+   behavior:['QR-code fast auth (NO password — it\'s 2am in the ER)','Category filtering (show what matters NOW, not everything)','Full-screen document presenter (optimized for showing to a third party)','Offline capability (hospital WiFi is unreliable)','Access logged immediately (feeds Audit Trail)'],
+   intel:{knowledge:'Emergency Protocol Knowledge',scoring:'Document Relevance Score',decision:'Crisis Elevation Rule',ai:'Crisis Context Detector'},
+   vocab:{use:['emergency access','present document','crisis'],not:['login','browse','search']},
+   connections:{from:[8],to:[10]},
+   selling:true},
+  {idx:10,title:'Audit Trail + Access Log Review',phase:'output',pattern:'dashboard',
+   ai:{name:'Compliance Reporter',desc:'Audit summaries for legal proceedings'},
+   outcomes:['o2','o4','o5'],personas:['margaret','sarah'],convergence:3,
+   moment:'Margaret sees: "David accessed your Healthcare POA on March 15 at 2:14am from Memorial Hospital ER. Access method: Emergency Access Card. Duration: 3 minutes." She feels safe. David proves consent. Sarah proves diligence. The log is the same.',
+   behavior:['Every access logged: timestamp, method, viewer, duration','Margaret sees simplified "who touched what" view','Sarah sees compliance dashboard across ALL client vaults','Emergency access flagged distinctly (expected, not suspicious)','Export for legal proceedings'],
+   intel:{knowledge:'Access Pattern Baselines',scoring:'Trust Score + Anomaly Score',decision:'Anomaly Alert',ai:'Compliance Reporter'},
+   vocab:{use:['audit trail','access log','consent','compliance'],not:['activity feed','history','tracking']},
+   connections:{from:[8,9],to:[]},
+   tensionResolution:'o2↔o5'},
+  {idx:11,title:'Permission Management + Access Revocation',phase:'admin',pattern:'splitview',
+   ai:{name:'Vault Guardian',desc:'Owner control over all sharing permissions'},
+   outcomes:['o5'],personas:['margaret','david'],
+   moment:'Margaret decides to revoke David\'s access to financial documents after a family disagreement. One tap. Immediate. David\'s Emergency Card updates to exclude financial docs. Consent trail updated. Margaret retains full control.',
+   behavior:['Instant revocation (no waiting period)','Granular: revoke by document, category, or person','Emergency Card auto-updates on permission change','Revocation logged in audit trail'],
+   intel:{knowledge:'Consent Requirements DB',scoring:'Trust Score',decision:'Consent Validation Gate',ai:'Vault Guardian'},
+   vocab:{use:['revoke','permission','control','manage access'],not:['delete sharing','remove user']},
+   connections:{from:[8],to:[10]}},
+  {idx:12,title:'Attorney B2B Partner Registration',phase:'core_experience',pattern:'wizard',
+   ai:{name:'Vault Reconciler',desc:'Maps attorney docs → BenyBox categories'},
+   outcomes:['o4'],personas:['sarah'],
+   moment:'Sarah registers her practice. Links existing clients. The system maps her document taxonomy to BenyBox categories. In 15 minutes, she\'s set up to deliver documents directly into client vaults. BenyBox isn\'t just consumer — it\'s infrastructure.',
+   behavior:['Practice registration with specialty mapping','Client vault linking (existing + new)','Document taxonomy auto-mapping','White-label option for client-facing communications'],
+   intel:{knowledge:'Client Document Taxonomy',scoring:'Portfolio Health Score',decision:'Handoff Routing',ai:'Vault Reconciler'},
+   vocab:{use:['partner','practice','client vault','onboard'],not:['register','sign up','create account']},
+   connections:{from:[],to:[13,14]}},
+  {idx:13,title:'Attorney Document Handoff to Client Vault',phase:'core_experience',pattern:'form',
+   ai:{name:'Handoff Agent',desc:'Direct injection into client vault'},
+   outcomes:['o4'],personas:['sarah','margaret','unrepresented'],
+   moment:'Sarah drafts Margaret\'s Trust. Instead of handing her a PDF, she uploads directly into Margaret\'s vault. Pre-categorized. Score jumps. Already shared with David. The handoff is seamless. The product category changes here — documents are BORN in the vault.',
+   behavior:['Attorney uploads directly INTO client vault','Auto-categorize + notify client','Completeness Score updates immediately','Already shared with authorized family members','H3 insight: vault becomes where docs are born, not stored'],
+   intel:{knowledge:'Client Document Taxonomy',scoring:'Vault Completeness Score',decision:'Handoff Routing',ai:'Handoff Agent'},
+   vocab:{use:['handoff','deliver','inject into vault'],not:['upload','email','send']},
+   connections:{from:[12],to:[5,14]}},
+  {idx:14,title:'Attorney Multi-Client Portfolio Dashboard',phase:'output',pattern:'dashboard',
+   ai:{name:'Portfolio Risk Spotter',desc:'Aggregate staleness across client vaults'},
+   outcomes:['o4'],personas:['sarah'],
+   moment:'Monday morning. Sarah opens her dashboard. 12 clients. 3 flagged at-risk (stale documents). One-click outreach: "Hi Margaret, your Financial POA was signed in 2019 — California recommends refreshing every 3 years." Scalable aftercare model.',
+   behavior:['Risk-sorted client list','Completeness scores + staleness flags per client','One-click personalized outreach templates','Bulk operations for practice efficiency'],
+   intel:{knowledge:'Client Document Taxonomy',scoring:'Portfolio Health Score + Client Engagement Score',decision:'Outreach Trigger',ai:'Portfolio Risk Spotter'},
+   vocab:{use:['portfolio','at-risk','outreach','client health'],not:['user list','admin panel']},
+   connections:{from:[12,13],to:[10]}},
+  {idx:15,title:'Vault + Profile Settings',phase:'admin',pattern:'splitview',
+   ai:{name:'Compliance Guardian',desc:'Ensures settings meet compliance requirements'},
+   outcomes:[],personas:['margaret','unrepresented','sarah'],
+   moment:'Margaret adjusts notification preferences for staleness alerts. Enables email reminders. Sets quiet hours. Ensures her profile reflects her current situation.',
+   behavior:['Notification preferences (staleness, sharing, access)','Profile update triggers re-assessment','Data export and account management','Compliance settings visibility'],
+   intel:{knowledge:'Consent Requirements DB',scoring:'n/a',decision:'Re-Assessment Trigger',ai:'Compliance Guardian'},
+   vocab:{use:['settings','preferences','profile'],not:['configuration','admin']},
+   connections:{from:[5],to:[6]}},
+];
+
+const TENSIONS = [
+  {a:'Accessibility (O2)',b:'Security (O5)',resolution:'Audit Trail (Screen 10)',implication:'Emergency access must LOG everything. Consent trail starts at Family Sharing.'},
+  {a:'Simplicity (Individual)',b:'Depth (Attorney)',resolution:'Role-aware views',implication:'Same data, different interfaces. Margaret sees gaps. Sarah sees portfolio risk.'},
+  {a:'Onboarding friction',b:'Assessment completeness',resolution:'Progressive wizard (Screens 0-1)',implication:'7 questions, not 40. Get enough to generate landscape. Refine later.'},
+  {a:'Cost anxiety (Individual)',b:'Revenue model',resolution:'Gap + Referrals (Screen 4)',implication:'Show cost IMMEDIATELY. "$50, not $2,000." Referral revenue, not paywall.'},
+];
+
+const INTEL_PER_OUTCOME = [
+  {outcome:'O1: Know the landscape',k:'State Legal Requirements DB\nDocument Type Taxonomy',s:'Vault Completeness Score\nGap Urgency Score',d:'Gap Priority Ranker\nAssessment Trigger',a:'Profile Compass\nDocGuard Tagger'},
+  {outcome:'O2: Crisis access',k:'Document Type Registry\nEmergency Protocol Knowledge',s:'Document Relevance Score\nAccess Speed Score',d:'Permission Gate\nCrisis Elevation Rule',a:'Crisis Context Detector'},
+  {outcome:'O3: Ongoing engagement',k:'Document Refresh Intervals\nLife Event Impact Map',s:'Engagement Score\nDocument Freshness Score',d:'Staleness Alert Trigger\nRe-Assessment Trigger',a:'Life Event Detector'},
+  {outcome:'O4: Attorney infrastructure',k:'Client Document Taxonomy\nPractice Mgmt Integration Map',s:'Portfolio Health Score\nClient Engagement Score',d:'Outreach Trigger\nHandoff Routing',a:'Vault Reconciler\nPortfolio Risk Spotter'},
+  {outcome:'O5: Zero unauthorized access',k:'Consent Requirements DB\nAccess Pattern Baselines',s:'Trust Score\nAnomaly Score',d:'Anomaly Alert\nConsent Validation Gate',a:'Compliance Reporter'},
+];
+
+const PERSONA_JOURNEYS = {
+  margaret:[0,1,3,5,8,10],
+  david:[8,9,5,10],
+  sarah:[12,13,14,10],
+  unrepresented:[0,1,4,5,3],
+};
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+
+let activeTab = 'screens';
+let activePersona = null;
+let activeOutcome = null;
+let openScreens = new Set();
+
+// ═══════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════
+
+function render() {
+  renderStats();
+  renderPersonaPills();
+  renderTabs();
+  renderMain();
+}
+
+function renderStats() {
+  const convergenceCount = SCREENS.filter(s=>(s.convergence||0)>=2).length;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><span class="stat-val">${OUTCOMES.length}</span><span class="stat-lbl">Outcomes</span></div>
+    <div class="stat"><span class="stat-val">${SCREENS.length}</span><span class="stat-lbl">Screens</span></div>
+    <div class="stat"><span class="stat-val">${PERSONAS.length}</span><span class="stat-lbl">Personas</span></div>
+    <div class="stat"><span class="stat-val">${convergenceCount}</span><span class="stat-lbl">Convergence</span></div>
+    <div class="stat"><span class="stat-val">37</span><span class="stat-lbl">Intelligence</span></div>
+    <div class="stat"><span class="stat-val">${TENSIONS.length}</span><span class="stat-lbl">Tensions</span></div>
+  `;
+}
+
+function renderPersonaPills() {
+  document.getElementById('personaPills').innerHTML = PERSONAS.map(p=>`
+    <button class="ppill ${activePersona===p.id?'on':''}" style="${activePersona===p.id?`--pc:${p.c}`:''}" onclick="togglePersona('${p.id}')">
+      <span class="dot" style="background:${p.c}">${p.i}</span>${p.name}
+    </button>
+  `).join('');
+  document.getElementById('clearFilter').style.display = activePersona ? '' : 'none';
+}
+
+function renderTabs() {
+  const tabs = [
+    {id:'screens',label:'Screen Inventory',count:SCREENS.length},
+    {id:'outcomes',label:'Outcomes',count:OUTCOMES.length},
+    {id:'intelligence',label:'Intelligence Grid',count:37},
+    {id:'tensions',label:'Tensions',count:TENSIONS.length},
+  ];
+  document.getElementById('tabs').innerHTML = tabs.map(t=>`
+    <button class="tab ${activeTab===t.id?'on':''}" onclick="switchTab('${t.id}')">${t.label}<span class="tbadge">${t.count}</span></button>
+  `).join('');
+}
+
+function renderMain() {
+  const el = document.getElementById('main');
+  if (activeTab==='screens') el.innerHTML = renderScreensTab();
+  else if (activeTab==='outcomes') el.innerHTML = renderOutcomesTab();
+  else if (activeTab==='intelligence') el.innerHTML = renderIntelligenceTab();
+  else if (activeTab==='tensions') el.innerHTML = renderTensionsTab();
+}
+
+// ── Screens Tab ──
+
+function renderScreensTab() {
+  const tiers = [
+    {label:'Tier 1: Convergence Screens',desc:'Demo FIRST — these prove understanding',screens:SCREENS.filter(s=>(s.convergence||0)>=2&&s.outcomes.length>=2&&![8].includes(s.idx))},
+    {label:'Tier 2: Selling Screens',desc:'Demo SECOND — emotional hook',screens:SCREENS.filter(s=>s.selling||[8,9].includes(s.idx))},
+    {label:'Tier 3: Foundation',desc:'Demo THIRD — establish context',screens:SCREENS.filter(s=>[0,1,2,4,6,7].includes(s.idx))},
+    {label:'Tier 4: B2B / H2',desc:'Demo LAST — business model',screens:SCREENS.filter(s=>[12,13,14,15,11].includes(s.idx))},
+  ];
+
+  // Deduplicate screens across tiers
+  const seen = new Set();
+  const deduped = tiers.map(t => {
+    const unique = t.screens.filter(s => { if(seen.has(s.idx)) return false; seen.add(s.idx); return true; });
+    return {...t, screens: unique};
+  }).filter(t => t.screens.length > 0);
+
+  return deduped.map(tier=>`
+    <div class="tier-label">${tier.label} <span class="tdesc">${tier.desc}</span></div>
+    <div class="screen-grid">${tier.screens.map(s=>renderScreenCard(s)).join('')}</div>
+  `).join('');
+}
+
+function renderScreenCard(s) {
+  const isOpen = openScreens.has(s.idx);
+  const journey = activePersona ? PERSONA_JOURNEYS[activePersona] : null;
+  const highlighted = journey && journey.includes(s.idx);
+  const dimmed = journey && !highlighted;
+  const outcomeFiltered = activeOutcome && !s.outcomes.includes(activeOutcome);
+
+  const phaseClass = s.phase==='entry'?'entry':s.phase==='core_experience'?'core':s.phase==='output'?'output':'admin';
+  const outcomeDots = s.outcomes.map(oid=>`<div class="sc-odot" style="background:${OC_COLORS[oid]}" title="${OUTCOMES.find(o=>o.id===oid)?.title.slice(0,40)}"></div>`).join('');
+  const personaDots = s.personas.map(pid=>{
+    const p=PERSONAS.find(pp=>pp.id===pid);
+    return p?`<div class="sc-pavatar" style="background:${p.c}" title="${p.full}">${p.i}</div>`:'';
+  }).join('');
+
+  let badges = `<span class="sc-pattern">${s.pattern}</span>`;
+  if (s.ai?.name) badges += `<span class="sc-ai">${s.ai.name}</span>`;
+  if ((s.convergence||0)>=2) badges += `<span class="sc-convergence">${s.convergence} outcomes converge</span>`;
+  if (s.selling) badges += `<span class="sc-convergence" style="background:var(--gold-pale);color:var(--gold)">Selling Moment</span>`;
+  if (s.tensionResolution) badges += `<span class="sc-convergence" style="background:var(--teal-pale);color:var(--teal)">Tension Resolution</span>`;
+
+  let body = '';
+  if (isOpen) {
+    const outcomeDetails = s.outcomes.map(oid=>{
+      const o = OUTCOMES.find(oo=>oo.id===oid);
+      if(!o) return '';
+      const how = ''; // could pull from data
+      return `<div class="sc-outcome-detail" style="border-color:${OC_COLORS[oid]};background:${OC_COLORS[oid]}08">
+        <div class="sc-outcome-title" style="color:${OC_COLORS[oid]}">${o.title.slice(0,70)}</div>
+      </div>`;
+    }).join('');
+
+    const intelRows = ['knowledge','scoring','decision','ai'].map(q=>{
+      const val = s.intel?.[q] || 'n/a';
+      const has = val && val !== 'n/a';
+      return `<div class="sc-intel-row">
+        <div class="sc-intel-dot ${has?'has':'gap'}"></div>
+        <div class="sc-intel-q">${q}</div>
+        <div class="sc-intel-name">${val}</div>
+      </div>`;
+    }).join('');
+
+    const behaviors = (s.behavior||[]).map(b=>`<div class="sc-behavior">${b}</div>`).join('');
+    const connections = [...(s.connections?.from||[]).map(i=>`<span class="sc-conn">← ${SCREENS.find(ss=>ss.idx===i)?.title.slice(0,25)}</span>`),...(s.connections?.to||[]).map(i=>`<span class="sc-conn">→ ${SCREENS.find(ss=>ss.idx===i)?.title.slice(0,25)}</span>`)].join('');
+
+    body = `<div class="sc-body">
+      <div class="sc-cols">
+        <div class="sc-col">
+          <div class="sc-col-label">The Moment</div>
+          <div class="sc-moment">${s.moment}</div>
+          <div class="sc-col-label">Outcomes Served</div>
+          ${outcomeDetails}
+          ${s.vocab?`<div class="sc-vocab">
+            <div class="sc-vocab-use">Use: ${s.vocab.use.join(', ')}</div>
+            <div class="sc-vocab-not">Avoid: ${s.vocab.not.join(', ')}</div>
+          </div>`:''}
+        </div>
+        <div class="sc-col">
+          <div class="sc-col-label">Invisible Behavior</div>
+          ${behaviors}
+          <div class="sc-col-label" style="margin-top:12px">Intelligence Requirements</div>
+          ${intelRows}
+          ${connections?`<div class="sc-col-label" style="margin-top:12px">Connected Screens</div><div class="sc-connections">${connections}</div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return `<div class="sc ${isOpen?'open':''} ${dimmed?'dimmed':''} ${highlighted?'highlighted':''} ${outcomeFiltered?'dimmed':''}">
+    <div class="sc-hdr" onclick="toggleScreen(${s.idx})">
+      <div class="sc-idx ${phaseClass}">${s.idx}</div>
+      <div class="sc-main">
+        <div class="sc-title">${s.title}</div>
+        <div class="sc-meta">${badges}</div>
+      </div>
+      <div class="sc-right">
+        <div class="sc-outcomes">${outcomeDots}</div>
+        <div class="sc-personas">${personaDots}</div>
+        <div class="sc-chev">▾</div>
+      </div>
+    </div>
+    ${body}
+  </div>`;
+}
+
+// ── Outcomes Tab ──
+
+function renderOutcomesTab() {
+  return `
+    <div class="outcome-row">${OUTCOMES.map(renderOutcomeCard).join('')}</div>
+    <div class="section-hdr">Actor Outcomes <span class="line"></span></div>
+    ${OUTCOMES.map(o=>{
+      if(activeOutcome && activeOutcome!==o.id) return '';
+      return `<div style="margin-bottom:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--t1);margin-bottom:6px">${o.title.slice(0,70)}</div>
+        ${o.actors.map(a=>{
+          const p = PERSONAS.find(pp=>pp.id===a.persona);
+          if(activePersona && activePersona!==a.persona) return '';
+          return `<div style="display:flex;gap:10px;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:4px;border-left:3px solid ${p?.c||'#ccc'}">
+            <div style="flex-shrink:0"><div class="sc-pavatar" style="background:${p?.c||'#ccc'};width:24px;height:24px;font-size:9px;border:none">${p?.i||'?'}</div></div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:10px;font-weight:600;color:var(--t1)">${a.title}</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px">
+                <div style="font-size:9px;padding:4px 6px;background:var(--teal-pale);border-radius:4px;color:var(--teal)"><strong>Before:</strong> ${a.before}</div>
+                <div style="font-size:9px;padding:4px 6px;background:var(--green-pale);border-radius:4px;color:var(--green-dark)"><strong>After:</strong> ${a.after}</div>
+              </div>
+              <div style="font-size:8px;color:var(--t4);margin-top:3px">Metric: ${a.metric}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function renderOutcomeCard(o) {
+  const circ = 2*Math.PI*14;
+  const offset = circ - (o.strength/100)*circ;
+  const color = o.strength>=90?'var(--green)':o.strength>=70?'var(--green-dark)':'var(--gold)';
+  const isOn = activeOutcome===o.id;
+
+  return `<div class="oc ${isOn?'on':''}" onclick="toggleOutcome('${o.id}')">
+    ${o.tension?`<div class="oc-tension">↔ O${OUTCOMES.find(oo=>oo.id===o.tension)?.n}</div>`:''}
+    <div class="oc-top">
+      <div class="oc-ring">
+        <svg width="36" height="36" viewBox="0 0 36 36"><circle class="rbg" cx="18" cy="18" r="14"/><circle class="rfg" cx="18" cy="18" r="14" style="stroke:${color};stroke-dasharray:${circ};stroke-dashoffset:${offset}"/></svg>
+        <span class="oc-ring-val">${o.strength}</span>
+      </div>
+      <div class="oc-badges"><span class="badge badge-${o.horizon}">${o.horizon.toUpperCase()}</span></div>
+    </div>
+    <div class="oc-title">${o.title}</div>
+    <div class="oc-actors">${o.personas.map(pid=>{
+      const p=PERSONAS.find(pp=>pp.id===pid);
+      return p?`<span class="oc-actor" style="border-left:2px solid ${p.c}">${p.name}</span>`:'';
+    }).join('')}</div>
+  </div>`;
+}
+
+// ── Intelligence Tab ──
+
+function renderIntelligenceTab() {
+  const quadrants = ['Knowledge','Scoring','Decision','AI'];
+  const rows = INTEL_PER_OUTCOME.map(r=>{
+    return `<div class="ig-cell ig-outcome">${r.outcome}</div>
+      <div class="ig-cell ig-item has"><div class="ig-name">${r.k.replace(/\n/g,'<br>')}</div></div>
+      <div class="ig-cell ig-item has"><div class="ig-name">${r.s.replace(/\n/g,'<br>')}</div></div>
+      <div class="ig-cell ig-item has"><div class="ig-name">${r.d.replace(/\n/g,'<br>')}</div></div>
+      <div class="ig-cell ig-item has"><div class="ig-name">${r.a.replace(/\n/g,'<br>')}</div></div>`;
+  }).join('');
+
+  return `
+    <div style="margin-bottom:12px;font-size:12px;color:var(--t3)">Every cell filled = 100% intelligence coverage across all outcomes. Each item defines what the system must be smart enough to do.</div>
+    <div class="intel-grid">
+      <div class="ig-cell ig-hdr">Outcome</div>
+      ${quadrants.map(q=>`<div class="ig-cell ig-hdr">${q}</div>`).join('')}
+      ${rows}
+    </div>
+    <div style="display:flex;gap:12px;margin-top:16px">
+      <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--t4)"><div style="width:10px;height:10px;background:rgba(63,175,122,0.1);border-radius:2px"></div> Covered</div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--t4)"><div style="width:10px;height:10px;background:var(--red-pale);border:1px solid var(--red);border-radius:2px"></div> Gap</div>
+    </div>
+  `;
+}
+
+// ── Tensions Tab ──
+
+function renderTensionsTab() {
+  return `
+    <div style="margin-bottom:12px;font-size:12px;color:var(--t3)">Tensions are natural conflicts between outcomes. Each has a resolution surface where the prototype must demonstrate balance.</div>
+    <div class="tension-list">
+      ${TENSIONS.map(t=>`
+        <div class="tension">
+          <div class="tension-sides">
+            <span class="tension-side a">${t.a}</span>
+            <span class="tension-arrow">↔</span>
+            <span class="tension-side b">${t.b}</span>
+          </div>
+          <div class="tension-resolution">${t.implication}</div>
+          <div class="tension-surface">${t.resolution}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+// INTERACTIONS
+// ═══════════════════════════════════════════════════════════
+
+function switchTab(id) { activeTab=id; render(); }
+function togglePersona(id) { activePersona = activePersona===id ? null : id; activeOutcome=null; render(); }
+function clearPersona() { activePersona=null; render(); }
+function toggleOutcome(id) { activeOutcome = activeOutcome===id ? null : id; activePersona=null; render(); }
+function toggleScreen(idx) { openScreens.has(idx) ? openScreens.delete(idx) : openScreens.add(idx); renderMain(); }
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+
+render();
+</script>
+</body>
+</html>

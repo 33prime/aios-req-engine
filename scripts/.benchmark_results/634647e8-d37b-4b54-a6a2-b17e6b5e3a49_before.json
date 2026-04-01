@@ -1,0 +1,225 @@
+{
+  "project_id": "634647e8-d37b-4b54-a6a2-b17e6b5e3a49",
+  "phase": "before",
+  "timestamp": "2026-03-30 22:43:16",
+  "queries": [
+    {
+      "query": "What's causing the biggest pain?",
+      "type": "intent",
+      "description": "Broad pain query",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What should we focus on next?",
+      "type": "intent",
+      "description": "Strategic priority",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "How does data flow through the system?",
+      "type": "intent",
+      "description": "Architecture query",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "Who are the key decision makers?",
+      "type": "intent",
+      "description": "Stakeholder query",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What's blocking progress?",
+      "type": "intent",
+      "description": "Blocker query",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What features are must-have?",
+      "type": "specific",
+      "description": "Feature priority",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What workflows exist?",
+      "type": "specific",
+      "description": "Workflow listing",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What constraints do we have?",
+      "type": "specific",
+      "description": "Constraint listing",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "How do the personas relate to the features?",
+      "type": "cross",
+      "description": "Persona-feature mapping",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What's the connection between the pain points and the solution?",
+      "type": "cross",
+      "description": "Pain-solution link",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "Where are the bottlenecks?",
+      "type": "synonym",
+      "description": "Synonym for pain/constraint",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "What needs automation?",
+      "type": "synonym",
+      "description": "Implied feature need",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    },
+    {
+      "query": "Risk areas in the project",
+      "type": "synonym",
+      "description": "Synonym for constraints/blockers",
+      "legacy_results": [],
+      "legacy_top_sim": 0,
+      "legacy_count": 0,
+      "multivector_results": {
+        "identity": [],
+        "intent": [],
+        "relationship": [],
+        "status": []
+      },
+      "multivector_intent_count": 0,
+      "multivector_intent_top_sim": 0
+    }
+  ],
+  "project_name": "Unknown",
+  "entity_counts": {
+    "features": 0,
+    "personas": 0,
+    "business_drivers": 0,
+    "workflows": 0,
+    "constraints": 0,
+    "stakeholders": 0
+  },
+  "entity_vectors_count": 0
+}

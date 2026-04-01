@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIOS — Outcomes Tab</title>
+<style>
+:root{
+  --green:#3FAF7A;--green-d:#25785A;--green-p:rgba(63,175,122,0.07);--green-b:rgba(63,175,122,0.18);
+  --navy:#0A1E2F;--teal:#044159;--teal-p:rgba(4,65,89,0.05);
+  --gold:#C49A1A;--gold-p:rgba(196,154,26,0.07);
+  --t1:#1D1D1F;--t2:#2D3748;--t3:#4A5568;--t4:#718096;--t5:#A0AEC0;
+  --bg:#FAFBFC;--card:#FFF;--border:#E5E5E5;--subtle:#F3F4F6;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t2);-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}
+#app{display:flex;flex-direction:column;height:100vh}
+
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;height:44px;flex-shrink:0}
+.tb-name{font-size:14px;font-weight:700;color:var(--navy);margin-right:8px}
+.tb-dot{color:var(--green);margin-right:auto;font-size:10px}
+.phase-tabs{display:flex;gap:2px;background:var(--subtle);border-radius:7px;padding:3px}
+.ptab{padding:5px 14px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;color:var(--t5);border:none;background:none;transition:all .12s;font-family:inherit}
+.ptab.on{background:var(--card);color:var(--green-d);box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.ptab:hover:not(.on){color:var(--t3)}
+
+.subtabs{background:var(--card);border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;height:34px;flex-shrink:0;gap:0}
+.stab{font-size:11px;font-weight:600;color:var(--t5);cursor:pointer;padding:7px 14px;transition:all .12s;position:relative}
+.stab:hover{color:var(--t3)}
+.stab.on{color:var(--navy)}
+.stab.on::after{content:'';position:absolute;bottom:0;left:8px;right:8px;height:2px;background:var(--green);border-radius:1px 1px 0 0}
+.stab .cnt{font-size:9px;font-weight:700;padding:1px 5px;border-radius:7px;margin-left:4px}
+.stab.on .cnt{background:var(--green-p);color:var(--green-d)}
+.stab:not(.on) .cnt{background:var(--subtle);color:var(--t5)}
+.mode-toggle{margin-left:auto;display:flex;gap:2px;background:var(--subtle);border-radius:5px;padding:2px}
+.mt{padding:3px 10px;border-radius:4px;font-size:9px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--t5);font-family:inherit}
+.mt.on{background:var(--card);color:var(--navy);box-shadow:0 1px 2px rgba(0,0,0,0.06)}
+
+.content-wrap{flex:1;display:flex;overflow:hidden}
+.scroll{flex:1;overflow-y:auto;padding:0}
+.content{max-width:760px;margin:0 auto;padding:24px 28px 100px}
+
+/* ── Header Section ── */
+.macro{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:20px}
+.macro-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--t5);margin-bottom:4px}
+.macro-text{font-size:18px;font-weight:700;color:var(--navy);line-height:1.4;letter-spacing:-.02em}
+.macro-sub{font-size:11px;color:var(--t4);margin-top:6px;line-height:1.5}
+
+.health{display:flex;gap:16px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-bottom:20px}
+.health-ring{position:relative;width:48px;height:48px;flex-shrink:0}
+.health-ring svg{transform:rotate(-90deg)}
+.hr-bg{fill:none;stroke:var(--subtle);stroke-width:4}
+.hr-fg{fill:none;stroke:var(--green);stroke-width:4;stroke-linecap:round}
+.health-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.health-num{font-size:14px;font-weight:800;color:var(--navy)}
+.health-pct{font-size:7px;color:var(--t5);font-weight:600}
+.health-meta{flex:1}
+.health-stats{display:flex;gap:12px;font-size:10px;color:var(--t3);margin-bottom:3px}
+.health-stats b{color:var(--t1);font-weight:700}
+.health-narrative{font-size:11px;color:var(--t3);line-height:1.55}
+
+/* ── Section headers ── */
+.shdr{display:flex;align-items:center;gap:8px;margin:24px 0 10px}
+.shdr-t{font-size:13px;font-weight:700;color:var(--navy)}
+.shdr-c{font-size:10px;font-weight:600;color:var(--t5)}
+.shdr-line{flex:1;height:1px;background:var(--border)}
+
+/* ── Outcome Cards ── */
+.oc-list{display:flex;flex-direction:column;gap:10px}
+.oc{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:all .2s}
+.oc:hover{border-color:rgba(0,0,0,0.12);box-shadow:0 2px 8px rgba(0,0,0,0.03)}
+.oc.open{border-color:var(--green);box-shadow:0 3px 12px rgba(63,175,122,0.08)}
+.oc-hdr{padding:16px 20px;cursor:pointer;display:flex;align-items:flex-start;gap:12px}
+.oc-ring{position:relative;width:40px;height:40px;flex-shrink:0}
+.oc-ring svg{transform:rotate(-90deg)}
+.oc-ring .bg{fill:none;stroke:var(--subtle);stroke-width:3}.oc-ring .fg{fill:none;stroke-width:3;stroke-linecap:round;fill:none}
+.oc-ring-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--t2)}
+.oc-main{flex:1;min-width:0}
+.oc-num{font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t5);margin-bottom:2px}
+.oc-title{font-size:14px;font-weight:600;color:var(--t1);line-height:1.4}
+.oc-proof{font-size:10px;color:var(--t3);margin-top:4px;line-height:1.5;font-style:italic}
+.oc-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.oc-tag{font-size:8px;font-weight:600;padding:2px 7px;border-radius:4px}
+.oc-tag.h1{background:var(--green-p);color:var(--green-d)}.oc-tag.h2{background:var(--teal-p);color:var(--teal)}
+.oc-tag.tension{background:var(--gold-p);color:var(--gold)}
+.oc-tag.persona{background:var(--subtle);color:var(--t3)}
+.oc-chev{color:var(--t5);font-size:12px;transition:transform .2s;flex-shrink:0;margin-top:6px}
+.oc.open .oc-chev{transform:rotate(180deg)}
+
+/* ── Expanded Outcome ── */
+.oc-body{display:none;border-top:1px solid var(--border)}
+.oc.open .oc-body{display:block}
+.oc-section{padding:14px 20px}
+.oc-section+.oc-section{border-top:1px solid rgba(0,0,0,0.03)}
+.oc-slabel{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t5);margin-bottom:6px}
+
+/* Actor outcomes */
+.actor{display:flex;gap:10px;padding:8px 10px;border-radius:7px;background:var(--subtle);margin-bottom:6px;border-left:3px solid}
+.actor:last-child{margin-bottom:0}
+.actor-av{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0}
+.actor-body{flex:1;min-width:0}
+.actor-name{font-size:9px;font-weight:700;color:var(--navy)}
+.actor-title{font-size:10.5px;font-weight:500;color:var(--t2);line-height:1.4;margin-top:1px}
+.actor-ba{display:grid;grid-template-columns:1fr 20px 1fr;gap:0;margin-top:5px;border:1px solid var(--border);border-radius:5px;overflow:hidden;font-size:9px}
+.actor-before{padding:5px 7px;background:rgba(4,65,89,0.02);color:var(--t3)}
+.actor-arrow{display:flex;align-items:center;justify-content:center;color:var(--green);font-weight:700;font-size:11px;background:var(--subtle)}
+.actor-after{padding:5px 7px;background:rgba(63,175,122,0.02);color:var(--green-d)}
+.actor-ba-label{font-size:6.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.actor-before .actor-ba-label{color:var(--teal)}
+.actor-after .actor-ba-label{color:var(--green-d)}
+.actor-metric{font-size:8px;color:var(--t4);margin-top:4px;font-weight:500}
+
+/* Proof scenario */
+.proof-box{padding:10px 12px;border-radius:7px;background:var(--subtle);border-left:3px solid var(--green)}
+.proof-title{font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green-d);margin-bottom:4px}
+.proof-text{font-size:10.5px;color:var(--t2);line-height:1.6;font-style:italic}
+.proof-measurement{font-size:9px;color:var(--t4);margin-top:6px;font-weight:500;padding-top:6px;border-top:1px solid rgba(0,0,0,0.04)}
+
+/* Connected entities */
+.connected{display:flex;flex-wrap:wrap;gap:4px}
+.conn-chip{font-size:8.5px;font-weight:500;padding:3px 8px;border-radius:5px;display:flex;align-items:center;gap:3px;cursor:default;transition:all .12s}
+.conn-chip:hover{opacity:.8}
+.conn-chip.workflow{background:var(--teal-p);border:1px solid rgba(4,65,89,0.1);color:var(--teal)}
+.conn-chip.constraint{background:rgba(196,154,26,0.06);border:1px solid rgba(196,154,26,0.12);color:var(--gold)}
+.conn-chip.driver{background:var(--subtle);border:1px solid var(--border);color:var(--t3)}
+.conn-chip.feature{background:rgba(10,30,47,0.04);border:1px solid rgba(10,30,47,0.08);color:var(--navy)}
+
+/* ── Evidence Section ── */
+.ev-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:8px}
+.ev-type{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.ev-type.insight{color:var(--teal)}.ev-type.thesis{color:var(--green-d)}
+.ev-text{font-size:12px;font-weight:600;color:var(--t1);line-height:1.45;margin-bottom:4px}
+.ev-detail{font-size:10px;color:var(--t3);line-height:1.5}
+.ev-outcomes{display:flex;gap:3px;margin-top:6px}
+.ev-oc{font-size:7.5px;font-weight:600;padding:2px 6px;border-radius:3px}
+
+/* ── Actors Grid ── */
+.actors-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.ag-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;transition:all .15s}
+.ag-card:hover{border-color:rgba(0,0,0,0.12)}
+.ag-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ag-av{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
+.ag-name{font-size:12px;font-weight:700;color:var(--navy)}
+.ag-role{font-size:9px;color:var(--t4)}
+.ag-ocs{display:flex;flex-direction:column;gap:3px}
+.ag-oc{font-size:9px;color:var(--t3);display:flex;align-items:center;gap:4px;line-height:1.3}
+.ag-oc-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+
+/* ── Bottom Dock ── */
+.dock{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--card);border-top:1px solid var(--border);box-shadow:0 -2px 8px rgba(0,0,0,0.03)}
+.dock-tabs{display:flex;justify-content:center;gap:2px;padding:4px 28px}
+.dtab{padding:6px 16px;border-radius:6px;font-size:10px;font-weight:600;color:var(--t4);cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .12s;border:none;background:none;font-family:inherit}
+.dtab:hover{background:var(--subtle);color:var(--t2)}
+.dtab.on{background:var(--green-p);color:var(--green-d)}
+.dtab .dcnt{font-size:8px;font-weight:700;padding:1px 5px;border-radius:6px;background:var(--subtle);color:var(--t5)}
+.dtab.on .dcnt{background:rgba(63,175,122,0.15);color:var(--green-d)}
+.dock-body{display:none;padding:8px 28px 8px;max-height:180px;overflow-y:auto}
+.dock-body.open{display:block}
+.unlock-card{padding:8px 12px;background:var(--subtle);border-radius:6px;margin-bottom:4px;border-left:3px solid var(--teal)}
+.unlock-title{font-size:10px;font-weight:600;color:var(--t1)}
+.unlock-desc{font-size:9px;color:var(--t3);line-height:1.4;margin-top:2px}
+.unlock-scale{font-size:8px;color:var(--t5);margin-top:3px;font-style:italic}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="tb-name" id="projName">BenyBox</div>
+    <div class="tb-dot">●</div>
+    <div class="phase-tabs">
+      <button class="ptab">Overview</button>
+      <button class="ptab on">Discovery</button>
+      <button class="ptab">Build</button>
+      <button class="ptab">Collaborate</button>
+    </div>
+  </div>
+  <div class="subtabs">
+    <div class="stab on">Outcomes<span class="cnt" id="ocCount">5</span></div>
+    <div class="stab">BRD<span class="cnt">auto</span></div>
+    <div class="stab">Solution Flow<span class="cnt">16</span></div>
+    <div class="stab">Intelligence<span class="cnt">37</span></div>
+    <div class="mode-toggle">
+      <button class="mt on" onclick="setMode('new')" id="modeNew">New Product</button>
+      <button class="mt" onclick="setMode('internal')" id="modeInt">Internal</button>
+    </div>
+  </div>
+  <div class="content-wrap">
+    <div class="scroll">
+      <div class="content" id="main"></div>
+    </div>
+  </div>
+</div>
+
+<div class="dock">
+  <div class="dock-tabs" id="dockTabs"></div>
+  <div class="dock-body" id="dockBody"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════
+
+const PERSONAS = [
+  {id:'margaret',name:'Margaret',role:'Aging Parent',i:'M',c:'#3FAF7A'},
+  {id:'david',name:'David',role:'Adult Child Caregiver',i:'D',c:'#044159'},
+  {id:'unrepresented',name:'Individual',role:'Unrepresented',i:'U',c:'#0A1E2F'},
+  {id:'sarah',name:'Sarah',role:'Estate Planning Attorney',i:'S',c:'#2D6B4A'},
+];
+
+const OC_COLORS = ['#3FAF7A','#044159','#C49A1A','#2D6B4A','#8B5CF6'];
+
+const OUTCOMES = [
+  {id:'o1',n:1,
+   title:'Families stop discovering document gaps during a crisis — they discover them on their own terms, with time to act',
+   horizon:'h1',strength:83,
+   proof:'Margaret opens BenyBox for the first time and within 3 minutes learns she needs a Transfer-on-Death Deed — a document she didn\'t know existed. She has a name, a cost estimate, and three ways to get it. She didn\'t need a lawyer to tell her this.',
+   measurement:'A user can articulate which documents they\'re missing and why, without prompting, during a follow-up interview. They learned something they didn\'t know before the assessment.',
+   actors:[
+     {persona:'margaret',title:'I can see exactly which documents I\'m missing for my age, state, and situation',before:'Unsure which documents she needs — vaguely aware she should have a will','after':'Sees complete state-specific landscape: "You need 12. You have 7. These 5 are the gap."',metric:'Personalized checklist within 3 minutes of profile completion'},
+     {persona:'unrepresented',title:'I can understand what I need without paying $500/hr',before:'Cannot afford attorney fees; intimidated by legal complexity','after':'Plain-language assessment surfaces specific requirements with cost estimates',metric:'Assessment completers can name their top 3 gaps unprompted'},
+     {persona:'sarah',title:'I can hand off a completed document environment to clients',before:'Clients leave with expensive documents they don\'t understand or store','after':'Attorney-referred clients onboarded into structured vault automatically',metric:'Client vault active within 48 hours of attorney referral'},
+   ],
+   workflows:['Document Needs Assessment','Guided Upload Loop'],
+   constraints:['AI Tagging Accuracy Liability'],
+   tension:null},
+  {id:'o2',n:2,
+   title:'When a family emergency happens, the right person has the right document in hand — not locked in a safe, not with a lawyer, not three months away',
+   horizon:'h1',strength:93,
+   proof:'David\'s mother is in the ICU. He pulls out his phone, scans the Emergency Access Card from his wallet, and shows the Healthcare POA to the attending physician. The doctor accepts it. No court order. No family argument. The document was there when it mattered.',
+   measurement:'In a simulated emergency, a designated family member retrieves and presents the correct document to a third party within 90 seconds. The third party accepts it as sufficient.',
+   actors:[
+     {persona:'david',title:'I can present mom\'s Healthcare POA in under 90 seconds in the ER',before:'No secure, centralized place to access documents; scrambles during crisis','after':'Shared vault access + Emergency Access Card — QR scan → document on screen',metric:'Crisis to document: 90 seconds. Legal fees avoided: $12,000.'},
+     {persona:'margaret',title:'I can grant my adult child access to exactly the documents they need',before:'Difficulty sharing securely without losing control','after':'Role-based sharing with full audit trail — she decides who sees what',metric:'50%+ of active users invite at least one family member within 30 days'},
+     {persona:'sarah',title:'I can stop worrying that client documents are locked in a safe',before:'Attorney-drafted documents end up inaccessible in safes, drawers, or email','after':'Documents stored, shared, and accessible to designated family members',metric:'Zero cases where attorney-drafted documents are inaccessible due to storage'},
+   ],
+   workflows:['Family Document Sharing and Access','Emergency Document Retrieval'],
+   constraints:['Emergency Access Card Legal Liability','Document Storage Compliance'],
+   tension:'o5'},
+  {id:'o3',n:3,
+   title:'Document preparedness doesn\'t decay — families stay protected as life changes, not just the week they signed up',
+   horizon:'h2',strength:89,
+   proof:'Margaret moved from California to Florida six months after signing up. BenyBox flagged that 3 of her documents are now invalid under Florida law and surfaced 2 new requirements. She didn\'t have to remember to check. The system kept her protected through a life change she didn\'t associate with documents.',
+   measurement:'A user who experienced a life event has an updated document landscape reflecting their new situation — without manually requesting a re-assessment. The system caught it before they did.',
+   actors:[
+     {persona:'margaret',title:'I can see my vault getting more complete over time and know when something goes stale',before:'No feedback loop — documents sit and age invisibly','after':'Live Completeness Score + proactive staleness alerts',metric:'Staleness alerts opened and acted on by 40%+ of recipients'},
+     {persona:'david',title:'I can trust that the documents I access are current',before:'No mechanism to flag outdated documents in existing tools','after':'Stale alerts notify both parent and authorized family members',metric:'100% of shared documents show freshness status to authorized viewers'},
+     {persona:'unrepresented',title:'I can build my vault incrementally — not all at once',before:'Overwhelmed by the prospect of "doing estate planning"','after':'Score shows progress after every upload; next steps always visible',metric:'60%+ upload at least one document; score visible as progress indicator'},
+   ],
+   workflows:['Document Staleness Monitoring','Life Event Re-Assessment'],
+   constraints:[],
+   tension:null},
+  {id:'o4',n:4,
+   title:'Estate planning attorneys deliver lasting value to clients — not just documents that end up in a drawer',
+   horizon:'h2',strength:83,
+   proof:'Sarah finishes drafting Margaret\'s Trust and uploads it directly into her BenyBox vault. Two months later, Sarah\'s dashboard flags that Margaret\'s Financial POA is approaching refresh. She sends a one-click outreach. She didn\'t have to remember — the system created an ongoing relationship where there used to be a one-time transaction.',
+   measurement:'An attorney partner delivers documents into a client vault more than once — proving the behavior change stuck. The attorney\'s practice now includes proactive monitoring as a service.',
+   actors:[
+     {persona:'sarah',title:'I can onboard a client into BenyBox as part of my engagement',before:'No structured post-drafting handoff exists; clients store docs improperly','after':'Dedicated vault setup workflow; pre-populate categories; ongoing monitoring',metric:'Adopted by 3+ law office partners; repeat handoff behavior (not just trial)'},
+     {persona:'margaret',title:'I leave my attorney\'s office with documents already organized',before:'Leaves with paper or PDFs she doesn\'t know how to store or share','after':'Attorney-initiated onboarding = vault pre-configured, documents already shared with David',metric:'80%+ of attorney-referred users have 3+ documents and one family share within 30 days'},
+     {persona:'unrepresented',title:'I can get referred to affordable legal help through the platform',before:'No bridge between self-service and attorney help','after':'Gap assessment surfaces affordable referrals: "DIY $0 / LegalZoom $79 / Attorney $250"',metric:'Service provider referral click-through > 25% for attorney-required documents'},
+   ],
+   workflows:['Attorney Partner Vault Setup','Attorney Document Handoff'],
+   constraints:['Third-Party Sharing Audit Trail'],
+   tension:null},
+  {id:'o5',n:5,
+   title:'Families share their most sensitive documents because they trust the system — not despite it',
+   horizon:'h1',strength:93,
+   proof:'Margaret was hesitant to upload her Financial POA. Then she saw the audit trail: every access logged with who, when, from where, and how long. She saw that David\'s Emergency Card only grants healthcare docs — not financial ones. She uploaded the Financial POA that afternoon. Trust came from visible control, not a security badge.',
+   measurement:'Users who view the audit trail share MORE documents afterward, not fewer. Trust increases sharing behavior rather than creating friction.',
+   actors:[
+     {persona:'margaret',title:'I can share documents knowing I see every access event',before:'Difficulty sharing without losing control; no visibility into who sees what','after':'Auditable consent trail; view access log anytime; revoke instantly',metric:'Zero unauthorized access at 90-day audit; 100% sharing actions consent-gated'},
+     {persona:'david',title:'I can access shared documents knowing the platform is built for this',before:'Existing tools lack security posture appropriate for legal and medical docs','after':'Purpose-built, compliant sharing with emergency access pathway',metric:'100% of access events consent-gated and logged'},
+     {persona:'unrepresented',title:'I can upload sensitive documents trusting they are stored compliantly',before:'Skeptical of uploading sensitive docs to any cloud platform','after':'Onboarding clearly communicates compliance posture and data handling',metric:'Upload rate > 70% among users who complete onboarding'},
+   ],
+   workflows:['Family Document Sharing and Access'],
+   constraints:['Document Storage Compliance','Consent and Audit Trail Requirements'],
+   tension:'o2'},
+];
+
+const EVIDENCE = {
+  new_product: {
+    insights: [
+      {title:'The $12,000 Crisis',text:'When a family member becomes incapacitated or dies, surviving families spend an average of 3 months and $12,000+ in legal fees gaining access to documents locked in safes, held by attorneys, or never organized. The crisis isn\'t missing documents — it\'s missing ACCESS.',outcomes:['o2','o5'],detail:'Source: Client interview — "When my dad passed, we spent 3 months finding documents. $12,000 in legal fees. My sister and I weren\'t speaking by the end."'},
+      {title:'The Preparation Gap',text:'60% of American adults lack basic estate planning documents. The problem isn\'t laziness — the path from "I should have a will" to organized documents requires expensive attorneys, confusing language, and zero guidance on what\'s actually needed.',outcomes:['o1'],detail:'Source: AARP 2024 study. Cost barrier confirmed in 3 client interviews.'},
+    ],
+    theses: [
+      {title:'Trust Drives Sharing',text:'Families will share sensitive documents digitally IF the security model is visible and understandable. Showing people exactly who accessed what will INCREASE sharing, not create friction.',outcomes:['o5','o2'],detail:'Hypothesis: Audit trail visibility is an accelerant, not a gate.'},
+      {title:'Guidance Closes the Gap',text:'People who receive a personalized, state-specific assessment will take action. The barrier isn\'t motivation — it\'s information. Tell them what they need and how to get it affordably.',outcomes:['o1'],detail:'Hypothesis: Assessment completion → document upload is the core activation loop.'},
+      {title:'Attorneys Want Ongoing Relationships',text:'If we give attorneys a way to monitor client document health and do proactive outreach, they\'ll adopt it because it creates recurring value from aftercare — a service category that doesn\'t exist yet.',outcomes:['o4'],detail:'Hypothesis: Aftercare as a service is a new revenue stream for law practices.'},
+    ],
+  },
+  internal: {
+    insights: [
+      {title:'The $12,000 Crisis',text:'When a family member becomes incapacitated, surviving family members spend 3 months and $12,000+ gaining access to documents.',outcomes:['o2','o5'],detail:'Process Pain: Document access during crisis events'},
+      {title:'The Preparation Gap',text:'60% of adults lack basic estate planning documents due to cost and complexity barriers.',outcomes:['o1'],detail:'Process Pain: No affordable path to document organization'},
+    ],
+    theses: [
+      {title:'Trust Drives Sharing',text:'Visible audit trails will increase document sharing rates among family members.',outcomes:['o5','o2'],detail:'Process Target: Increase sharing adoption through transparent security'},
+      {title:'Guidance Closes the Gap',text:'Personalized assessment will drive document upload behavior.',outcomes:['o1'],detail:'Process Target: Assessment → upload conversion'},
+      {title:'Attorneys Want Ongoing Relationships',text:'Attorney partners will adopt vault handoff workflows for ongoing client engagement.',outcomes:['o4'],detail:'Process Target: Attorney adoption of handoff workflow'},
+    ],
+  },
+};
+
+const UNLOCKS = [
+  {title:'Insurance Company Integration',desc:'If "families know their gaps" works at scale, insurance companies want policyholders to have document prep as a benefit. Pre-fill life insurance docs into vaults.',scale:'50M households · $890B life insurance market · B2B2C channel',outcomes:['o1']},
+  {title:'Hospital Point-of-Care Integration',desc:'If "David can present in 90 seconds" works at scale, hospitals want to integrate. ER admissions query for legal authority verification at point of care.',scale:'6,100 US hospitals · Integration licensing · 40% reduction in document request burden',outcomes:['o2']},
+  {title:'Attorney-Native Document Creation',desc:'If "Sarah delivers to vault" works at scale, attorneys draft INSIDE the vault. BenyBox becomes document lifecycle, not storage.',scale:'65,000 estate planning attorneys · $200/mo practice license',outcomes:['o4']},
+  {title:'State Preparedness Benchmark',desc:'Anonymized vault completeness data creates a national benchmark. Insurance and policy applications.',scale:'Data licensing · Policy research · Government partnerships',outcomes:['o1','o3']},
+];
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+
+let mode = 'new';  // 'new' or 'internal'
+let openOutcomes = new Set();
+let activeDock = null;
+
+// ═══════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════
+
+function render() {
+  const el = document.getElementById('main');
+  el.innerHTML = renderMacro() + renderHealth() + renderOutcomes() + renderEvidence() + renderActors();
+  renderDock();
+}
+
+function renderMacro() {
+  const label = mode==='new' ? 'MACRO OUTCOME' : 'PROCESS TRANSFORMATION';
+  return `<div class="macro">
+    <div class="macro-label">${label}</div>
+    <div class="macro-text">Families don't get screwed with legal and financial work when a loved one passes</div>
+    <div class="macro-sub">5 outcomes across 4 personas. ${mode==='new'?'Proving the hypothesis with 25 beta users.':'Transforming document management across the organization.'}</div>
+  </div>`;
+}
+
+function renderHealth() {
+  const avg = Math.round(OUTCOMES.reduce((s,o)=>s+o.strength,0)/OUTCOMES.length);
+  const confirmed = OUTCOMES.filter(o=>o.strength>=90).length;
+  const circ = 2*Math.PI*19;
+  const offset = circ - (avg/100)*circ;
+  return `<div class="health">
+    <div class="health-ring">
+      <svg width="48" height="48" viewBox="0 0 48 48"><circle class="hr-bg" cx="24" cy="24" r="19"/><circle class="hr-fg" cx="24" cy="24" r="19" stroke-dasharray="${circ}" stroke-dashoffset="${offset}"/></svg>
+      <div class="health-val"><div class="health-num">${avg}</div><div class="health-pct">avg</div></div>
+    </div>
+    <div class="health-meta">
+      <div class="health-stats"><b>${OUTCOMES.length}</b> outcomes · <b>${confirmed}</b> strong (90+) · <b>${PERSONAS.length}</b> actors · <b>100%</b> intel coverage</div>
+      <div class="health-narrative">Outcomes 2 and 5 are strongest (93). Outcome 1 needs a sharper scenario dimension. All outcomes have full intelligence coverage across 4 quadrants. Next step: validate O2 selling scenario with a simulated crisis test.</div>
+    </div>
+  </div>`;
+}
+
+function renderOutcomes() {
+  return `<div class="shdr"><span class="shdr-t">Outcomes</span><span class="shdr-c">${OUTCOMES.length}</span><span class="shdr-line"></span></div>
+  <div class="oc-list">${OUTCOMES.map(renderOutcome).join('')}</div>`;
+}
+
+function renderOutcome(o) {
+  const isOpen = openOutcomes.has(o.id);
+  const circ = 2*Math.PI*15;
+  const offset = circ - (o.strength/100)*circ;
+  const color = o.strength>=90?'var(--green)':o.strength>=70?'var(--green-d)':'var(--gold)';
+  const tensionLabel = o.tension ? `↔ O${OUTCOMES.find(oo=>oo.id===o.tension)?.n}` : '';
+
+  let tags = `<span class="oc-tag ${o.horizon}">${o.horizon.toUpperCase()}</span>`;
+  o.actors.forEach(a=>{const p=PERSONAS.find(pp=>pp.id===a.persona);if(p) tags+=`<span class="oc-tag persona" style="border-left:2px solid ${p.c}">${p.name}</span>`});
+  if(o.tension) tags+=`<span class="oc-tag tension">${tensionLabel}</span>`;
+
+  let body = '';
+  if(isOpen){
+    const actorsHtml = o.actors.map(a=>{
+      const p = PERSONAS.find(pp=>pp.id===a.persona);
+      return `<div class="actor" style="border-color:${p?.c||'#ccc'}">
+        <div class="actor-av" style="background:${p?.c||'#ccc'}">${p?.i||'?'}</div>
+        <div class="actor-body">
+          <div class="actor-name">${p?.name||'?'} — ${p?.role||''}</div>
+          <div class="actor-title">${a.title}</div>
+          <div class="actor-ba">
+            <div class="actor-before"><div class="actor-ba-label">Today</div>${a.before}</div>
+            <div class="actor-arrow">→</div>
+            <div class="actor-after"><div class="actor-ba-label">Must Be True</div>${a.after}</div>
+          </div>
+          <div class="actor-metric">Measurement: ${a.metric}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const wfChips = o.workflows.map(w=>`<span class="conn-chip workflow">${w}</span>`).join('');
+    const cChips = o.constraints.map(c=>`<span class="conn-chip constraint">${c}</span>`).join('');
+
+    body = `<div class="oc-body">
+      <div class="oc-section">
+        <div class="oc-slabel">How We Prove It</div>
+        <div class="proof-box">
+          <div class="proof-title">Success Scenario</div>
+          <div class="proof-text">${o.proof}</div>
+          <div class="proof-measurement">Observable evidence: ${o.measurement}</div>
+        </div>
+      </div>
+      <div class="oc-section">
+        <div class="oc-slabel">Actor Outcomes (${o.actors.length} personas)</div>
+        ${actorsHtml}
+      </div>
+      <div class="oc-section">
+        <div class="oc-slabel">Connected Entities</div>
+        <div class="connected">
+          ${wfChips}${cChips}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return `<div class="oc ${isOpen?'open':''}" id="oc-${o.id}">
+    <div class="oc-hdr" onclick="toggleOc('${o.id}')">
+      <div class="oc-ring">
+        <svg width="40" height="40" viewBox="0 0 40 40"><circle class="bg" cx="20" cy="20" r="15"/><circle class="fg" cx="20" cy="20" r="15" style="stroke:${color};stroke-dasharray:${circ};stroke-dashoffset:${offset}"/></svg>
+        <span class="oc-ring-val">${o.strength}</span>
+      </div>
+      <div class="oc-main">
+        <div class="oc-num">Outcome ${o.n}</div>
+        <div class="oc-title">${o.title}</div>
+        <div class="oc-tags">${tags}</div>
+      </div>
+      <div class="oc-chev">▾</div>
+    </div>
+    ${body}
+  </div>`;
+}
+
+function renderEvidence() {
+  const ev = EVIDENCE[mode==='new'?'new_product':'internal'];
+  const insightLabel = mode==='new' ? 'Market Insights' : 'Process Pains';
+  const thesisLabel = mode==='new' ? 'Business Theses' : 'Process Targets';
+
+  let html = `<div class="shdr"><span class="shdr-t">${insightLabel}</span><span class="shdr-c">${ev.insights.length}</span><span class="shdr-line"></span></div>`;
+  ev.insights.forEach(i=>{
+    const ocBadges = i.outcomes.map(oid=>{
+      const idx = OUTCOMES.findIndex(o=>o.id===oid);
+      return `<span class="ev-oc" style="background:${OC_COLORS[idx]}12;color:${OC_COLORS[idx]}">O${idx+1}</span>`;
+    }).join('');
+    html += `<div class="ev-card">
+      <div class="ev-type insight">${mode==='new'?'Market Insight':'Process Pain'}</div>
+      <div class="ev-text">${i.title}</div>
+      <div class="ev-detail">${i.text}</div>
+      <div class="ev-outcomes">${ocBadges}</div>
+    </div>`;
+  });
+
+  html += `<div class="shdr"><span class="shdr-t">${thesisLabel}</span><span class="shdr-c">${ev.theses.length}</span><span class="shdr-line"></span></div>`;
+  ev.theses.forEach(t=>{
+    const ocBadges = t.outcomes.map(oid=>{
+      const idx = OUTCOMES.findIndex(o=>o.id===oid);
+      return `<span class="ev-oc" style="background:${OC_COLORS[idx]}12;color:${OC_COLORS[idx]}">O${idx+1}</span>`;
+    }).join('');
+    html += `<div class="ev-card">
+      <div class="ev-type thesis">${mode==='new'?'Business Thesis':'Process Target'}</div>
+      <div class="ev-text">${t.title}</div>
+      <div class="ev-detail">${t.text}</div>
+      <div class="ev-outcomes">${ocBadges}</div>
+    </div>`;
+  });
+
+  return html;
+}
+
+function renderActors() {
+  let html = `<div class="shdr"><span class="shdr-t">Actors</span><span class="shdr-c">${PERSONAS.length}</span><span class="shdr-line"></span></div>
+  <div class="actors-grid">`;
+  PERSONAS.forEach(p=>{
+    const pOutcomes = OUTCOMES.filter(o=>o.actors.some(a=>a.persona===p.id));
+    html += `<div class="ag-card">
+      <div class="ag-top">
+        <div class="ag-av" style="background:${p.c}">${p.i}</div>
+        <div><div class="ag-name">${p.name}</div><div class="ag-role">${p.role}</div></div>
+      </div>
+      <div class="ag-ocs">${pOutcomes.map((o,i)=>`<div class="ag-oc"><div class="ag-oc-dot" style="background:${OC_COLORS[OUTCOMES.indexOf(o)]}"></div>${o.title.slice(0,55)}...</div>`).join('')}</div>
+    </div>`;
+  });
+  return html + '</div>';
+}
+
+// ── Dock ──
+
+function renderDock() {
+  const tabs = [
+    {id:'unlocks',label:'Unlocks',count:UNLOCKS.length},
+    {id:'evidence',label:'Evidence',count:5},
+    {id:'memory',label:'Memory',count:0},
+  ];
+  document.getElementById('dockTabs').innerHTML = tabs.map(t=>
+    `<button class="dtab ${activeDock===t.id?'on':''}" onclick="toggleDock('${t.id}')">${t.label}<span class="dcnt">${t.count}</span></button>`
+  ).join('');
+
+  const body = document.getElementById('dockBody');
+  if(!activeDock){body.className='dock-body';return}
+  body.className='dock-body open';
+
+  if(activeDock==='unlocks'){
+    body.innerHTML = UNLOCKS.map(u=>`<div class="unlock-card">
+      <div class="unlock-title">${u.title}</div>
+      <div class="unlock-desc">${u.desc}</div>
+      <div class="unlock-scale">${u.scale}</div>
+    </div>`).join('');
+  } else if(activeDock==='evidence'){
+    body.innerHTML = '<div style="font-size:10px;color:var(--t4);padding:8px">Signal evidence and quotes from discovery sessions would appear here.</div>';
+  } else {
+    body.innerHTML = '<div style="font-size:10px;color:var(--t4);padding:8px">Memory beliefs and insights would appear here.</div>';
+  }
+}
+
+// ═══════════════════════════════════════════
+// INTERACTIONS
+// ═══════════════════════════════════════════
+
+function toggleOc(id){openOutcomes.has(id)?openOutcomes.delete(id):openOutcomes.add(id);render()}
+function toggleDock(id){activeDock=activeDock===id?null:id;renderDock()}
+function setMode(m){
+  mode=m;
+  document.getElementById('modeNew').className='mt'+(m==='new'?' on':'');
+  document.getElementById('modeInt').className='mt'+(m==='internal'?' on':'');
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

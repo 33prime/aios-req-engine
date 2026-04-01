@@ -1,0 +1,1980 @@
+{
+  "project_id": "634647e8-a22a-4b6f-b42a-452659620bc4",
+  "phase": "after",
+  "timestamp": "2026-03-30 23:06:24",
+  "queries": [
+    {
+      "query": "What's causing the biggest pain?",
+      "type": "intent",
+      "description": "Broad pain query",
+      "legacy_results": [
+        {
+          "entity_id": "2088e155-ce79-451b-936f-24ebf2d0131a",
+          "entity_type": "business_driver",
+          "entity_name": "Content volume is now table stakes \u2014 founders must post daily across platforms to remain visible, making manual content creation unsustainable.",
+          "similarity": 0.2081
+        },
+        {
+          "entity_id": "188edc97-ceb4-4fd1-b7d9-d6af53240139",
+          "entity_type": "business_driver",
+          "entity_name": "AI has commoditized content creation. LinkedIn feeds are homogeneous with generic frameworks, 'top 10' posts, and AI-generated content. People have stopped sounding like people. Personal voice is being lost to AI-generated uniformity.",
+          "similarity": 0.1882
+        },
+        {
+          "entity_id": "dd101d07-5379-4d07-9fc5-892555fb1989",
+          "entity_type": "unlock",
+          "entity_name": "Identify the highest-engagement content themes from a founder's post history to recommend next campaign topics",
+          "similarity": 0.1865
+        },
+        {
+          "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+          "entity_type": "constraint",
+          "entity_name": "Third-Party AI Model Dependency & Vendor Lock-In Risk",
+          "similarity": 0.1789
+        },
+        {
+          "entity_id": "7b8c9419-06fd-4181-98d2-e2127e50503e",
+          "entity_type": "business_driver",
+          "entity_name": "Each platform has its own culture, algorithm, and content format requirements. Generic adaptation (e.g., shortening a LinkedIn post for X) produces suboptimal content. Platform-native generation is required to maximize engagement and authenticity across channels.",
+          "similarity": 0.1729
+        }
+      ],
+      "legacy_top_sim": 0.2081,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "2088e155-ce79-451b-936f-24ebf2d0131a",
+            "entity_type": "business_driver",
+            "similarity": 0.2081
+          },
+          {
+            "entity_id": "188edc97-ceb4-4fd1-b7d9-d6af53240139",
+            "entity_type": "business_driver",
+            "similarity": 0.1882
+          },
+          {
+            "entity_id": "dd101d07-5379-4d07-9fc5-892555fb1989",
+            "entity_type": "unlock",
+            "similarity": 0.1865
+          },
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.1789
+          },
+          {
+            "entity_id": "7b8c9419-06fd-4181-98d2-e2127e50503e",
+            "entity_type": "business_driver",
+            "similarity": 0.1729
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.2101
+          },
+          {
+            "entity_id": "4bd2c9d1-e173-427b-b8de-98663bc1d33d",
+            "entity_type": "constraint",
+            "similarity": 0.185
+          },
+          {
+            "entity_id": "6a90c234-836a-41da-b279-87e26b3c20a3",
+            "entity_type": "business_driver",
+            "similarity": 0.181
+          },
+          {
+            "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+            "entity_type": "constraint",
+            "similarity": 0.1809
+          },
+          {
+            "entity_id": "11d32bf0-5be7-461c-bdaa-3f7d6c735350",
+            "entity_type": "constraint",
+            "similarity": 0.1759
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "66058633-b4f1-4d26-8cee-f2d53a88d58d",
+            "entity_type": "business_driver",
+            "similarity": 0.2511
+          },
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.2025
+          },
+          {
+            "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+            "entity_type": "constraint",
+            "similarity": 0.2008
+          },
+          {
+            "entity_id": "147d9c65-ad9c-4dbc-9205-ac31f9693b4b",
+            "entity_type": "business_driver",
+            "similarity": 0.1833
+          },
+          {
+            "entity_id": "014bcd3e-1a1b-49d5-bf61-6d03d4a945cc",
+            "entity_type": "constraint",
+            "similarity": 0.178
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "66058633-b4f1-4d26-8cee-f2d53a88d58d",
+            "entity_type": "business_driver",
+            "similarity": 0.2354
+          },
+          {
+            "entity_id": "84b02f48-570c-48cf-8d73-64dd674b113c",
+            "entity_type": "business_driver",
+            "similarity": 0.1718
+          },
+          {
+            "entity_id": "097f6e22-ce4f-49ec-9a2e-da372f15d891",
+            "entity_type": "business_driver",
+            "similarity": 0.1718
+          },
+          {
+            "entity_id": "188edc97-ceb4-4fd1-b7d9-d6af53240139",
+            "entity_type": "business_driver",
+            "similarity": 0.1718
+          },
+          {
+            "entity_id": "1663fb2f-d8e3-4f26-90ad-93792bc58a9a",
+            "entity_type": "business_driver",
+            "similarity": 0.1718
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.2101
+    },
+    {
+      "query": "What should we focus on next?",
+      "type": "intent",
+      "description": "Strategic priority",
+      "legacy_results": [
+        {
+          "entity_id": "dd101d07-5379-4d07-9fc5-892555fb1989",
+          "entity_type": "unlock",
+          "entity_name": "Identify the highest-engagement content themes from a founder's post history to recommend next campaign topics",
+          "similarity": 0.3512
+        },
+        {
+          "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+          "entity_type": "business_driver",
+          "entity_name": "Phase 2 adds Ripple Effect with Platform Intelligence, Content Calendar, and TikTok script generation. Phase 3 adds Collaboration Mode and Competitor Voice Radar.",
+          "similarity": 0.3359
+        },
+        {
+          "entity_id": "7098bcb9-8c08-49a3-8bce-24dde8d1be47",
+          "entity_type": "business_driver",
+          "entity_name": "Founders need strategic content pacing and variety to maintain audience engagement and prevent audience fatigue from repetitive content.",
+          "similarity": 0.3336
+        },
+        {
+          "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+          "entity_type": "business_driver",
+          "entity_name": "Content calendar infrastructure must be built in Phase 1 to support future AI optimization capabilities, requiring early architectural planning",
+          "similarity": 0.3224
+        },
+        {
+          "entity_id": "0cf8a1f6-8791-42e3-bc7b-8cd4f4a2fb09",
+          "entity_type": "feature",
+          "entity_name": "AI-Driven Cadence Optimization",
+          "similarity": 0.3118
+        }
+      ],
+      "legacy_top_sim": 0.3512,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "dd101d07-5379-4d07-9fc5-892555fb1989",
+            "entity_type": "unlock",
+            "similarity": 0.3512
+          },
+          {
+            "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+            "entity_type": "business_driver",
+            "similarity": 0.3359
+          },
+          {
+            "entity_id": "7098bcb9-8c08-49a3-8bce-24dde8d1be47",
+            "entity_type": "business_driver",
+            "similarity": 0.3336
+          },
+          {
+            "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+            "entity_type": "business_driver",
+            "similarity": 0.3224
+          },
+          {
+            "entity_id": "0cf8a1f6-8791-42e3-bc7b-8cd4f4a2fb09",
+            "entity_type": "feature",
+            "similarity": 0.3118
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+            "entity_type": "business_driver",
+            "similarity": 0.3999
+          },
+          {
+            "entity_id": "a6482c8e-b8b0-4cca-b7c6-411c6ffd0a48",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3771
+          },
+          {
+            "entity_id": "8b5011a4-19a2-49b2-838d-1f74de6904a6",
+            "entity_type": "feature",
+            "similarity": 0.3659
+          },
+          {
+            "entity_id": "c057593b-b87e-4f7f-93fe-a385ea1520f6",
+            "entity_type": "feature",
+            "similarity": 0.3638
+          },
+          {
+            "entity_id": "7098bcb9-8c08-49a3-8bce-24dde8d1be47",
+            "entity_type": "business_driver",
+            "similarity": 0.3599
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "fd1d9965-b9d5-4d6e-902a-6d01dbe8fc84",
+            "entity_type": "business_driver",
+            "similarity": 0.3511
+          },
+          {
+            "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+            "entity_type": "business_driver",
+            "similarity": 0.3423
+          },
+          {
+            "entity_id": "f5acaa29-072a-4cad-8d8e-d045e4054f4b",
+            "entity_type": "business_driver",
+            "similarity": 0.3306
+          },
+          {
+            "entity_id": "4bd2c9d1-e173-427b-b8de-98663bc1d33d",
+            "entity_type": "constraint",
+            "similarity": 0.3272
+          },
+          {
+            "entity_id": "fc32c7b4-76a7-441e-b7eb-41ef93ae4f49",
+            "entity_type": "feature",
+            "similarity": 0.3221
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "03eaeef5-ca30-48d4-b935-e80ac226ed29",
+            "entity_type": "feature",
+            "similarity": 0.2538
+          },
+          {
+            "entity_id": "f10b1aa4-27db-470a-a78b-8c24ea678d4e",
+            "entity_type": "workflow",
+            "similarity": 0.2538
+          },
+          {
+            "entity_id": "4ca7191d-6748-47b4-a81f-2a3c683b93be",
+            "entity_type": "workflow",
+            "similarity": 0.2538
+          },
+          {
+            "entity_id": "3b81652d-8aa2-403d-a2f9-5333c8384403",
+            "entity_type": "workflow",
+            "similarity": 0.2538
+          },
+          {
+            "entity_id": "3b2d1729-2b21-4d84-af86-2de98fc7bef0",
+            "entity_type": "workflow",
+            "similarity": 0.2538
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3999
+    },
+    {
+      "query": "How does data flow through the system?",
+      "type": "intent",
+      "description": "Architecture query",
+      "legacy_results": [
+        {
+          "entity_id": "c057593b-b87e-4f7f-93fe-a385ea1520f6",
+          "entity_type": "feature",
+          "entity_name": "Analytics Feedback Loop for Content Improvement",
+          "similarity": 0.2669
+        },
+        {
+          "entity_id": "4b25587a-66f7-4b53-aae4-d6958f9f68af",
+          "entity_type": "constraint",
+          "entity_name": "User Voice & Identity Data Privacy Obligations",
+          "similarity": 0.2634
+        },
+        {
+          "entity_id": "6408ae90-dadd-4021-a496-60bd2dfa1bbb",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Capture Raw Content Idea",
+          "similarity": 0.2571
+        },
+        {
+          "entity_id": "4ca7191d-6748-47b4-a81f-2a3c683b93be",
+          "entity_type": "workflow",
+          "entity_name": "Persona Model Iterative Improvement",
+          "similarity": 0.2565
+        },
+        {
+          "entity_id": "897737c0-5d39-4dc6-9ecf-e9ddc15b4375",
+          "entity_type": "workflow",
+          "entity_name": "Persona Model Iterative Improvement",
+          "similarity": 0.2548
+        }
+      ],
+      "legacy_top_sim": 0.2669,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "c057593b-b87e-4f7f-93fe-a385ea1520f6",
+            "entity_type": "feature",
+            "similarity": 0.2668
+          },
+          {
+            "entity_id": "4b25587a-66f7-4b53-aae4-d6958f9f68af",
+            "entity_type": "constraint",
+            "similarity": 0.2633
+          },
+          {
+            "entity_id": "6408ae90-dadd-4021-a496-60bd2dfa1bbb",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.2571
+          },
+          {
+            "entity_id": "4ca7191d-6748-47b4-a81f-2a3c683b93be",
+            "entity_type": "workflow",
+            "similarity": 0.2564
+          },
+          {
+            "entity_id": "897737c0-5d39-4dc6-9ecf-e9ddc15b4375",
+            "entity_type": "workflow",
+            "similarity": 0.2547
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "c06f02bc-f893-40d8-94b6-1cda92126c60",
+            "entity_type": "feature",
+            "similarity": 0.3043
+          },
+          {
+            "entity_id": "4b25587a-66f7-4b53-aae4-d6958f9f68af",
+            "entity_type": "constraint",
+            "similarity": 0.3031
+          },
+          {
+            "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+            "entity_type": "constraint",
+            "similarity": 0.2963
+          },
+          {
+            "entity_id": "4ca7191d-6748-47b4-a81f-2a3c683b93be",
+            "entity_type": "workflow",
+            "similarity": 0.2934
+          },
+          {
+            "entity_id": "37e9888c-3cf1-46c0-9f85-897c356c7487",
+            "entity_type": "business_driver",
+            "similarity": 0.2914
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+            "entity_type": "constraint",
+            "similarity": 0.415
+          },
+          {
+            "entity_id": "768398fe-04ea-45ce-95a9-3b31ca54a3af",
+            "entity_type": "business_driver",
+            "similarity": 0.3593
+          },
+          {
+            "entity_id": "8b5011a4-19a2-49b2-838d-1f74de6904a6",
+            "entity_type": "feature",
+            "similarity": 0.3557
+          },
+          {
+            "entity_id": "b61b314b-6be2-4079-8bd3-c2f2a7f74c68",
+            "entity_type": "feature",
+            "similarity": 0.3519
+          },
+          {
+            "entity_id": "8ebd49ba-4c94-47c2-9f5a-7a2dee577061",
+            "entity_type": "feature",
+            "similarity": 0.3517
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "7f31d005-5f76-4644-b30d-0754c080cc97",
+            "entity_type": "business_driver",
+            "similarity": 0.2116
+          },
+          {
+            "entity_id": "6531be9d-ebee-46d0-9d45-a5c4cdcce5fa",
+            "entity_type": "business_driver",
+            "similarity": 0.2061
+          },
+          {
+            "entity_id": "204c2ffa-1a33-44b0-bc3d-f2905745c253",
+            "entity_type": "business_driver",
+            "similarity": 0.2061
+          },
+          {
+            "entity_id": "b8750ec5-dc01-463c-bdf9-8dae13d38df7",
+            "entity_type": "business_driver",
+            "similarity": 0.2061
+          },
+          {
+            "entity_id": "4806c5cb-e028-4d42-a208-302ae8688854",
+            "entity_type": "workflow",
+            "similarity": 0.1832
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3043
+    },
+    {
+      "query": "Who are the key decision makers?",
+      "type": "intent",
+      "description": "Stakeholder query",
+      "legacy_results": [
+        {
+          "entity_id": "4238e5c1-c6ec-4020-922b-fca2d3b32b22",
+          "entity_type": "stakeholder",
+          "entity_name": "Bran Wilson",
+          "similarity": 0.3662
+        },
+        {
+          "entity_id": "86856352-b9e6-49f9-a16d-cf87ab9460da",
+          "entity_type": "business_driver",
+          "entity_name": "Executives and agencies need collaborative content workflows where ghostwriters and marketing managers can review, edit, and refine AI-generated content while preserving the executive's authentic voice through approval-gated learning.",
+          "similarity": 0.3332
+        },
+        {
+          "entity_id": "ebe3c9be-a9eb-4625-bb3b-9ef8754bb436",
+          "entity_type": "persona",
+          "entity_name": "Ghostwriter / Marketing Manager",
+          "similarity": 0.3239
+        },
+        {
+          "entity_id": "95852d58-1892-4d58-ae1f-a614726953d7",
+          "entity_type": "persona",
+          "entity_name": "Ghostwriter / Marketing Manager (Collaboration Mode)",
+          "similarity": 0.3057
+        },
+        {
+          "entity_id": "ed418ef5-39e4-4f13-90b2-5188440c106d",
+          "entity_type": "business_driver",
+          "entity_name": "Executives and agencies need collaborative content workflows where ghostwriters or marketing managers can edit and refine AI-generated content while preserving the executive's authentic voice",
+          "similarity": 0.2993
+        }
+      ],
+      "legacy_top_sim": 0.3662,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "4238e5c1-c6ec-4020-922b-fca2d3b32b22",
+            "entity_type": "stakeholder",
+            "similarity": 0.3662
+          },
+          {
+            "entity_id": "86856352-b9e6-49f9-a16d-cf87ab9460da",
+            "entity_type": "business_driver",
+            "similarity": 0.3332
+          },
+          {
+            "entity_id": "ebe3c9be-a9eb-4625-bb3b-9ef8754bb436",
+            "entity_type": "persona",
+            "similarity": 0.3239
+          },
+          {
+            "entity_id": "95852d58-1892-4d58-ae1f-a614726953d7",
+            "entity_type": "persona",
+            "similarity": 0.3057
+          },
+          {
+            "entity_id": "ed418ef5-39e4-4f13-90b2-5188440c106d",
+            "entity_type": "business_driver",
+            "similarity": 0.2993
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "4238e5c1-c6ec-4020-922b-fca2d3b32b22",
+            "entity_type": "stakeholder",
+            "similarity": 0.4544
+          },
+          {
+            "entity_id": "95852d58-1892-4d58-ae1f-a614726953d7",
+            "entity_type": "persona",
+            "similarity": 0.3581
+          },
+          {
+            "entity_id": "ed418ef5-39e4-4f13-90b2-5188440c106d",
+            "entity_type": "business_driver",
+            "similarity": 0.355
+          },
+          {
+            "entity_id": "86856352-b9e6-49f9-a16d-cf87ab9460da",
+            "entity_type": "business_driver",
+            "similarity": 0.3478
+          },
+          {
+            "entity_id": "ebe3c9be-a9eb-4625-bb3b-9ef8754bb436",
+            "entity_type": "persona",
+            "similarity": 0.3407
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "4238e5c1-c6ec-4020-922b-fca2d3b32b22",
+            "entity_type": "stakeholder",
+            "similarity": 0.4716
+          },
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.4533
+          },
+          {
+            "entity_id": "6a90c234-836a-41da-b279-87e26b3c20a3",
+            "entity_type": "business_driver",
+            "similarity": 0.4429
+          },
+          {
+            "entity_id": "64634cc5-796a-41bb-aa6b-414b3b916a3a",
+            "entity_type": "business_driver",
+            "similarity": 0.438
+          },
+          {
+            "entity_id": "b8750ec5-dc01-463c-bdf9-8dae13d38df7",
+            "entity_type": "business_driver",
+            "similarity": 0.4242
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "8ebd49ba-4c94-47c2-9f5a-7a2dee577061",
+            "entity_type": "feature",
+            "similarity": 0.2954
+          },
+          {
+            "entity_id": "d0a2c3ff-527e-46fc-9be1-550206e0f962",
+            "entity_type": "feature",
+            "similarity": 0.2948
+          },
+          {
+            "entity_id": "ea093e17-eccf-4e9b-9c04-bdc535c75d6d",
+            "entity_type": "feature",
+            "similarity": 0.2948
+          },
+          {
+            "entity_id": "7c3c3e96-9437-4505-aa0a-0c35c7c595a0",
+            "entity_type": "feature",
+            "similarity": 0.2948
+          },
+          {
+            "entity_id": "03eaeef5-ca30-48d4-b935-e80ac226ed29",
+            "entity_type": "feature",
+            "similarity": 0.2886
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.4544
+    },
+    {
+      "query": "What's blocking progress?",
+      "type": "intent",
+      "description": "Blocker query",
+      "legacy_results": [
+        {
+          "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+          "entity_type": "business_driver",
+          "entity_name": "Content calendar infrastructure must be built in Phase 1 to support future AI optimization capabilities, requiring early architectural planning",
+          "similarity": 0.307
+        },
+        {
+          "entity_id": "b565d804-817f-4b42-ac8a-a7bea6a2555c",
+          "entity_type": "vp_step",
+          "entity_name": "Repeat for Every New Content Session",
+          "similarity": 0.2772
+        },
+        {
+          "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+          "entity_type": "business_driver",
+          "entity_name": "Phase 2 adds Ripple Effect with Platform Intelligence, Content Calendar, and TikTok script generation. Phase 3 adds Collaboration Mode and Competitor Voice Radar.",
+          "similarity": 0.2763
+        },
+        {
+          "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+          "entity_type": "constraint",
+          "entity_name": "Reddit API Rate Limits & Scraping Constraints",
+          "similarity": 0.2721
+        },
+        {
+          "entity_id": "cf1d5d58-d2a5-4efd-93e7-f8a39fcd2227",
+          "entity_type": "business_driver",
+          "entity_name": "Users currently post content without visibility into whether their content will perform well. They need relative performance signals to optimize content quality before publication.",
+          "similarity": 0.2694
+        }
+      ],
+      "legacy_top_sim": 0.307,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+            "entity_type": "business_driver",
+            "similarity": 0.307
+          },
+          {
+            "entity_id": "b565d804-817f-4b42-ac8a-a7bea6a2555c",
+            "entity_type": "vp_step",
+            "similarity": 0.2772
+          },
+          {
+            "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+            "entity_type": "business_driver",
+            "similarity": 0.2763
+          },
+          {
+            "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+            "entity_type": "constraint",
+            "similarity": 0.2721
+          },
+          {
+            "entity_id": "cf1d5d58-d2a5-4efd-93e7-f8a39fcd2227",
+            "entity_type": "business_driver",
+            "similarity": 0.2694
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+            "entity_type": "business_driver",
+            "similarity": 0.3223
+          },
+          {
+            "entity_id": "fd1d9965-b9d5-4d6e-902a-6d01dbe8fc84",
+            "entity_type": "business_driver",
+            "similarity": 0.3003
+          },
+          {
+            "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+            "entity_type": "business_driver",
+            "similarity": 0.2835
+          },
+          {
+            "entity_id": "c06f02bc-f893-40d8-94b6-1cda92126c60",
+            "entity_type": "feature",
+            "similarity": 0.277
+          },
+          {
+            "entity_id": "b7d9bb8d-36a7-4e63-bc08-b515e70c8859",
+            "entity_type": "business_driver",
+            "similarity": 0.2692
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+            "entity_type": "business_driver",
+            "similarity": 0.3088
+          },
+          {
+            "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+            "entity_type": "business_driver",
+            "similarity": 0.3059
+          },
+          {
+            "entity_id": "014bcd3e-1a1b-49d5-bf61-6d03d4a945cc",
+            "entity_type": "constraint",
+            "similarity": 0.3009
+          },
+          {
+            "entity_id": "95852d58-1892-4d58-ae1f-a614726953d7",
+            "entity_type": "persona",
+            "similarity": 0.2925
+          },
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.2901
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "66058633-b4f1-4d26-8cee-f2d53a88d58d",
+            "entity_type": "business_driver",
+            "similarity": 0.1988
+          },
+          {
+            "entity_id": "8b5011a4-19a2-49b2-838d-1f74de6904a6",
+            "entity_type": "feature",
+            "similarity": 0.192
+          },
+          {
+            "entity_id": "a410ac97-cc3d-46e6-a021-f1fccea2bc2d",
+            "entity_type": "feature",
+            "similarity": 0.189
+          },
+          {
+            "entity_id": "55f8f512-43c9-447c-910e-fb852ff239a8",
+            "entity_type": "feature",
+            "similarity": 0.1887
+          },
+          {
+            "entity_id": "b61b314b-6be2-4079-8bd3-c2f2a7f74c68",
+            "entity_type": "feature",
+            "similarity": 0.1887
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3223
+    },
+    {
+      "query": "What features are must-have?",
+      "type": "specific",
+      "description": "Feature priority",
+      "legacy_results": [
+        {
+          "entity_id": "ea093e17-eccf-4e9b-9c04-bdc535c75d6d",
+          "entity_type": "feature",
+          "entity_name": "Multi-Modal Content Input",
+          "similarity": 0.3314
+        },
+        {
+          "entity_id": "a6b1e9bf-9a00-426e-865f-efb9698cec83",
+          "entity_type": "feature",
+          "entity_name": "Voice-to-Text Input with AI Cleanup",
+          "similarity": 0.3243
+        },
+        {
+          "entity_id": "6f680010-2a1d-49d0-8695-bd58b9be09bf",
+          "entity_type": "feature",
+          "entity_name": "Platform Intelligence Layer",
+          "similarity": 0.3199
+        },
+        {
+          "entity_id": "e895b519-8c7e-4028-834b-c6bc0621b167",
+          "entity_type": "unlock",
+          "entity_name": "Recommend the best-performing input modality for each founder based on draft quality outcomes",
+          "similarity": 0.3187
+        },
+        {
+          "entity_id": "03eaeef5-ca30-48d4-b935-e80ac226ed29",
+          "entity_type": "feature",
+          "entity_name": "Company Content Mode",
+          "similarity": 0.318
+        }
+      ],
+      "legacy_top_sim": 0.3314,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "ea093e17-eccf-4e9b-9c04-bdc535c75d6d",
+            "entity_type": "feature",
+            "similarity": 0.3314
+          },
+          {
+            "entity_id": "a6b1e9bf-9a00-426e-865f-efb9698cec83",
+            "entity_type": "feature",
+            "similarity": 0.3242
+          },
+          {
+            "entity_id": "6f680010-2a1d-49d0-8695-bd58b9be09bf",
+            "entity_type": "feature",
+            "similarity": 0.32
+          },
+          {
+            "entity_id": "e895b519-8c7e-4028-834b-c6bc0621b167",
+            "entity_type": "unlock",
+            "similarity": 0.3187
+          },
+          {
+            "entity_id": "03eaeef5-ca30-48d4-b935-e80ac226ed29",
+            "entity_type": "feature",
+            "similarity": 0.318
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "fd1d9965-b9d5-4d6e-902a-6d01dbe8fc84",
+            "entity_type": "business_driver",
+            "similarity": 0.3846
+          },
+          {
+            "entity_id": "fc32c7b4-76a7-441e-b7eb-41ef93ae4f49",
+            "entity_type": "feature",
+            "similarity": 0.3618
+          },
+          {
+            "entity_id": "8b5011a4-19a2-49b2-838d-1f74de6904a6",
+            "entity_type": "feature",
+            "similarity": 0.3546
+          },
+          {
+            "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+            "entity_type": "business_driver",
+            "similarity": 0.3456
+          },
+          {
+            "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+            "entity_type": "business_driver",
+            "similarity": 0.3452
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.3573
+          },
+          {
+            "entity_id": "11d32bf0-5be7-461c-bdaa-3f7d6c735350",
+            "entity_type": "constraint",
+            "similarity": 0.3484
+          },
+          {
+            "entity_id": "66058633-b4f1-4d26-8cee-f2d53a88d58d",
+            "entity_type": "business_driver",
+            "similarity": 0.3467
+          },
+          {
+            "entity_id": "edcc1d02-1b9f-450e-bfd9-40fa97ac65a4",
+            "entity_type": "business_driver",
+            "similarity": 0.3314
+          },
+          {
+            "entity_id": "a7966479-7960-4a34-9a6d-33a402038bc2",
+            "entity_type": "business_driver",
+            "similarity": 0.331
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "7c3c3e96-9437-4505-aa0a-0c35c7c595a0",
+            "entity_type": "feature",
+            "similarity": 0.3341
+          },
+          {
+            "entity_id": "8ebd49ba-4c94-47c2-9f5a-7a2dee577061",
+            "entity_type": "feature",
+            "similarity": 0.33
+          },
+          {
+            "entity_id": "d0a2c3ff-527e-46fc-9be1-550206e0f962",
+            "entity_type": "feature",
+            "similarity": 0.3267
+          },
+          {
+            "entity_id": "ea093e17-eccf-4e9b-9c04-bdc535c75d6d",
+            "entity_type": "feature",
+            "similarity": 0.3267
+          },
+          {
+            "entity_id": "a410ac97-cc3d-46e6-a021-f1fccea2bc2d",
+            "entity_type": "feature",
+            "similarity": 0.3257
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3846
+    },
+    {
+      "query": "What workflows exist?",
+      "type": "specific",
+      "description": "Workflow listing",
+      "legacy_results": [
+        {
+          "entity_id": "c06f02bc-f893-40d8-94b6-1cda92126c60",
+          "entity_type": "feature",
+          "entity_name": "Collaboration Mode for Teams and Ghostwriters",
+          "similarity": 0.4322
+        },
+        {
+          "entity_id": "b6b8378f-ffaf-46a7-a0bc-3f0c0bf70f70",
+          "entity_type": "workflow",
+          "entity_name": "Single-Input to Multi-Channel Content Campaign",
+          "similarity": 0.4293
+        },
+        {
+          "entity_id": "ed418ef5-39e4-4f13-90b2-5188440c106d",
+          "entity_type": "business_driver",
+          "entity_name": "Executives and agencies need collaborative content workflows where ghostwriters or marketing managers can edit and refine AI-generated content while preserving the executive's authentic voice",
+          "similarity": 0.404
+        },
+        {
+          "entity_id": "3b2d1729-2b21-4d84-af86-2de98fc7bef0",
+          "entity_type": "workflow",
+          "entity_name": "Single-Input to Multi-Channel Content Campaign",
+          "similarity": 0.3843
+        },
+        {
+          "entity_id": "897737c0-5d39-4dc6-9ecf-e9ddc15b4375",
+          "entity_type": "workflow",
+          "entity_name": "Persona Model Iterative Improvement",
+          "similarity": 0.3836
+        }
+      ],
+      "legacy_top_sim": 0.4322,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "c06f02bc-f893-40d8-94b6-1cda92126c60",
+            "entity_type": "feature",
+            "similarity": 0.4322
+          },
+          {
+            "entity_id": "b6b8378f-ffaf-46a7-a0bc-3f0c0bf70f70",
+            "entity_type": "workflow",
+            "similarity": 0.4293
+          },
+          {
+            "entity_id": "ed418ef5-39e4-4f13-90b2-5188440c106d",
+            "entity_type": "business_driver",
+            "similarity": 0.404
+          },
+          {
+            "entity_id": "3b2d1729-2b21-4d84-af86-2de98fc7bef0",
+            "entity_type": "workflow",
+            "similarity": 0.3843
+          },
+          {
+            "entity_id": "897737c0-5d39-4dc6-9ecf-e9ddc15b4375",
+            "entity_type": "workflow",
+            "similarity": 0.3836
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "c06f02bc-f893-40d8-94b6-1cda92126c60",
+            "entity_type": "feature",
+            "similarity": 0.4836
+          },
+          {
+            "entity_id": "26a33393-1653-44df-8fe3-f93331f6ebf2",
+            "entity_type": "constraint",
+            "similarity": 0.427
+          },
+          {
+            "entity_id": "ed418ef5-39e4-4f13-90b2-5188440c106d",
+            "entity_type": "business_driver",
+            "similarity": 0.4017
+          },
+          {
+            "entity_id": "2afe402d-b50b-41c5-86f1-cd030f426cda",
+            "entity_type": "feature",
+            "similarity": 0.3856
+          },
+          {
+            "entity_id": "64634cc5-796a-41bb-aa6b-414b3b916a3a",
+            "entity_type": "business_driver",
+            "similarity": 0.385
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "26a33393-1653-44df-8fe3-f93331f6ebf2",
+            "entity_type": "constraint",
+            "similarity": 0.4082
+          },
+          {
+            "entity_id": "7c3c3e96-9437-4505-aa0a-0c35c7c595a0",
+            "entity_type": "feature",
+            "similarity": 0.4045
+          },
+          {
+            "entity_id": "95852d58-1892-4d58-ae1f-a614726953d7",
+            "entity_type": "persona",
+            "similarity": 0.4038
+          },
+          {
+            "entity_id": "ed418ef5-39e4-4f13-90b2-5188440c106d",
+            "entity_type": "business_driver",
+            "similarity": 0.3944
+          },
+          {
+            "entity_id": "cd43c8a1-d021-4a23-b347-e463234fe7df",
+            "entity_type": "data_entity",
+            "similarity": 0.3937
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "7c3c3e96-9437-4505-aa0a-0c35c7c595a0",
+            "entity_type": "feature",
+            "similarity": 0.1339
+          },
+          {
+            "entity_id": "8ebd49ba-4c94-47c2-9f5a-7a2dee577061",
+            "entity_type": "feature",
+            "similarity": 0.1326
+          },
+          {
+            "entity_id": "4ca7191d-6748-47b4-a81f-2a3c683b93be",
+            "entity_type": "workflow",
+            "similarity": 0.1325
+          },
+          {
+            "entity_id": "f10b1aa4-27db-470a-a78b-8c24ea678d4e",
+            "entity_type": "workflow",
+            "similarity": 0.1325
+          },
+          {
+            "entity_id": "3b81652d-8aa2-403d-a2f9-5333c8384403",
+            "entity_type": "workflow",
+            "similarity": 0.1325
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.4836
+    },
+    {
+      "query": "What constraints do we have?",
+      "type": "specific",
+      "description": "Constraint listing",
+      "legacy_results": [
+        {
+          "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+          "entity_type": "constraint",
+          "entity_name": "Reddit API Rate Limits & Scraping Constraints",
+          "similarity": 0.379
+        },
+        {
+          "entity_id": "4bd2c9d1-e173-427b-b8de-98663bc1d33d",
+          "entity_type": "constraint",
+          "entity_name": "Reddit API Rate Limits & Scraping Constraints",
+          "similarity": 0.3643
+        },
+        {
+          "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+          "entity_type": "constraint",
+          "entity_name": "Third-Party AI Model Dependency & Vendor Lock-In Risk",
+          "similarity": 0.3527
+        },
+        {
+          "entity_id": "8afbc5ee-0892-4dc9-b729-77ebab287c97",
+          "entity_type": "constraint",
+          "entity_name": "Style Embedding Storage & Conditioning for Image Generation",
+          "similarity": 0.3485
+        },
+        {
+          "entity_id": "014bcd3e-1a1b-49d5-bf61-6d03d4a945cc",
+          "entity_type": "constraint",
+          "entity_name": "LinkedIn API Terms of Service Compliance",
+          "similarity": 0.3435
+        }
+      ],
+      "legacy_top_sim": 0.379,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+            "entity_type": "constraint",
+            "similarity": 0.379
+          },
+          {
+            "entity_id": "4bd2c9d1-e173-427b-b8de-98663bc1d33d",
+            "entity_type": "constraint",
+            "similarity": 0.3643
+          },
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.3527
+          },
+          {
+            "entity_id": "8afbc5ee-0892-4dc9-b729-77ebab287c97",
+            "entity_type": "constraint",
+            "similarity": 0.3485
+          },
+          {
+            "entity_id": "014bcd3e-1a1b-49d5-bf61-6d03d4a945cc",
+            "entity_type": "constraint",
+            "similarity": 0.3435
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "b63a278c-7d35-4882-bc81-a3d7415907ec",
+            "entity_type": "data_entity",
+            "similarity": 0.3127
+          },
+          {
+            "entity_id": "2e621837-e216-4a20-91e8-75375fc4ff56",
+            "entity_type": "feature",
+            "similarity": 0.284
+          },
+          {
+            "entity_id": "cbf9617d-dd94-4aca-a009-ba216c76e711",
+            "entity_type": "feature",
+            "similarity": 0.2808
+          },
+          {
+            "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+            "entity_type": "business_driver",
+            "similarity": 0.2804
+          },
+          {
+            "entity_id": "76cb394e-39a7-45b7-9c92-488005aa25e8",
+            "entity_type": "feature",
+            "similarity": 0.2779
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "92d869d3-7730-4853-8c77-d5816a4bf445",
+            "entity_type": "constraint",
+            "similarity": 0.2693
+          },
+          {
+            "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+            "entity_type": "business_driver",
+            "similarity": 0.2686
+          },
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.2539
+          },
+          {
+            "entity_id": "4b25587a-66f7-4b53-aae4-d6958f9f68af",
+            "entity_type": "constraint",
+            "similarity": 0.2514
+          },
+          {
+            "entity_id": "76cb394e-39a7-45b7-9c92-488005aa25e8",
+            "entity_type": "feature",
+            "similarity": 0.2499
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "ea093e17-eccf-4e9b-9c04-bdc535c75d6d",
+            "entity_type": "feature",
+            "similarity": 0.288
+          },
+          {
+            "entity_id": "d0a2c3ff-527e-46fc-9be1-550206e0f962",
+            "entity_type": "feature",
+            "similarity": 0.288
+          },
+          {
+            "entity_id": "7c3c3e96-9437-4505-aa0a-0c35c7c595a0",
+            "entity_type": "feature",
+            "similarity": 0.2873
+          },
+          {
+            "entity_id": "8ebd49ba-4c94-47c2-9f5a-7a2dee577061",
+            "entity_type": "feature",
+            "similarity": 0.2872
+          },
+          {
+            "entity_id": "65810ffc-ce9f-44e5-bebf-80529d7a7651",
+            "entity_type": "feature",
+            "similarity": 0.281
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3127
+    },
+    {
+      "query": "How do the personas relate to the features?",
+      "type": "cross",
+      "description": "Persona-feature mapping",
+      "legacy_results": [
+        {
+          "entity_id": "512c4ff7-b7be-4356-9de5-b9c583e8f539",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Persona Model Review & Confirmation",
+          "similarity": 0.5539
+        },
+        {
+          "entity_id": "b61b314b-6be2-4079-8bd3-c2f2a7f74c68",
+          "entity_type": "feature",
+          "entity_name": "Iterative Persona Learning",
+          "similarity": 0.5471
+        },
+        {
+          "entity_id": "801da9d0-7951-479c-97e5-0f4ad526e584",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Persona Model Auto-Improvement",
+          "similarity": 0.5331
+        },
+        {
+          "entity_id": "17bdd50d-58dd-46c1-b539-6e4dae659ba3",
+          "entity_type": "vp_step",
+          "entity_name": "Review & Confirm Persona Model",
+          "similarity": 0.5287
+        },
+        {
+          "entity_id": "fab870a4-f88b-40b2-b343-d315f0a983b8",
+          "entity_type": "business_driver",
+          "entity_name": "Build a self-improving persona model that becomes more accurate over time by learning from founder edits, reducing manual correction effort with each iteration",
+          "similarity": 0.5285
+        }
+      ],
+      "legacy_top_sim": 0.5539,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "512c4ff7-b7be-4356-9de5-b9c583e8f539",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.554
+          },
+          {
+            "entity_id": "b61b314b-6be2-4079-8bd3-c2f2a7f74c68",
+            "entity_type": "feature",
+            "similarity": 0.5472
+          },
+          {
+            "entity_id": "801da9d0-7951-479c-97e5-0f4ad526e584",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.5332
+          },
+          {
+            "entity_id": "17bdd50d-58dd-46c1-b539-6e4dae659ba3",
+            "entity_type": "vp_step",
+            "similarity": 0.5288
+          },
+          {
+            "entity_id": "fab870a4-f88b-40b2-b343-d315f0a983b8",
+            "entity_type": "business_driver",
+            "similarity": 0.5287
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "fab870a4-f88b-40b2-b343-d315f0a983b8",
+            "entity_type": "business_driver",
+            "similarity": 0.507
+          },
+          {
+            "entity_id": "897737c0-5d39-4dc6-9ecf-e9ddc15b4375",
+            "entity_type": "workflow",
+            "similarity": 0.4788
+          },
+          {
+            "entity_id": "a410ac97-cc3d-46e6-a021-f1fccea2bc2d",
+            "entity_type": "feature",
+            "similarity": 0.477
+          },
+          {
+            "entity_id": "801da9d0-7951-479c-97e5-0f4ad526e584",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.4571
+          },
+          {
+            "entity_id": "b61b314b-6be2-4079-8bd3-c2f2a7f74c68",
+            "entity_type": "feature",
+            "similarity": 0.4476
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "4b25587a-66f7-4b53-aae4-d6958f9f68af",
+            "entity_type": "constraint",
+            "similarity": 0.5472
+          },
+          {
+            "entity_id": "897737c0-5d39-4dc6-9ecf-e9ddc15b4375",
+            "entity_type": "workflow",
+            "similarity": 0.5353
+          },
+          {
+            "entity_id": "512c4ff7-b7be-4356-9de5-b9c583e8f539",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.5001
+          },
+          {
+            "entity_id": "66058633-b4f1-4d26-8cee-f2d53a88d58d",
+            "entity_type": "business_driver",
+            "similarity": 0.4981
+          },
+          {
+            "entity_id": "801da9d0-7951-479c-97e5-0f4ad526e584",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.4895
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "7c3c3e96-9437-4505-aa0a-0c35c7c595a0",
+            "entity_type": "feature",
+            "similarity": 0.2486
+          },
+          {
+            "entity_id": "8ebd49ba-4c94-47c2-9f5a-7a2dee577061",
+            "entity_type": "feature",
+            "similarity": 0.2442
+          },
+          {
+            "entity_id": "d0a2c3ff-527e-46fc-9be1-550206e0f962",
+            "entity_type": "feature",
+            "similarity": 0.2421
+          },
+          {
+            "entity_id": "ea093e17-eccf-4e9b-9c04-bdc535c75d6d",
+            "entity_type": "feature",
+            "similarity": 0.2421
+          },
+          {
+            "entity_id": "03eaeef5-ca30-48d4-b935-e80ac226ed29",
+            "entity_type": "feature",
+            "similarity": 0.2386
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.507
+    },
+    {
+      "query": "What's the connection between the pain points and the solution?",
+      "type": "cross",
+      "description": "Pain-solution link",
+      "legacy_results": [
+        {
+          "entity_id": "dd101d07-5379-4d07-9fc5-892555fb1989",
+          "entity_type": "unlock",
+          "entity_name": "Identify the highest-engagement content themes from a founder's post history to recommend next campaign topics",
+          "similarity": 0.3056
+        },
+        {
+          "entity_id": "7b8c9419-06fd-4181-98d2-e2127e50503e",
+          "entity_type": "business_driver",
+          "entity_name": "Each platform has its own culture, algorithm, and content format requirements. Generic adaptation (e.g., shortening a LinkedIn post for X) produces suboptimal content. Platform-native generation is required to maximize engagement and authenticity across channels.",
+          "similarity": 0.3026
+        },
+        {
+          "entity_id": "2088e155-ce79-451b-936f-24ebf2d0131a",
+          "entity_type": "business_driver",
+          "entity_name": "Content volume is now table stakes \u2014 founders must post daily across platforms to remain visible, making manual content creation unsustainable.",
+          "similarity": 0.3003
+        },
+        {
+          "entity_id": "097f6e22-ce4f-49ec-9a2e-da372f15d891",
+          "entity_type": "business_driver",
+          "entity_name": "Founders think in voice and capture thoughts naturally (while walking, driving, etc.) but current tools require structured text input, creating friction in the content creation workflow",
+          "similarity": 0.2936
+        },
+        {
+          "entity_id": "188edc97-ceb4-4fd1-b7d9-d6af53240139",
+          "entity_type": "business_driver",
+          "entity_name": "AI has commoditized content creation. LinkedIn feeds are homogeneous with generic frameworks, 'top 10' posts, and AI-generated content. People have stopped sounding like people. Personal voice is being lost to AI-generated uniformity.",
+          "similarity": 0.2815
+        }
+      ],
+      "legacy_top_sim": 0.3056,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "dd101d07-5379-4d07-9fc5-892555fb1989",
+            "entity_type": "unlock",
+            "similarity": 0.3056
+          },
+          {
+            "entity_id": "7b8c9419-06fd-4181-98d2-e2127e50503e",
+            "entity_type": "business_driver",
+            "similarity": 0.3026
+          },
+          {
+            "entity_id": "2088e155-ce79-451b-936f-24ebf2d0131a",
+            "entity_type": "business_driver",
+            "similarity": 0.3003
+          },
+          {
+            "entity_id": "097f6e22-ce4f-49ec-9a2e-da372f15d891",
+            "entity_type": "business_driver",
+            "similarity": 0.2936
+          },
+          {
+            "entity_id": "188edc97-ceb4-4fd1-b7d9-d6af53240139",
+            "entity_type": "business_driver",
+            "similarity": 0.2815
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "37e9888c-3cf1-46c0-9f85-897c356c7487",
+            "entity_type": "business_driver",
+            "similarity": 0.324
+          },
+          {
+            "entity_id": "6a90c234-836a-41da-b279-87e26b3c20a3",
+            "entity_type": "business_driver",
+            "similarity": 0.3216
+          },
+          {
+            "entity_id": "c89d30d7-7e28-4876-a691-6ff12abac81b",
+            "entity_type": "business_driver",
+            "similarity": 0.3213
+          },
+          {
+            "entity_id": "5bdb08a7-bd2c-40f1-81d0-31b628bba530",
+            "entity_type": "business_driver",
+            "similarity": 0.319
+          },
+          {
+            "entity_id": "64634cc5-796a-41bb-aa6b-414b3b916a3a",
+            "entity_type": "business_driver",
+            "similarity": 0.3187
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "66058633-b4f1-4d26-8cee-f2d53a88d58d",
+            "entity_type": "business_driver",
+            "similarity": 0.412
+          },
+          {
+            "entity_id": "37e9888c-3cf1-46c0-9f85-897c356c7487",
+            "entity_type": "business_driver",
+            "similarity": 0.3331
+          },
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.3281
+          },
+          {
+            "entity_id": "64634cc5-796a-41bb-aa6b-414b3b916a3a",
+            "entity_type": "business_driver",
+            "similarity": 0.3109
+          },
+          {
+            "entity_id": "5bdb08a7-bd2c-40f1-81d0-31b628bba530",
+            "entity_type": "business_driver",
+            "similarity": 0.306
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "66058633-b4f1-4d26-8cee-f2d53a88d58d",
+            "entity_type": "business_driver",
+            "similarity": 0.22
+          },
+          {
+            "entity_id": "84b02f48-570c-48cf-8d73-64dd674b113c",
+            "entity_type": "business_driver",
+            "similarity": 0.186
+          },
+          {
+            "entity_id": "097f6e22-ce4f-49ec-9a2e-da372f15d891",
+            "entity_type": "business_driver",
+            "similarity": 0.186
+          },
+          {
+            "entity_id": "188edc97-ceb4-4fd1-b7d9-d6af53240139",
+            "entity_type": "business_driver",
+            "similarity": 0.186
+          },
+          {
+            "entity_id": "1663fb2f-d8e3-4f26-90ad-93792bc58a9a",
+            "entity_type": "business_driver",
+            "similarity": 0.186
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.324
+    },
+    {
+      "query": "Where are the bottlenecks?",
+      "type": "synonym",
+      "description": "Synonym for pain/constraint",
+      "legacy_results": [
+        {
+          "entity_id": "fa176f05-3950-44da-9b00-608a07e5ec33",
+          "entity_type": "business_driver",
+          "entity_name": "The primary bottleneck for B2B professionals creating short-form video content is not filming capability but knowing what to say and how to structure it.",
+          "similarity": 0.3142
+        },
+        {
+          "entity_id": "11d32bf0-5be7-461c-bdaa-3f7d6c735350",
+          "entity_type": "constraint",
+          "entity_name": "AI Service Per-Call Cost Scaling",
+          "similarity": 0.2494
+        },
+        {
+          "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+          "entity_type": "constraint",
+          "entity_name": "Reddit API Rate Limits & Scraping Constraints",
+          "similarity": 0.2488
+        },
+        {
+          "entity_id": "768398fe-04ea-45ce-95a9-3b31ca54a3af",
+          "entity_type": "business_driver",
+          "entity_name": "Drive measurable traffic to user-defined destination URLs (landing pages, lead magnets, product pages) through every piece of generated content",
+          "similarity": 0.2321
+        },
+        {
+          "entity_id": "300d186d-e36e-40ca-a39f-fa7f7cad02e9",
+          "entity_type": "unlock",
+          "entity_name": "Predict optimal publishing time per channel by correlating post timestamps with CTA click-through outcomes",
+          "similarity": 0.2287
+        }
+      ],
+      "legacy_top_sim": 0.3142,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "fa176f05-3950-44da-9b00-608a07e5ec33",
+            "entity_type": "business_driver",
+            "similarity": 0.3142
+          },
+          {
+            "entity_id": "11d32bf0-5be7-461c-bdaa-3f7d6c735350",
+            "entity_type": "constraint",
+            "similarity": 0.2494
+          },
+          {
+            "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+            "entity_type": "constraint",
+            "similarity": 0.2488
+          },
+          {
+            "entity_id": "768398fe-04ea-45ce-95a9-3b31ca54a3af",
+            "entity_type": "business_driver",
+            "similarity": 0.2321
+          },
+          {
+            "entity_id": "300d186d-e36e-40ca-a39f-fa7f7cad02e9",
+            "entity_type": "unlock",
+            "similarity": 0.2287
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "4bd2c9d1-e173-427b-b8de-98663bc1d33d",
+            "entity_type": "constraint",
+            "similarity": 0.3381
+          },
+          {
+            "entity_id": "204c2ffa-1a33-44b0-bc3d-f2905745c253",
+            "entity_type": "business_driver",
+            "similarity": 0.3062
+          },
+          {
+            "entity_id": "fa176f05-3950-44da-9b00-608a07e5ec33",
+            "entity_type": "business_driver",
+            "similarity": 0.3016
+          },
+          {
+            "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+            "entity_type": "constraint",
+            "similarity": 0.2913
+          },
+          {
+            "entity_id": "11d32bf0-5be7-461c-bdaa-3f7d6c735350",
+            "entity_type": "constraint",
+            "similarity": 0.2891
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "fa1ae83b-e090-4be0-85f4-ecbaff950136",
+            "entity_type": "constraint",
+            "similarity": 0.3518
+          },
+          {
+            "entity_id": "768398fe-04ea-45ce-95a9-3b31ca54a3af",
+            "entity_type": "business_driver",
+            "similarity": 0.3409
+          },
+          {
+            "entity_id": "11d32bf0-5be7-461c-bdaa-3f7d6c735350",
+            "entity_type": "constraint",
+            "similarity": 0.3295
+          },
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.3219
+          },
+          {
+            "entity_id": "204c2ffa-1a33-44b0-bc3d-f2905745c253",
+            "entity_type": "business_driver",
+            "similarity": 0.3142
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "66058633-b4f1-4d26-8cee-f2d53a88d58d",
+            "entity_type": "business_driver",
+            "similarity": 0.2136
+          },
+          {
+            "entity_id": "7f31d005-5f76-4644-b30d-0754c080cc97",
+            "entity_type": "business_driver",
+            "similarity": 0.212
+          },
+          {
+            "entity_id": "b8750ec5-dc01-463c-bdf9-8dae13d38df7",
+            "entity_type": "business_driver",
+            "similarity": 0.207
+          },
+          {
+            "entity_id": "6531be9d-ebee-46d0-9d45-a5c4cdcce5fa",
+            "entity_type": "business_driver",
+            "similarity": 0.207
+          },
+          {
+            "entity_id": "204c2ffa-1a33-44b0-bc3d-f2905745c253",
+            "entity_type": "business_driver",
+            "similarity": 0.207
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3381
+    },
+    {
+      "query": "What needs automation?",
+      "type": "synonym",
+      "description": "Implied feature need",
+      "legacy_results": [
+        {
+          "entity_id": "b7d9bb8d-36a7-4e63-bc08-b515e70c8859",
+          "entity_type": "business_driver",
+          "entity_name": "Automate the end-to-end personal brand content workflow so founders can publish multi-channel campaigns from a single input without agency or manual AI intervention",
+          "similarity": 0.3581
+        },
+        {
+          "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+          "entity_type": "business_driver",
+          "entity_name": "Content calendar infrastructure must be built in Phase 1 to support future AI optimization capabilities, requiring early architectural planning",
+          "similarity": 0.34
+        },
+        {
+          "entity_id": "7b3794d7-3f72-4b0f-ad0e-f34e32157d08",
+          "entity_type": "business_driver",
+          "entity_name": "Existing AI tools (ChatGPT, Jasper, Copy.ai) are generic and do not learn individual voice patterns, word preferences, or stylistic quirks, forcing users to manually edit 80%+ of generated content",
+          "similarity": 0.3223
+        },
+        {
+          "entity_id": "ed418ef5-39e4-4f13-90b2-5188440c106d",
+          "entity_type": "business_driver",
+          "entity_name": "Executives and agencies need collaborative content workflows where ghostwriters or marketing managers can edit and refine AI-generated content while preserving the executive's authentic voice",
+          "similarity": 0.297
+        },
+        {
+          "entity_id": "a6b1e9bf-9a00-426e-865f-efb9698cec83",
+          "entity_type": "feature",
+          "entity_name": "Voice-to-Text Input with AI Cleanup",
+          "similarity": 0.296
+        }
+      ],
+      "legacy_top_sim": 0.3581,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "b7d9bb8d-36a7-4e63-bc08-b515e70c8859",
+            "entity_type": "business_driver",
+            "similarity": 0.3581
+          },
+          {
+            "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+            "entity_type": "business_driver",
+            "similarity": 0.34
+          },
+          {
+            "entity_id": "7b3794d7-3f72-4b0f-ad0e-f34e32157d08",
+            "entity_type": "business_driver",
+            "similarity": 0.3223
+          },
+          {
+            "entity_id": "ed418ef5-39e4-4f13-90b2-5188440c106d",
+            "entity_type": "business_driver",
+            "similarity": 0.297
+          },
+          {
+            "entity_id": "a6b1e9bf-9a00-426e-865f-efb9698cec83",
+            "entity_type": "feature",
+            "similarity": 0.296
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "3b2d1729-2b21-4d84-af86-2de98fc7bef0",
+            "entity_type": "workflow",
+            "similarity": 0.3563
+          },
+          {
+            "entity_id": "70bbc591-f464-49ae-bf75-a3e28b5a6cb2",
+            "entity_type": "business_driver",
+            "similarity": 0.3562
+          },
+          {
+            "entity_id": "b6b8378f-ffaf-46a7-a0bc-3f0c0bf70f70",
+            "entity_type": "workflow",
+            "similarity": 0.3427
+          },
+          {
+            "entity_id": "014bcd3e-1a1b-49d5-bf61-6d03d4a945cc",
+            "entity_type": "constraint",
+            "similarity": 0.3403
+          },
+          {
+            "entity_id": "7b3794d7-3f72-4b0f-ad0e-f34e32157d08",
+            "entity_type": "business_driver",
+            "similarity": 0.3364
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "2088e155-ce79-451b-936f-24ebf2d0131a",
+            "entity_type": "business_driver",
+            "similarity": 0.4151
+          },
+          {
+            "entity_id": "b7d9bb8d-36a7-4e63-bc08-b515e70c8859",
+            "entity_type": "business_driver",
+            "similarity": 0.3799
+          },
+          {
+            "entity_id": "2a19f915-c29c-4451-9624-606cc37bc3a5",
+            "entity_type": "data_entity",
+            "similarity": 0.3594
+          },
+          {
+            "entity_id": "d919e829-8d8b-4d48-8a15-d3d52d95aa2b",
+            "entity_type": "data_entity",
+            "similarity": 0.3527
+          },
+          {
+            "entity_id": "f62719ac-3de0-4022-bbd0-e4a432f75604",
+            "entity_type": "data_entity",
+            "similarity": 0.3429
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "7f31d005-5f76-4644-b30d-0754c080cc97",
+            "entity_type": "business_driver",
+            "similarity": 0.2001
+          },
+          {
+            "entity_id": "b8750ec5-dc01-463c-bdf9-8dae13d38df7",
+            "entity_type": "business_driver",
+            "similarity": 0.1947
+          },
+          {
+            "entity_id": "204c2ffa-1a33-44b0-bc3d-f2905745c253",
+            "entity_type": "business_driver",
+            "similarity": 0.1947
+          },
+          {
+            "entity_id": "6531be9d-ebee-46d0-9d45-a5c4cdcce5fa",
+            "entity_type": "business_driver",
+            "similarity": 0.1947
+          },
+          {
+            "entity_id": "7c3c3e96-9437-4505-aa0a-0c35c7c595a0",
+            "entity_type": "feature",
+            "similarity": 0.1819
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3563
+    },
+    {
+      "query": "Risk areas in the project",
+      "type": "synonym",
+      "description": "Synonym for constraints/blockers",
+      "legacy_results": [
+        {
+          "entity_id": "71667879-6d54-4d7e-9142-2c061bfcd3b8",
+          "entity_type": "constraint",
+          "entity_name": "Brand Impersonation & Misuse Liability",
+          "similarity": 0.355
+        },
+        {
+          "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+          "entity_type": "constraint",
+          "entity_name": "Third-Party AI Model Dependency & Vendor Lock-In Risk",
+          "similarity": 0.3457
+        },
+        {
+          "entity_id": "4b25587a-66f7-4b53-aae4-d6958f9f68af",
+          "entity_type": "constraint",
+          "entity_name": "User Voice & Identity Data Privacy Obligations",
+          "similarity": 0.3353
+        },
+        {
+          "entity_id": "4238e5c1-c6ec-4020-922b-fca2d3b32b22",
+          "entity_type": "stakeholder",
+          "entity_name": "Bran Wilson",
+          "similarity": 0.304
+        },
+        {
+          "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+          "entity_type": "business_driver",
+          "entity_name": "Phase 2 adds Ripple Effect with Platform Intelligence, Content Calendar, and TikTok script generation. Phase 3 adds Collaboration Mode and Competitor Voice Radar.",
+          "similarity": 0.3006
+        }
+      ],
+      "legacy_top_sim": 0.355,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "71667879-6d54-4d7e-9142-2c061bfcd3b8",
+            "entity_type": "constraint",
+            "similarity": 0.355
+          },
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.3457
+          },
+          {
+            "entity_id": "4b25587a-66f7-4b53-aae4-d6958f9f68af",
+            "entity_type": "constraint",
+            "similarity": 0.3353
+          },
+          {
+            "entity_id": "4238e5c1-c6ec-4020-922b-fca2d3b32b22",
+            "entity_type": "stakeholder",
+            "similarity": 0.304
+          },
+          {
+            "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+            "entity_type": "business_driver",
+            "similarity": 0.3006
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "4238e5c1-c6ec-4020-922b-fca2d3b32b22",
+            "entity_type": "stakeholder",
+            "similarity": 0.3332
+          },
+          {
+            "entity_id": "71667879-6d54-4d7e-9142-2c061bfcd3b8",
+            "entity_type": "constraint",
+            "similarity": 0.3161
+          },
+          {
+            "entity_id": "fd1d9965-b9d5-4d6e-902a-6d01dbe8fc84",
+            "entity_type": "business_driver",
+            "similarity": 0.3047
+          },
+          {
+            "entity_id": "64634cc5-796a-41bb-aa6b-414b3b916a3a",
+            "entity_type": "business_driver",
+            "similarity": 0.3039
+          },
+          {
+            "entity_id": "0e60fae2-1e9b-444f-870f-89a786182a02",
+            "entity_type": "business_driver",
+            "similarity": 0.3028
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "60572462-7333-4603-9daf-77fa414e358c",
+            "entity_type": "constraint",
+            "similarity": 0.3918
+          },
+          {
+            "entity_id": "71667879-6d54-4d7e-9142-2c061bfcd3b8",
+            "entity_type": "constraint",
+            "similarity": 0.3858
+          },
+          {
+            "entity_id": "92d869d3-7730-4853-8c77-d5816a4bf445",
+            "entity_type": "constraint",
+            "similarity": 0.3709
+          },
+          {
+            "entity_id": "4b25587a-66f7-4b53-aae4-d6958f9f68af",
+            "entity_type": "constraint",
+            "similarity": 0.3693
+          },
+          {
+            "entity_id": "4238e5c1-c6ec-4020-922b-fca2d3b32b22",
+            "entity_type": "stakeholder",
+            "similarity": 0.3689
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "8ebd49ba-4c94-47c2-9f5a-7a2dee577061",
+            "entity_type": "feature",
+            "similarity": 0.3003
+          },
+          {
+            "entity_id": "7c3c3e96-9437-4505-aa0a-0c35c7c595a0",
+            "entity_type": "feature",
+            "similarity": 0.3
+          },
+          {
+            "entity_id": "03eaeef5-ca30-48d4-b935-e80ac226ed29",
+            "entity_type": "feature",
+            "similarity": 0.2999
+          },
+          {
+            "entity_id": "d0a2c3ff-527e-46fc-9be1-550206e0f962",
+            "entity_type": "feature",
+            "similarity": 0.2996
+          },
+          {
+            "entity_id": "ea093e17-eccf-4e9b-9c04-bdc535c75d6d",
+            "entity_type": "feature",
+            "similarity": 0.2996
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3332
+    }
+  ],
+  "project_name": "People Pulse",
+  "entity_counts": {
+    "features": 34,
+    "personas": 3,
+    "business_drivers": 37,
+    "workflows": 8,
+    "constraints": 11,
+    "stakeholders": 1
+  },
+  "entity_vectors_count": 554
+}

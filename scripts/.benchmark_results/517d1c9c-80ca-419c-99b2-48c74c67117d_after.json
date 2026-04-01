@@ -1,0 +1,1980 @@
+{
+  "project_id": "517d1c9c-80ca-419c-99b2-48c74c67117d",
+  "phase": "after",
+  "timestamp": "2026-03-30 23:55:49",
+  "queries": [
+    {
+      "query": "What's causing the biggest pain?",
+      "type": "intent",
+      "description": "Broad pain query",
+      "legacy_results": [
+        {
+          "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+          "entity_type": "business_driver",
+          "entity_name": "Critical documents locked in safes or stored without shared access force families to seek court orders to access them, causing delays, costs, and government involvement during already difficult times.",
+          "similarity": 0.2445
+        },
+        {
+          "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+          "entity_type": "constraint",
+          "entity_name": "Secure File Storage Infrastructure Cost Ceiling",
+          "similarity": 0.1961
+        },
+        {
+          "entity_id": "cc105369-b3a1-4976-9452-eba1ed7ccdd2",
+          "entity_type": "constraint",
+          "entity_name": "Document Storage Compliance and Data Residency",
+          "similarity": 0.1845
+        },
+        {
+          "entity_id": "1471467c-2cd4-4851-bd92-aa9d7733d9ba",
+          "entity_type": "workflow",
+          "entity_name": "Document Needs Assessment",
+          "similarity": 0.1816
+        },
+        {
+          "entity_id": "55c3a392-f924-4208-9f73-0fe60ba5df32",
+          "entity_type": "workflow",
+          "entity_name": "Document Needs Assessment",
+          "similarity": 0.1773
+        }
+      ],
+      "legacy_top_sim": 0.2445,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+            "entity_type": "business_driver",
+            "similarity": 0.2445
+          },
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.1961
+          },
+          {
+            "entity_id": "cc105369-b3a1-4976-9452-eba1ed7ccdd2",
+            "entity_type": "constraint",
+            "similarity": 0.1845
+          },
+          {
+            "entity_id": "1471467c-2cd4-4851-bd92-aa9d7733d9ba",
+            "entity_type": "workflow",
+            "similarity": 0.1816
+          },
+          {
+            "entity_id": "55c3a392-f924-4208-9f73-0fe60ba5df32",
+            "entity_type": "workflow",
+            "similarity": 0.1773
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.2093
+          },
+          {
+            "entity_id": "58fa8e40-7ae7-4b84-9bf1-455116d29234",
+            "entity_type": "stakeholder",
+            "similarity": 0.2036
+          },
+          {
+            "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+            "entity_type": "business_driver",
+            "similarity": 0.2029
+          },
+          {
+            "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.1859
+          },
+          {
+            "entity_id": "c2bf1dfc-c88e-48fa-8a48-2b4c6e5c4b20",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.1827
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.196
+          },
+          {
+            "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+            "entity_type": "business_driver",
+            "similarity": 0.1887
+          },
+          {
+            "entity_id": "0de3938f-c3d8-48da-8e65-ee128c6294b1",
+            "entity_type": "persona",
+            "similarity": 0.1837
+          },
+          {
+            "entity_id": "f85c070c-11fe-4435-b68f-9b159e363ffe",
+            "entity_type": "workflow",
+            "similarity": 0.179
+          },
+          {
+            "entity_id": "cb99be7e-9952-4284-b497-01e53c774767",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.1776
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "325fbc5c-72ba-4d74-85c9-1c390c65ea7d",
+            "entity_type": "business_driver",
+            "similarity": 0.2151
+          },
+          {
+            "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+            "entity_type": "business_driver",
+            "similarity": 0.2151
+          },
+          {
+            "entity_id": "7324776c-2233-4b0e-add2-b1e8b20d05d8",
+            "entity_type": "business_driver",
+            "similarity": 0.0976
+          },
+          {
+            "entity_id": "50b023dc-648a-4e4b-a3a0-f92543845ab1",
+            "entity_type": "business_driver",
+            "similarity": 0.0865
+          },
+          {
+            "entity_id": "52c8f518-f80a-4694-b211-11c902905379",
+            "entity_type": "business_driver",
+            "similarity": 0.0865
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.2093
+    },
+    {
+      "query": "What should we focus on next?",
+      "type": "intent",
+      "description": "Strategic priority",
+      "legacy_results": [
+        {
+          "entity_id": "14314d36-41b7-42e7-b6d4-1b8e1b8fedba",
+          "entity_type": "vp_step",
+          "entity_name": "Receive prioritized action plan",
+          "similarity": 0.304
+        },
+        {
+          "entity_id": "96e59e2a-6ac3-40fb-8a5c-0871993f6e38",
+          "entity_type": "unlock",
+          "entity_name": "Predict which users are at highest risk of churning before completing their vault by correlating profile completion rate, days-since-last-upload, and checklist gap count",
+          "similarity": 0.3009
+        },
+        {
+          "entity_id": "f0f692d9-cfd6-490f-a426-27cf5b06d8fe",
+          "entity_type": "vp_step",
+          "entity_name": "Vault Completeness Score updates and next gap surfaced",
+          "similarity": 0.2953
+        },
+        {
+          "entity_id": "1f2eff54-690f-46be-9e8f-3f854a104420",
+          "entity_type": "business_driver",
+          "entity_name": "BenyBox should proactively guide users to understand which critical documents they are missing based on their personal profile, legal status, and state.",
+          "similarity": 0.2855
+        },
+        {
+          "entity_id": "50b023dc-648a-4e4b-a3a0-f92543845ab1",
+          "entity_type": "business_driver",
+          "entity_name": "Percentage of users who complete the document needs assessment and then upload at least one recommended document, measuring assessment effectiveness.",
+          "similarity": 0.2695
+        }
+      ],
+      "legacy_top_sim": 0.304,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "1e6f58c3-790c-41b4-916d-9c7d65c44560",
+            "entity_type": "link",
+            "similarity": 0.3059
+          },
+          {
+            "entity_id": "14314d36-41b7-42e7-b6d4-1b8e1b8fedba",
+            "entity_type": "vp_step",
+            "similarity": 0.304
+          },
+          {
+            "entity_id": "96e59e2a-6ac3-40fb-8a5c-0871993f6e38",
+            "entity_type": "unlock",
+            "similarity": 0.3009
+          },
+          {
+            "entity_id": "f0f692d9-cfd6-490f-a426-27cf5b06d8fe",
+            "entity_type": "vp_step",
+            "similarity": 0.2953
+          },
+          {
+            "entity_id": "1f2eff54-690f-46be-9e8f-3f854a104420",
+            "entity_type": "business_driver",
+            "similarity": 0.2855
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "c2bf1dfc-c88e-48fa-8a48-2b4c6e5c4b20",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3671
+          },
+          {
+            "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3397
+          },
+          {
+            "entity_id": "7324776c-2233-4b0e-add2-b1e8b20d05d8",
+            "entity_type": "business_driver",
+            "similarity": 0.3237
+          },
+          {
+            "entity_id": "325fbc5c-72ba-4d74-85c9-1c390c65ea7d",
+            "entity_type": "business_driver",
+            "similarity": 0.3189
+          },
+          {
+            "entity_id": "cb99be7e-9952-4284-b497-01e53c774767",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3161
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "52c8f518-f80a-4694-b211-11c902905379",
+            "entity_type": "business_driver",
+            "similarity": 0.31
+          },
+          {
+            "entity_id": "c4b8dd07-845a-44d2-a918-02135dac665f",
+            "entity_type": "business_driver",
+            "similarity": 0.3031
+          },
+          {
+            "entity_id": "50b023dc-648a-4e4b-a3a0-f92543845ab1",
+            "entity_type": "business_driver",
+            "similarity": 0.2836
+          },
+          {
+            "entity_id": "7324776c-2233-4b0e-add2-b1e8b20d05d8",
+            "entity_type": "business_driver",
+            "similarity": 0.2806
+          },
+          {
+            "entity_id": "cb99be7e-9952-4284-b497-01e53c774767",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.2765
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "da166d91-428a-45c3-b467-15625da60dda",
+            "entity_type": "workflow",
+            "similarity": 0.2538
+          },
+          {
+            "entity_id": "46fb3c29-76f2-4e2e-8e75-7594b0a913f7",
+            "entity_type": "workflow",
+            "similarity": 0.2538
+          },
+          {
+            "entity_id": "6ca34697-3359-47cb-b8c5-e8f95c6307a9",
+            "entity_type": "workflow",
+            "similarity": 0.2538
+          },
+          {
+            "entity_id": "55c3a392-f924-4208-9f73-0fe60ba5df32",
+            "entity_type": "workflow",
+            "similarity": 0.2538
+          },
+          {
+            "entity_id": "ac512cf8-dc22-4c2b-b2c0-5f9074d16eb9",
+            "entity_type": "workflow",
+            "similarity": 0.2538
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3671
+    },
+    {
+      "query": "How does data flow through the system?",
+      "type": "intent",
+      "description": "Architecture query",
+      "legacy_results": [
+        {
+          "entity_id": "1745d897-460c-4c3e-a153-0ea53fd74b60",
+          "entity_type": "workflow",
+          "entity_name": "Secure Document Upload and Storage",
+          "similarity": 0.2987
+        },
+        {
+          "entity_id": "3d121168-d919-4dc7-85d6-0e85782bd809",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Audit Trail and Access Log Review",
+          "similarity": 0.2959
+        },
+        {
+          "entity_id": "eed2b719-2c38-44c9-a457-4e9618f9e955",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Permission Management and Access Revocation",
+          "similarity": 0.2928
+        },
+        {
+          "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Gap Identification and Service Provider Referral",
+          "similarity": 0.2905
+        },
+        {
+          "entity_id": "f1af838e-3e38-4f3a-803e-98b32f866c86",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Guided Document Upload and Auto-Categorization Loop",
+          "similarity": 0.2899
+        }
+      ],
+      "legacy_top_sim": 0.2987,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "0eea8682-7afb-477b-8d86-26aa3299d4d2",
+            "entity_type": "link",
+            "similarity": 0.3043
+          },
+          {
+            "entity_id": "1745d897-460c-4c3e-a153-0ea53fd74b60",
+            "entity_type": "workflow",
+            "similarity": 0.2987
+          },
+          {
+            "entity_id": "3d121168-d919-4dc7-85d6-0e85782bd809",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.2959
+          },
+          {
+            "entity_id": "c087d15d-56d0-40c5-8a05-44a7ad07a918",
+            "entity_type": "link",
+            "similarity": 0.2949
+          },
+          {
+            "entity_id": "eed2b719-2c38-44c9-a457-4e9618f9e955",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.2927
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "6d153c08-2337-48f9-9a0d-305b2ff75bef",
+            "entity_type": "feature",
+            "similarity": 0.3787
+          },
+          {
+            "entity_id": "6ca34697-3359-47cb-b8c5-e8f95c6307a9",
+            "entity_type": "workflow",
+            "similarity": 0.3636
+          },
+          {
+            "entity_id": "1745d897-460c-4c3e-a153-0ea53fd74b60",
+            "entity_type": "workflow",
+            "similarity": 0.3596
+          },
+          {
+            "entity_id": "47fddc80-ba33-4dd1-be69-569521428d20",
+            "entity_type": "feature",
+            "similarity": 0.3571
+          },
+          {
+            "entity_id": "f7ff64b4-5267-4f7a-b103-2f0b1c04b671",
+            "entity_type": "feature",
+            "similarity": 0.3446
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "6ca34697-3359-47cb-b8c5-e8f95c6307a9",
+            "entity_type": "workflow",
+            "similarity": 0.4154
+          },
+          {
+            "entity_id": "f7ff64b4-5267-4f7a-b103-2f0b1c04b671",
+            "entity_type": "feature",
+            "similarity": 0.4128
+          },
+          {
+            "entity_id": "103ee61b-2097-4935-ba1d-84ce9f91e286",
+            "entity_type": "data_entity",
+            "similarity": 0.409
+          },
+          {
+            "entity_id": "5f03e8a9-da0b-42e4-9fe0-f902aee0b41c",
+            "entity_type": "feature",
+            "similarity": 0.4037
+          },
+          {
+            "entity_id": "d3a984c8-9557-4a3a-a68f-aafa085599e7",
+            "entity_type": "feature",
+            "similarity": 0.3982
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "7324776c-2233-4b0e-add2-b1e8b20d05d8",
+            "entity_type": "business_driver",
+            "similarity": 0.2061
+          },
+          {
+            "entity_id": "140ce61d-fbb2-4718-8b96-3b06808fc9ce",
+            "entity_type": "business_driver",
+            "similarity": 0.2032
+          },
+          {
+            "entity_id": "52c8f518-f80a-4694-b211-11c902905379",
+            "entity_type": "business_driver",
+            "similarity": 0.2032
+          },
+          {
+            "entity_id": "50b023dc-648a-4e4b-a3a0-f92543845ab1",
+            "entity_type": "business_driver",
+            "similarity": 0.2032
+          },
+          {
+            "entity_id": "1471467c-2cd4-4851-bd92-aa9d7733d9ba",
+            "entity_type": "workflow",
+            "similarity": 0.1832
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3787
+    },
+    {
+      "query": "Who are the key decision makers?",
+      "type": "intent",
+      "description": "Stakeholder query",
+      "legacy_results": [
+        {
+          "entity_id": "33d8c9ef-b33d-40a6-9d02-f3290b469ba5",
+          "entity_type": "vp_step",
+          "entity_name": "Consult attorney for document guidance",
+          "similarity": 0.3032
+        },
+        {
+          "entity_id": "c444a39c-29f1-457f-8561-65aba095c4c9",
+          "entity_type": "persona",
+          "entity_name": "Unrepresented Individual",
+          "similarity": 0.2958
+        },
+        {
+          "entity_id": "fb9b751b-4a10-4424-b4b5-999258b20986",
+          "entity_type": "business_driver",
+          "entity_name": "BenyBox aims to serve both direct consumers (unrepresented individuals) and B2B channels (law offices, estate planning attorneys who resell or recommend the platform to clients).",
+          "similarity": 0.2932
+        },
+        {
+          "entity_id": "58fa8e40-7ae7-4b84-9bf1-455116d29234",
+          "entity_type": "stakeholder",
+          "entity_name": "Joanna Harrell",
+          "similarity": 0.2882
+        },
+        {
+          "entity_id": "d278e0c7-e43f-4996-a30a-50c2e999428a",
+          "entity_type": "business_driver",
+          "entity_name": "Parents should be able to securely share their full document environment with designated family members such as adult children.",
+          "similarity": 0.2803
+        }
+      ],
+      "legacy_top_sim": 0.3032,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "1e6f58c3-790c-41b4-916d-9c7d65c44560",
+            "entity_type": "link",
+            "similarity": 0.3224
+          },
+          {
+            "entity_id": "33d8c9ef-b33d-40a6-9d02-f3290b469ba5",
+            "entity_type": "vp_step",
+            "similarity": 0.3032
+          },
+          {
+            "entity_id": "c444a39c-29f1-457f-8561-65aba095c4c9",
+            "entity_type": "persona",
+            "similarity": 0.2958
+          },
+          {
+            "entity_id": "9370d065-005e-4fdd-965d-673cb69c58a1",
+            "entity_type": "link",
+            "similarity": 0.2936
+          },
+          {
+            "entity_id": "fb9b751b-4a10-4424-b4b5-999258b20986",
+            "entity_type": "business_driver",
+            "similarity": 0.2932
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "58fa8e40-7ae7-4b84-9bf1-455116d29234",
+            "entity_type": "stakeholder",
+            "similarity": 0.3872
+          },
+          {
+            "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3471
+          },
+          {
+            "entity_id": "f7ff64b4-5267-4f7a-b103-2f0b1c04b671",
+            "entity_type": "feature",
+            "similarity": 0.3299
+          },
+          {
+            "entity_id": "c4927bed-215a-4900-8938-ce1c9f329dee",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.323
+          },
+          {
+            "entity_id": "cb99be7e-9952-4284-b497-01e53c774767",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3174
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "fb9b751b-4a10-4424-b4b5-999258b20986",
+            "entity_type": "business_driver",
+            "similarity": 0.4302
+          },
+          {
+            "entity_id": "325fbc5c-72ba-4d74-85c9-1c390c65ea7d",
+            "entity_type": "business_driver",
+            "similarity": 0.4278
+          },
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.4174
+          },
+          {
+            "entity_id": "c4b8dd07-845a-44d2-a918-02135dac665f",
+            "entity_type": "business_driver",
+            "similarity": 0.4134
+          },
+          {
+            "entity_id": "52c8f518-f80a-4694-b211-11c902905379",
+            "entity_type": "business_driver",
+            "similarity": 0.4096
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "f7ff64b4-5267-4f7a-b103-2f0b1c04b671",
+            "entity_type": "feature",
+            "similarity": 0.2948
+          },
+          {
+            "entity_id": "47fddc80-ba33-4dd1-be69-569521428d20",
+            "entity_type": "feature",
+            "similarity": 0.2927
+          },
+          {
+            "entity_id": "5f03e8a9-da0b-42e4-9fe0-f902aee0b41c",
+            "entity_type": "feature",
+            "similarity": 0.2927
+          },
+          {
+            "entity_id": "6d153c08-2337-48f9-9a0d-305b2ff75bef",
+            "entity_type": "feature",
+            "similarity": 0.2927
+          },
+          {
+            "entity_id": "42a4ec15-454b-435b-a2e4-0eeb99b770b1",
+            "entity_type": "feature",
+            "similarity": 0.2927
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3872
+    },
+    {
+      "query": "What's blocking progress?",
+      "type": "intent",
+      "description": "Blocker query",
+      "legacy_results": [
+        {
+          "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+          "entity_type": "business_driver",
+          "entity_name": "Critical documents locked in safes or stored without shared access force families to seek court orders to access them, causing delays, costs, and government involvement during already difficult times.",
+          "similarity": 0.3357
+        },
+        {
+          "entity_id": "c2bf1dfc-c88e-48fa-8a48-2b4c6e5c4b20",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Vault Completeness Score Dashboard",
+          "similarity": 0.2854
+        },
+        {
+          "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Gap Identification and Service Provider Referral",
+          "similarity": 0.2661
+        },
+        {
+          "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+          "entity_type": "constraint",
+          "entity_name": "Secure File Storage Infrastructure Cost Ceiling",
+          "similarity": 0.2593
+        },
+        {
+          "entity_id": "e1dedf93-3d86-44fe-8105-eb2f00239d20",
+          "entity_type": "vp_step",
+          "entity_name": "System flags stale or missing documents",
+          "similarity": 0.2579
+        }
+      ],
+      "legacy_top_sim": 0.3357,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+            "entity_type": "business_driver",
+            "similarity": 0.3357
+          },
+          {
+            "entity_id": "c2bf1dfc-c88e-48fa-8a48-2b4c6e5c4b20",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.2854
+          },
+          {
+            "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.2661
+          },
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.2593
+          },
+          {
+            "entity_id": "e1dedf93-3d86-44fe-8105-eb2f00239d20",
+            "entity_type": "vp_step",
+            "similarity": 0.2579
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "c2bf1dfc-c88e-48fa-8a48-2b4c6e5c4b20",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3282
+          },
+          {
+            "entity_id": "325fbc5c-72ba-4d74-85c9-1c390c65ea7d",
+            "entity_type": "business_driver",
+            "similarity": 0.3194
+          },
+          {
+            "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+            "entity_type": "business_driver",
+            "similarity": 0.3116
+          },
+          {
+            "entity_id": "c4b8dd07-845a-44d2-a918-02135dac665f",
+            "entity_type": "business_driver",
+            "similarity": 0.2707
+          },
+          {
+            "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.2651
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "1208db77-1fd9-4ddd-af11-b7577435c722",
+            "entity_type": "data_entity",
+            "similarity": 0.2902
+          },
+          {
+            "entity_id": "103ee61b-2097-4935-ba1d-84ce9f91e286",
+            "entity_type": "data_entity",
+            "similarity": 0.2829
+          },
+          {
+            "entity_id": "52c8f518-f80a-4694-b211-11c902905379",
+            "entity_type": "business_driver",
+            "similarity": 0.2817
+          },
+          {
+            "entity_id": "9217bb28-674f-4f21-b738-4fa4dc8fd0a8",
+            "entity_type": "feature",
+            "similarity": 0.2784
+          },
+          {
+            "entity_id": "58fa8e40-7ae7-4b84-9bf1-455116d29234",
+            "entity_type": "stakeholder",
+            "similarity": 0.2717
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "c4b8dd07-845a-44d2-a918-02135dac665f",
+            "entity_type": "business_driver",
+            "similarity": 0.1887
+          },
+          {
+            "entity_id": "c9b453a1-7730-4cb9-ba6f-749f14791acf",
+            "entity_type": "business_driver",
+            "similarity": 0.1881
+          },
+          {
+            "entity_id": "fb9b751b-4a10-4424-b4b5-999258b20986",
+            "entity_type": "business_driver",
+            "similarity": 0.188
+          },
+          {
+            "entity_id": "1f2eff54-690f-46be-9e8f-3f854a104420",
+            "entity_type": "business_driver",
+            "similarity": 0.188
+          },
+          {
+            "entity_id": "d278e0c7-e43f-4996-a30a-50c2e999428a",
+            "entity_type": "business_driver",
+            "similarity": 0.188
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3282
+    },
+    {
+      "query": "What features are must-have?",
+      "type": "specific",
+      "description": "Feature priority",
+      "legacy_results": [
+        {
+          "entity_id": "42a4ec15-454b-435b-a2e4-0eeb99b770b1",
+          "entity_type": "feature",
+          "entity_name": "Document Needs Assessment",
+          "similarity": 0.3758
+        },
+        {
+          "entity_id": "9b71dafc-a668-465d-935a-9327ca5de769",
+          "entity_type": "unlock",
+          "entity_name": "Surface a real-time Vault Completeness Score on every user's dashboard using checklist and document data",
+          "similarity": 0.3511
+        },
+        {
+          "entity_id": "9217bb28-674f-4f21-b738-4fa4dc8fd0a8",
+          "entity_type": "feature",
+          "entity_name": "Surface a real-time Vault Completeness Score on every user's dashboard using checklist and document data",
+          "similarity": 0.3482
+        },
+        {
+          "entity_id": "4b52ffbd-3632-4b08-a499-eb5a3906ad50",
+          "entity_type": "feature",
+          "entity_name": "State-Aware Document Recommendations",
+          "similarity": 0.3406
+        },
+        {
+          "entity_id": "6d153c08-2337-48f9-9a0d-305b2ff75bef",
+          "entity_type": "feature",
+          "entity_name": "Secure Document Upload and Storage",
+          "similarity": 0.3404
+        }
+      ],
+      "legacy_top_sim": 0.3758,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "42a4ec15-454b-435b-a2e4-0eeb99b770b1",
+            "entity_type": "feature",
+            "similarity": 0.3758
+          },
+          {
+            "entity_id": "9b71dafc-a668-465d-935a-9327ca5de769",
+            "entity_type": "unlock",
+            "similarity": 0.3511
+          },
+          {
+            "entity_id": "9217bb28-674f-4f21-b738-4fa4dc8fd0a8",
+            "entity_type": "feature",
+            "similarity": 0.3482
+          },
+          {
+            "entity_id": "4b52ffbd-3632-4b08-a499-eb5a3906ad50",
+            "entity_type": "feature",
+            "similarity": 0.3406
+          },
+          {
+            "entity_id": "6d153c08-2337-48f9-9a0d-305b2ff75bef",
+            "entity_type": "feature",
+            "similarity": 0.3404
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "1f2eff54-690f-46be-9e8f-3f854a104420",
+            "entity_type": "business_driver",
+            "similarity": 0.3709
+          },
+          {
+            "entity_id": "42a4ec15-454b-435b-a2e4-0eeb99b770b1",
+            "entity_type": "feature",
+            "similarity": 0.3657
+          },
+          {
+            "entity_id": "1d16ed38-6b6d-4953-94cd-08caba2b6556",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3562
+          },
+          {
+            "entity_id": "9217bb28-674f-4f21-b738-4fa4dc8fd0a8",
+            "entity_type": "feature",
+            "similarity": 0.3526
+          },
+          {
+            "entity_id": "cb99be7e-9952-4284-b497-01e53c774767",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3524
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "c4b8dd07-845a-44d2-a918-02135dac665f",
+            "entity_type": "business_driver",
+            "similarity": 0.3585
+          },
+          {
+            "entity_id": "ac3a14eb-c466-4040-82b4-e8d853d50411",
+            "entity_type": "data_entity",
+            "similarity": 0.353
+          },
+          {
+            "entity_id": "47fddc80-ba33-4dd1-be69-569521428d20",
+            "entity_type": "feature",
+            "similarity": 0.3457
+          },
+          {
+            "entity_id": "140ce61d-fbb2-4718-8b96-3b06808fc9ce",
+            "entity_type": "business_driver",
+            "similarity": 0.3414
+          },
+          {
+            "entity_id": "5f03e8a9-da0b-42e4-9fe0-f902aee0b41c",
+            "entity_type": "feature",
+            "similarity": 0.337
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "f7ff64b4-5267-4f7a-b103-2f0b1c04b671",
+            "entity_type": "feature",
+            "similarity": 0.3267
+          },
+          {
+            "entity_id": "d3a984c8-9557-4a3a-a68f-aafa085599e7",
+            "entity_type": "feature",
+            "similarity": 0.324
+          },
+          {
+            "entity_id": "5f03e8a9-da0b-42e4-9fe0-f902aee0b41c",
+            "entity_type": "feature",
+            "similarity": 0.3239
+          },
+          {
+            "entity_id": "6d153c08-2337-48f9-9a0d-305b2ff75bef",
+            "entity_type": "feature",
+            "similarity": 0.3239
+          },
+          {
+            "entity_id": "47fddc80-ba33-4dd1-be69-569521428d20",
+            "entity_type": "feature",
+            "similarity": 0.3239
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3709
+    },
+    {
+      "query": "What workflows exist?",
+      "type": "specific",
+      "description": "Workflow listing",
+      "legacy_results": [
+        {
+          "entity_id": "1745d897-460c-4c3e-a153-0ea53fd74b60",
+          "entity_type": "workflow",
+          "entity_name": "Secure Document Upload and Storage",
+          "similarity": 0.4276
+        },
+        {
+          "entity_id": "6ca34697-3359-47cb-b8c5-e8f95c6307a9",
+          "entity_type": "workflow",
+          "entity_name": "Secure Document Upload and Storage",
+          "similarity": 0.4255
+        },
+        {
+          "entity_id": "55c3a392-f924-4208-9f73-0fe60ba5df32",
+          "entity_type": "workflow",
+          "entity_name": "Document Needs Assessment",
+          "similarity": 0.403
+        },
+        {
+          "entity_id": "1471467c-2cd4-4851-bd92-aa9d7733d9ba",
+          "entity_type": "workflow",
+          "entity_name": "Document Needs Assessment",
+          "similarity": 0.393
+        },
+        {
+          "entity_id": "ac512cf8-dc22-4c2b-b2c0-5f9074d16eb9",
+          "entity_type": "workflow",
+          "entity_name": "Family Document Sharing and Access",
+          "similarity": 0.3514
+        }
+      ],
+      "legacy_top_sim": 0.4276,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "1745d897-460c-4c3e-a153-0ea53fd74b60",
+            "entity_type": "workflow",
+            "similarity": 0.4276
+          },
+          {
+            "entity_id": "6ca34697-3359-47cb-b8c5-e8f95c6307a9",
+            "entity_type": "workflow",
+            "similarity": 0.4255
+          },
+          {
+            "entity_id": "55c3a392-f924-4208-9f73-0fe60ba5df32",
+            "entity_type": "workflow",
+            "similarity": 0.403
+          },
+          {
+            "entity_id": "1471467c-2cd4-4851-bd92-aa9d7733d9ba",
+            "entity_type": "workflow",
+            "similarity": 0.393
+          },
+          {
+            "entity_id": "ac512cf8-dc22-4c2b-b2c0-5f9074d16eb9",
+            "entity_type": "workflow",
+            "similarity": 0.3514
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "1208db77-1fd9-4ddd-af11-b7577435c722",
+            "entity_type": "data_entity",
+            "similarity": 0.4137
+          },
+          {
+            "entity_id": "6ca34697-3359-47cb-b8c5-e8f95c6307a9",
+            "entity_type": "workflow",
+            "similarity": 0.3712
+          },
+          {
+            "entity_id": "58fa8e40-7ae7-4b84-9bf1-455116d29234",
+            "entity_type": "stakeholder",
+            "similarity": 0.3708
+          },
+          {
+            "entity_id": "1745d897-460c-4c3e-a153-0ea53fd74b60",
+            "entity_type": "workflow",
+            "similarity": 0.3689
+          },
+          {
+            "entity_id": "46fb3c29-76f2-4e2e-8e75-7594b0a913f7",
+            "entity_type": "workflow",
+            "similarity": 0.356
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "1745d897-460c-4c3e-a153-0ea53fd74b60",
+            "entity_type": "workflow",
+            "similarity": 0.4058
+          },
+          {
+            "entity_id": "103ee61b-2097-4935-ba1d-84ce9f91e286",
+            "entity_type": "data_entity",
+            "similarity": 0.394
+          },
+          {
+            "entity_id": "1d16ed38-6b6d-4953-94cd-08caba2b6556",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3821
+          },
+          {
+            "entity_id": "c066a068-dfac-4231-9adf-ffd0909a0d79",
+            "entity_type": "persona",
+            "similarity": 0.3815
+          },
+          {
+            "entity_id": "1471467c-2cd4-4851-bd92-aa9d7733d9ba",
+            "entity_type": "workflow",
+            "similarity": 0.3759
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "58fa8e40-7ae7-4b84-9bf1-455116d29234",
+            "entity_type": "stakeholder",
+            "similarity": 0.1349
+          },
+          {
+            "entity_id": "da166d91-428a-45c3-b467-15625da60dda",
+            "entity_type": "workflow",
+            "similarity": 0.1325
+          },
+          {
+            "entity_id": "ac512cf8-dc22-4c2b-b2c0-5f9074d16eb9",
+            "entity_type": "workflow",
+            "similarity": 0.1325
+          },
+          {
+            "entity_id": "55c3a392-f924-4208-9f73-0fe60ba5df32",
+            "entity_type": "workflow",
+            "similarity": 0.1325
+          },
+          {
+            "entity_id": "46fb3c29-76f2-4e2e-8e75-7594b0a913f7",
+            "entity_type": "workflow",
+            "similarity": 0.1325
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.4137
+    },
+    {
+      "query": "What constraints do we have?",
+      "type": "specific",
+      "description": "Constraint listing",
+      "legacy_results": [
+        {
+          "entity_id": "cc105369-b3a1-4976-9452-eba1ed7ccdd2",
+          "entity_type": "constraint",
+          "entity_name": "Document Storage Compliance and Data Residency",
+          "similarity": 0.385
+        },
+        {
+          "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+          "entity_type": "constraint",
+          "entity_name": "Secure File Storage Infrastructure Cost Ceiling",
+          "similarity": 0.3787
+        },
+        {
+          "entity_id": "ec43425c-96e1-46f4-9439-6917be23af6b",
+          "entity_type": "constraint",
+          "entity_name": "Emergency Access Card Legal and Liability Exposure",
+          "similarity": 0.3174
+        },
+        {
+          "entity_id": "27390f1e-eaa4-4fdc-8aef-a98847b7ccf7",
+          "entity_type": "constraint",
+          "entity_name": "AI Tagging Accuracy and Liability for Document Recommendations",
+          "similarity": 0.3086
+        },
+        {
+          "entity_id": "13957594-68e1-4c68-9a72-c15eb6069ea3",
+          "entity_type": "constraint",
+          "entity_name": "Third-Party Document Sharing Audit and Consent Trail",
+          "similarity": 0.2862
+        }
+      ],
+      "legacy_top_sim": 0.385,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "cc105369-b3a1-4976-9452-eba1ed7ccdd2",
+            "entity_type": "constraint",
+            "similarity": 0.385
+          },
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.3787
+          },
+          {
+            "entity_id": "ec43425c-96e1-46f4-9439-6917be23af6b",
+            "entity_type": "constraint",
+            "similarity": 0.3174
+          },
+          {
+            "entity_id": "27390f1e-eaa4-4fdc-8aef-a98847b7ccf7",
+            "entity_type": "constraint",
+            "similarity": 0.3086
+          },
+          {
+            "entity_id": "13957594-68e1-4c68-9a72-c15eb6069ea3",
+            "entity_type": "constraint",
+            "similarity": 0.2862
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "27390f1e-eaa4-4fdc-8aef-a98847b7ccf7",
+            "entity_type": "constraint",
+            "similarity": 0.2801
+          },
+          {
+            "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+            "entity_type": "business_driver",
+            "similarity": 0.2774
+          },
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.272
+          },
+          {
+            "entity_id": "ac3a14eb-c466-4040-82b4-e8d853d50411",
+            "entity_type": "data_entity",
+            "similarity": 0.2682
+          },
+          {
+            "entity_id": "f7ff64b4-5267-4f7a-b103-2f0b1c04b671",
+            "entity_type": "feature",
+            "similarity": 0.2623
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "f7ff64b4-5267-4f7a-b103-2f0b1c04b671",
+            "entity_type": "feature",
+            "similarity": 0.3157
+          },
+          {
+            "entity_id": "4b52ffbd-3632-4b08-a499-eb5a3906ad50",
+            "entity_type": "feature",
+            "similarity": 0.2793
+          },
+          {
+            "entity_id": "cc105369-b3a1-4976-9452-eba1ed7ccdd2",
+            "entity_type": "constraint",
+            "similarity": 0.2753
+          },
+          {
+            "entity_id": "ac3a14eb-c466-4040-82b4-e8d853d50411",
+            "entity_type": "data_entity",
+            "similarity": 0.2739
+          },
+          {
+            "entity_id": "1f2eff54-690f-46be-9e8f-3f854a104420",
+            "entity_type": "business_driver",
+            "similarity": 0.2548
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "0857233a-dd54-44a0-96fb-7a42fcd66850",
+            "entity_type": "feature",
+            "similarity": 0.3098
+          },
+          {
+            "entity_id": "e95b5561-b438-45e7-8a7e-cceb76fba0aa",
+            "entity_type": "feature",
+            "similarity": 0.3098
+          },
+          {
+            "entity_id": "951f9853-c4e3-4265-9df2-15de40b256d2",
+            "entity_type": "feature",
+            "similarity": 0.3098
+          },
+          {
+            "entity_id": "f7ff64b4-5267-4f7a-b103-2f0b1c04b671",
+            "entity_type": "feature",
+            "similarity": 0.288
+          },
+          {
+            "entity_id": "d3a984c8-9557-4a3a-a68f-aafa085599e7",
+            "entity_type": "feature",
+            "similarity": 0.2876
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.2801
+    },
+    {
+      "query": "How do the personas relate to the features?",
+      "type": "cross",
+      "description": "Persona-feature mapping",
+      "legacy_results": [
+        {
+          "entity_id": "c9b453a1-7730-4cb9-ba6f-749f14791acf",
+          "entity_type": "business_driver",
+          "entity_name": "The app should tailor the user experience based on profile data including age, legal status, and state to surface relevant document needs.",
+          "similarity": 0.4557
+        },
+        {
+          "entity_id": "5f03e8a9-da0b-42e4-9fe0-f902aee0b41c",
+          "entity_type": "feature",
+          "entity_name": "Profile Onboarding",
+          "similarity": 0.4549
+        },
+        {
+          "entity_id": "ac3a14eb-c466-4040-82b4-e8d853d50411",
+          "entity_type": "data_entity",
+          "entity_name": "User Profile",
+          "similarity": 0.4185
+        },
+        {
+          "entity_id": "025d33b8-0f8e-4998-b763-4b847d038ea5",
+          "entity_type": "workflow",
+          "entity_name": "User Profile Onboarding",
+          "similarity": 0.4052
+        },
+        {
+          "entity_id": "46fb3c29-76f2-4e2e-8e75-7594b0a913f7",
+          "entity_type": "workflow",
+          "entity_name": "User Profile Onboarding",
+          "similarity": 0.4039
+        }
+      ],
+      "legacy_top_sim": 0.4557,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "c9b453a1-7730-4cb9-ba6f-749f14791acf",
+            "entity_type": "business_driver",
+            "similarity": 0.4557
+          },
+          {
+            "entity_id": "5f03e8a9-da0b-42e4-9fe0-f902aee0b41c",
+            "entity_type": "feature",
+            "similarity": 0.4549
+          },
+          {
+            "entity_id": "8c74b5e0-49cc-4309-9275-40376a8ed6da",
+            "entity_type": "link",
+            "similarity": 0.4231
+          },
+          {
+            "entity_id": "ac3a14eb-c466-4040-82b4-e8d853d50411",
+            "entity_type": "data_entity",
+            "similarity": 0.4185
+          },
+          {
+            "entity_id": "87b122af-7600-4bb1-ac3a-f36a7f8196c0",
+            "entity_type": "link",
+            "similarity": 0.4116
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "025d33b8-0f8e-4998-b763-4b847d038ea5",
+            "entity_type": "workflow",
+            "similarity": 0.4217
+          },
+          {
+            "entity_id": "46fb3c29-76f2-4e2e-8e75-7594b0a913f7",
+            "entity_type": "workflow",
+            "similarity": 0.417
+          },
+          {
+            "entity_id": "c9b453a1-7730-4cb9-ba6f-749f14791acf",
+            "entity_type": "business_driver",
+            "similarity": 0.3988
+          },
+          {
+            "entity_id": "cb99be7e-9952-4284-b497-01e53c774767",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3867
+          },
+          {
+            "entity_id": "ac3a14eb-c466-4040-82b4-e8d853d50411",
+            "entity_type": "data_entity",
+            "similarity": 0.3802
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "ac3a14eb-c466-4040-82b4-e8d853d50411",
+            "entity_type": "data_entity",
+            "similarity": 0.472
+          },
+          {
+            "entity_id": "5f03e8a9-da0b-42e4-9fe0-f902aee0b41c",
+            "entity_type": "feature",
+            "similarity": 0.4618
+          },
+          {
+            "entity_id": "46fb3c29-76f2-4e2e-8e75-7594b0a913f7",
+            "entity_type": "workflow",
+            "similarity": 0.4238
+          },
+          {
+            "entity_id": "cb99be7e-9952-4284-b497-01e53c774767",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.4052
+          },
+          {
+            "entity_id": "025d33b8-0f8e-4998-b763-4b847d038ea5",
+            "entity_type": "workflow",
+            "similarity": 0.3972
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "d3a984c8-9557-4a3a-a68f-aafa085599e7",
+            "entity_type": "feature",
+            "similarity": 0.2426
+          },
+          {
+            "entity_id": "42a4ec15-454b-435b-a2e4-0eeb99b770b1",
+            "entity_type": "feature",
+            "similarity": 0.2425
+          },
+          {
+            "entity_id": "5f03e8a9-da0b-42e4-9fe0-f902aee0b41c",
+            "entity_type": "feature",
+            "similarity": 0.2425
+          },
+          {
+            "entity_id": "6d153c08-2337-48f9-9a0d-305b2ff75bef",
+            "entity_type": "feature",
+            "similarity": 0.2425
+          },
+          {
+            "entity_id": "47fddc80-ba33-4dd1-be69-569521428d20",
+            "entity_type": "feature",
+            "similarity": 0.2425
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.4217
+    },
+    {
+      "query": "What's the connection between the pain points and the solution?",
+      "type": "cross",
+      "description": "Pain-solution link",
+      "legacy_results": [
+        {
+          "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Gap Identification and Service Provider Referral",
+          "similarity": 0.2792
+        },
+        {
+          "entity_id": "42a4ec15-454b-435b-a2e4-0eeb99b770b1",
+          "entity_type": "feature",
+          "entity_name": "Document Needs Assessment",
+          "similarity": 0.2745
+        },
+        {
+          "entity_id": "2667c87c-d8dc-439a-b38b-f7ead855e480",
+          "entity_type": "workflow",
+          "entity_name": "Document Gap Resolution via Service Provider Referral",
+          "similarity": 0.269
+        },
+        {
+          "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+          "entity_type": "business_driver",
+          "entity_name": "Critical documents locked in safes or stored without shared access force families to seek court orders to access them, causing delays, costs, and government involvement during already difficult times.",
+          "similarity": 0.2495
+        },
+        {
+          "entity_id": "14cb19c2-c880-4d30-bdbb-239be58eeed7",
+          "entity_type": "persona",
+          "entity_name": "Estate Planning Attorney / Law Office",
+          "similarity": 0.2476
+        }
+      ],
+      "legacy_top_sim": 0.2792,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.2792
+          },
+          {
+            "entity_id": "42a4ec15-454b-435b-a2e4-0eeb99b770b1",
+            "entity_type": "feature",
+            "similarity": 0.2745
+          },
+          {
+            "entity_id": "ea40e89f-30ca-4f3b-bdc9-7610547d9fdb",
+            "entity_type": "link",
+            "similarity": 0.2738
+          },
+          {
+            "entity_id": "1e6f58c3-790c-41b4-916d-9c7d65c44560",
+            "entity_type": "link",
+            "similarity": 0.2715
+          },
+          {
+            "entity_id": "2667c87c-d8dc-439a-b38b-f7ead855e480",
+            "entity_type": "workflow",
+            "similarity": 0.269
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "58fa8e40-7ae7-4b84-9bf1-455116d29234",
+            "entity_type": "stakeholder",
+            "similarity": 0.3917
+          },
+          {
+            "entity_id": "fb9b751b-4a10-4424-b4b5-999258b20986",
+            "entity_type": "business_driver",
+            "similarity": 0.3251
+          },
+          {
+            "entity_id": "14cb19c2-c880-4d30-bdbb-239be58eeed7",
+            "entity_type": "persona",
+            "similarity": 0.323
+          },
+          {
+            "entity_id": "025d33b8-0f8e-4998-b763-4b847d038ea5",
+            "entity_type": "workflow",
+            "similarity": 0.3159
+          },
+          {
+            "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.308
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "42a4ec15-454b-435b-a2e4-0eeb99b770b1",
+            "entity_type": "feature",
+            "similarity": 0.3105
+          },
+          {
+            "entity_id": "1f2eff54-690f-46be-9e8f-3f854a104420",
+            "entity_type": "business_driver",
+            "similarity": 0.2979
+          },
+          {
+            "entity_id": "fb9b751b-4a10-4424-b4b5-999258b20986",
+            "entity_type": "business_driver",
+            "similarity": 0.2933
+          },
+          {
+            "entity_id": "c9b453a1-7730-4cb9-ba6f-749f14791acf",
+            "entity_type": "business_driver",
+            "similarity": 0.2931
+          },
+          {
+            "entity_id": "325fbc5c-72ba-4d74-85c9-1c390c65ea7d",
+            "entity_type": "business_driver",
+            "similarity": 0.293
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "325fbc5c-72ba-4d74-85c9-1c390c65ea7d",
+            "entity_type": "business_driver",
+            "similarity": 0.2291
+          },
+          {
+            "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+            "entity_type": "business_driver",
+            "similarity": 0.2291
+          },
+          {
+            "entity_id": "f7ff64b4-5267-4f7a-b103-2f0b1c04b671",
+            "entity_type": "feature",
+            "similarity": 0.1636
+          },
+          {
+            "entity_id": "6d153c08-2337-48f9-9a0d-305b2ff75bef",
+            "entity_type": "feature",
+            "similarity": 0.1602
+          },
+          {
+            "entity_id": "5f03e8a9-da0b-42e4-9fe0-f902aee0b41c",
+            "entity_type": "feature",
+            "similarity": 0.1602
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3917
+    },
+    {
+      "query": "Where are the bottlenecks?",
+      "type": "synonym",
+      "description": "Synonym for pain/constraint",
+      "legacy_results": [
+        {
+          "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+          "entity_type": "constraint",
+          "entity_name": "Secure File Storage Infrastructure Cost Ceiling",
+          "similarity": 0.2511
+        },
+        {
+          "entity_id": "96e59e2a-6ac3-40fb-8a5c-0871993f6e38",
+          "entity_type": "unlock",
+          "entity_name": "Predict which users are at highest risk of churning before completing their vault by correlating profile completion rate, days-since-last-upload, and checklist gap count",
+          "similarity": 0.2429
+        },
+        {
+          "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+          "entity_type": "business_driver",
+          "entity_name": "Critical documents locked in safes or stored without shared access force families to seek court orders to access them, causing delays, costs, and government involvement during already difficult times.",
+          "similarity": 0.2358
+        },
+        {
+          "entity_id": "f0f692d9-cfd6-490f-a426-27cf5b06d8fe",
+          "entity_type": "vp_step",
+          "entity_name": "Vault Completeness Score updates and next gap surfaced",
+          "similarity": 0.2353
+        },
+        {
+          "entity_id": "c2bf1dfc-c88e-48fa-8a48-2b4c6e5c4b20",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Vault Completeness Score Dashboard",
+          "similarity": 0.2293
+        }
+      ],
+      "legacy_top_sim": 0.2511,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.2511
+          },
+          {
+            "entity_id": "96e59e2a-6ac3-40fb-8a5c-0871993f6e38",
+            "entity_type": "unlock",
+            "similarity": 0.2429
+          },
+          {
+            "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+            "entity_type": "business_driver",
+            "similarity": 0.2359
+          },
+          {
+            "entity_id": "f0f692d9-cfd6-490f-a426-27cf5b06d8fe",
+            "entity_type": "vp_step",
+            "similarity": 0.2353
+          },
+          {
+            "entity_id": "c2bf1dfc-c88e-48fa-8a48-2b4c6e5c4b20",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.2293
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.2853
+          },
+          {
+            "entity_id": "46fb3c29-76f2-4e2e-8e75-7594b0a913f7",
+            "entity_type": "workflow",
+            "similarity": 0.2403
+          },
+          {
+            "entity_id": "025d33b8-0f8e-4998-b763-4b847d038ea5",
+            "entity_type": "workflow",
+            "similarity": 0.2358
+          },
+          {
+            "entity_id": "c4b8dd07-845a-44d2-a918-02135dac665f",
+            "entity_type": "business_driver",
+            "similarity": 0.2298
+          },
+          {
+            "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+            "entity_type": "business_driver",
+            "similarity": 0.2288
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.3051
+          },
+          {
+            "entity_id": "9217bb28-674f-4f21-b738-4fa4dc8fd0a8",
+            "entity_type": "feature",
+            "similarity": 0.304
+          },
+          {
+            "entity_id": "52c8f518-f80a-4694-b211-11c902905379",
+            "entity_type": "business_driver",
+            "similarity": 0.3022
+          },
+          {
+            "entity_id": "50b023dc-648a-4e4b-a3a0-f92543845ab1",
+            "entity_type": "business_driver",
+            "similarity": 0.2631
+          },
+          {
+            "entity_id": "c4b8dd07-845a-44d2-a918-02135dac665f",
+            "entity_type": "business_driver",
+            "similarity": 0.2625
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "7324776c-2233-4b0e-add2-b1e8b20d05d8",
+            "entity_type": "business_driver",
+            "similarity": 0.207
+          },
+          {
+            "entity_id": "140ce61d-fbb2-4718-8b96-3b06808fc9ce",
+            "entity_type": "business_driver",
+            "similarity": 0.1938
+          },
+          {
+            "entity_id": "50b023dc-648a-4e4b-a3a0-f92543845ab1",
+            "entity_type": "business_driver",
+            "similarity": 0.1938
+          },
+          {
+            "entity_id": "52c8f518-f80a-4694-b211-11c902905379",
+            "entity_type": "business_driver",
+            "similarity": 0.1938
+          },
+          {
+            "entity_id": "9e5774cd-d94f-4fa8-9953-f3ec88dcfd44",
+            "entity_type": "business_driver",
+            "similarity": 0.1759
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.2853
+    },
+    {
+      "query": "What needs automation?",
+      "type": "synonym",
+      "description": "Implied feature need",
+      "legacy_results": [
+        {
+          "entity_id": "55c3a392-f924-4208-9f73-0fe60ba5df32",
+          "entity_type": "workflow",
+          "entity_name": "Document Needs Assessment",
+          "similarity": 0.3602
+        },
+        {
+          "entity_id": "1471467c-2cd4-4851-bd92-aa9d7733d9ba",
+          "entity_type": "workflow",
+          "entity_name": "Document Needs Assessment",
+          "similarity": 0.3586
+        },
+        {
+          "entity_id": "09d9301a-778c-420b-97df-256083b3e14b",
+          "entity_type": "unlock",
+          "entity_name": "Trigger profile-change reassessments automatically when User Profile fields that affect document requirements are updated",
+          "similarity": 0.3375
+        },
+        {
+          "entity_id": "5512d401-2b24-46ff-97e5-798fd449d66f",
+          "entity_type": "unlock",
+          "entity_name": "Generate a 'Life Event Re-Assessment' prompt when User Profile fields change, automatically updating the Document Checklist to reflect new document needs",
+          "similarity": 0.2983
+        },
+        {
+          "entity_id": "f1af838e-3e38-4f3a-803e-98b32f866c86",
+          "entity_type": "solution_flow_step",
+          "entity_name": "Guided Document Upload and Auto-Categorization Loop",
+          "similarity": 0.2917
+        }
+      ],
+      "legacy_top_sim": 0.3602,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "55c3a392-f924-4208-9f73-0fe60ba5df32",
+            "entity_type": "workflow",
+            "similarity": 0.3602
+          },
+          {
+            "entity_id": "1471467c-2cd4-4851-bd92-aa9d7733d9ba",
+            "entity_type": "workflow",
+            "similarity": 0.3585
+          },
+          {
+            "entity_id": "09d9301a-778c-420b-97df-256083b3e14b",
+            "entity_type": "unlock",
+            "similarity": 0.3374
+          },
+          {
+            "entity_id": "8edf7522-0de2-49af-913a-f201c0d3b37e",
+            "entity_type": "link",
+            "similarity": 0.3313
+          },
+          {
+            "entity_id": "3e1bec57-495e-471a-94ce-be981be40616",
+            "entity_type": "link",
+            "similarity": 0.3313
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "f1af838e-3e38-4f3a-803e-98b32f866c86",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3713
+          },
+          {
+            "entity_id": "0857233a-dd54-44a0-96fb-7a42fcd66850",
+            "entity_type": "feature",
+            "similarity": 0.3508
+          },
+          {
+            "entity_id": "1208db77-1fd9-4ddd-af11-b7577435c722",
+            "entity_type": "data_entity",
+            "similarity": 0.3467
+          },
+          {
+            "entity_id": "58fa8e40-7ae7-4b84-9bf1-455116d29234",
+            "entity_type": "stakeholder",
+            "similarity": 0.3388
+          },
+          {
+            "entity_id": "24fe7729-af69-4c2a-a6fb-ca6b8b4471db",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3245
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "1d16ed38-6b6d-4953-94cd-08caba2b6556",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.356
+          },
+          {
+            "entity_id": "cba97ae4-120c-4f1b-89a3-dc1159299745",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3464
+          },
+          {
+            "entity_id": "103ee61b-2097-4935-ba1d-84ce9f91e286",
+            "entity_type": "data_entity",
+            "similarity": 0.3368
+          },
+          {
+            "entity_id": "c066a068-dfac-4231-9adf-ffd0909a0d79",
+            "entity_type": "persona",
+            "similarity": 0.3362
+          },
+          {
+            "entity_id": "c444a39c-29f1-457f-8561-65aba095c4c9",
+            "entity_type": "persona",
+            "similarity": 0.331
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "7324776c-2233-4b0e-add2-b1e8b20d05d8",
+            "entity_type": "business_driver",
+            "similarity": 0.1947
+          },
+          {
+            "entity_id": "c4b8dd07-845a-44d2-a918-02135dac665f",
+            "entity_type": "business_driver",
+            "similarity": 0.1806
+          },
+          {
+            "entity_id": "d3a984c8-9557-4a3a-a68f-aafa085599e7",
+            "entity_type": "feature",
+            "similarity": 0.1803
+          },
+          {
+            "entity_id": "42a4ec15-454b-435b-a2e4-0eeb99b770b1",
+            "entity_type": "feature",
+            "similarity": 0.1803
+          },
+          {
+            "entity_id": "6d153c08-2337-48f9-9a0d-305b2ff75bef",
+            "entity_type": "feature",
+            "similarity": 0.1803
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3713
+    },
+    {
+      "query": "Risk areas in the project",
+      "type": "synonym",
+      "description": "Synonym for constraints/blockers",
+      "legacy_results": [
+        {
+          "entity_id": "ec43425c-96e1-46f4-9439-6917be23af6b",
+          "entity_type": "constraint",
+          "entity_name": "Emergency Access Card Legal and Liability Exposure",
+          "similarity": 0.3835
+        },
+        {
+          "entity_id": "cc105369-b3a1-4976-9452-eba1ed7ccdd2",
+          "entity_type": "constraint",
+          "entity_name": "Document Storage Compliance and Data Residency",
+          "similarity": 0.3671
+        },
+        {
+          "entity_id": "bfb76d90-233f-4bd2-ac01-473fe9ed9b3a",
+          "entity_type": "unlock",
+          "entity_name": "Automatically score and surface each user's Vault Readiness by life-event risk tier using User Profile and Document Checklist Item data",
+          "similarity": 0.3629
+        },
+        {
+          "entity_id": "6d153c08-2337-48f9-9a0d-305b2ff75bef",
+          "entity_type": "feature",
+          "entity_name": "Secure Document Upload and Storage",
+          "similarity": 0.3461
+        },
+        {
+          "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+          "entity_type": "constraint",
+          "entity_name": "Secure File Storage Infrastructure Cost Ceiling",
+          "similarity": 0.3393
+        }
+      ],
+      "legacy_top_sim": 0.3835,
+      "legacy_count": 5,
+      "multivector_results": {
+        "identity": [
+          {
+            "entity_id": "ec43425c-96e1-46f4-9439-6917be23af6b",
+            "entity_type": "constraint",
+            "similarity": 0.3835
+          },
+          {
+            "entity_id": "cc105369-b3a1-4976-9452-eba1ed7ccdd2",
+            "entity_type": "constraint",
+            "similarity": 0.3671
+          },
+          {
+            "entity_id": "bfb76d90-233f-4bd2-ac01-473fe9ed9b3a",
+            "entity_type": "unlock",
+            "similarity": 0.3629
+          },
+          {
+            "entity_id": "6d153c08-2337-48f9-9a0d-305b2ff75bef",
+            "entity_type": "feature",
+            "similarity": 0.3461
+          },
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.3393
+          }
+        ],
+        "intent": [
+          {
+            "entity_id": "ec43425c-96e1-46f4-9439-6917be23af6b",
+            "entity_type": "constraint",
+            "similarity": 0.3373
+          },
+          {
+            "entity_id": "cb99be7e-9952-4284-b497-01e53c774767",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3265
+          },
+          {
+            "entity_id": "cc105369-b3a1-4976-9452-eba1ed7ccdd2",
+            "entity_type": "constraint",
+            "similarity": 0.3213
+          },
+          {
+            "entity_id": "797137f0-67a6-4dfe-8595-3a897cc5d2e3",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3164
+          },
+          {
+            "entity_id": "28517f6e-e61c-4490-a93c-ad0c06824f4d",
+            "entity_type": "solution_flow_step",
+            "similarity": 0.3149
+          }
+        ],
+        "relationship": [
+          {
+            "entity_id": "cc105369-b3a1-4976-9452-eba1ed7ccdd2",
+            "entity_type": "constraint",
+            "similarity": 0.4156
+          },
+          {
+            "entity_id": "ec43425c-96e1-46f4-9439-6917be23af6b",
+            "entity_type": "constraint",
+            "similarity": 0.411
+          },
+          {
+            "entity_id": "f7ff64b4-5267-4f7a-b103-2f0b1c04b671",
+            "entity_type": "feature",
+            "similarity": 0.3921
+          },
+          {
+            "entity_id": "7386f358-452e-4b5d-9491-cc694af54a47",
+            "entity_type": "constraint",
+            "similarity": 0.3767
+          },
+          {
+            "entity_id": "951f9853-c4e3-4265-9df2-15de40b256d2",
+            "entity_type": "feature",
+            "similarity": 0.3727
+          }
+        ],
+        "status": [
+          {
+            "entity_id": "f7ff64b4-5267-4f7a-b103-2f0b1c04b671",
+            "entity_type": "feature",
+            "similarity": 0.2996
+          },
+          {
+            "entity_id": "47fddc80-ba33-4dd1-be69-569521428d20",
+            "entity_type": "feature",
+            "similarity": 0.2992
+          },
+          {
+            "entity_id": "5f03e8a9-da0b-42e4-9fe0-f902aee0b41c",
+            "entity_type": "feature",
+            "similarity": 0.2992
+          },
+          {
+            "entity_id": "6d153c08-2337-48f9-9a0d-305b2ff75bef",
+            "entity_type": "feature",
+            "similarity": 0.2992
+          },
+          {
+            "entity_id": "42a4ec15-454b-435b-a2e4-0eeb99b770b1",
+            "entity_type": "feature",
+            "similarity": 0.2992
+          }
+        ]
+      },
+      "multivector_intent_count": 5,
+      "multivector_intent_top_sim": 0.3373
+    }
+  ],
+  "project_name": "BenyBox",
+  "entity_counts": {
+    "features": 12,
+    "personas": 4,
+    "business_drivers": 11,
+    "workflows": 11,
+    "constraints": 5,
+    "stakeholders": 1
+  },
+  "entity_vectors_count": 435
+}
