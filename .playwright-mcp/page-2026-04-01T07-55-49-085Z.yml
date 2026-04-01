@@ -1,0 +1,325 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e14]
+  - complementary [ref=e215]:
+    - generic [ref=e216]:
+      - link "Readytogo" [ref=e217] [cursor=pointer]:
+        - /url: /projects
+        - img "Readytogo" [ref=e218]
+      - button "New project" [ref=e220] [cursor=pointer]:
+        - img [ref=e221]
+    - navigation [ref=e222]:
+      - link "Home" [ref=e223] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e225]
+        - generic [ref=e228]: Home
+      - link "Projects" [ref=e229] [cursor=pointer]:
+        - /url: /projects
+        - img [ref=e231]
+        - generic [ref=e233]: Projects
+      - link "Tasks" [ref=e234] [cursor=pointer]:
+        - /url: /tasks
+        - img [ref=e236]
+        - generic [ref=e239]: Tasks
+      - link "Clients" [ref=e240] [cursor=pointer]:
+        - /url: /clients
+        - img [ref=e242]
+        - generic [ref=e246]: Clients
+      - link "People" [ref=e247] [cursor=pointer]:
+        - /url: /people
+        - img [ref=e249]
+        - generic [ref=e253]: People
+      - link "Meetings" [ref=e254] [cursor=pointer]:
+        - /url: /meetings
+        - img [ref=e256]
+        - generic [ref=e258]: Meetings
+      - link "Settings" [ref=e259] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e261]
+        - generic [ref=e264]: Settings
+    - button "Collapse sidebar" [ref=e265] [cursor=pointer]:
+      - img [ref=e266]
+    - link "QA Tester qa-tester@readytogo.ai" [ref=e269] [cursor=pointer]:
+      - /url: /settings
+      - img [ref=e271]
+      - generic [ref=e274]:
+        - paragraph [ref=e275]: QA Tester
+        - paragraph [ref=e276]: qa-tester@readytogo.ai
+  - generic [ref=e278]:
+    - generic [ref=e279]:
+      - generic [ref=e280]:
+        - button "Filter" [ref=e281] [cursor=pointer]:
+          - img [ref=e282]
+          - generic [ref=e283]: Filter
+        - button "Last Updated" [ref=e284] [cursor=pointer]:
+          - generic [ref=e285]: Last Updated
+          - img [ref=e286]
+        - button "Refresh projects" [ref=e288] [cursor=pointer]:
+          - img [ref=e289]
+      - generic [ref=e294]:
+        - button "Search projects" [ref=e296] [cursor=pointer]:
+          - img [ref=e297]
+        - generic [ref=e300]:
+          - button "Table view" [ref=e301] [cursor=pointer]:
+            - img [ref=e302]
+          - button "Cards view" [ref=e303] [cursor=pointer]:
+            - img [ref=e304]
+          - button "Kanban view" [ref=e308] [cursor=pointer]:
+            - img [ref=e309]
+    - generic [ref=e314]:
+      - generic [ref=e315] [cursor=pointer]:
+        - generic [ref=e316]:
+          - generic [ref=e317]: CO
+          - paragraph [ref=e319]: Customer Onboarding Portal
+          - generic [ref=e320]: Discovery
+        - generic [ref=e321]: —
+        - generic [ref=e322]:
+          - img [ref=e323]
+          - generic [ref=e327]: Map your first workflow to define the current process
+        - paragraph [ref=e328]: Acme Corp, a mid-size SaaS company, is currently onboarding new customers using spreadsheets and email, a manual process that takes two weeks and does not scale. Having recently closed a Series B funding round, they are projecting 3x growth in the coming year and need to automate onboarding before volume overwhelms their team. The VP of Customer Success is championing this initiative to reduce onboarding time from two weeks to two days.
+        - generic [ref=e329]:
+          - generic [ref=e331]:
+            - img [ref=e332]
+            - text: 1 upcoming
+          - generic [ref=e334]:
+            - img [ref=e335]
+            - generic [ref=e337]: Apr 15 at 10:00 AM
+            - generic [ref=e338]: QA Audit Discovery Session
+        - generic [ref=e339]:
+          - generic [ref=e340]: Q
+          - generic [ref=e342]: 2 days ago
+      - generic [ref=e343] [cursor=pointer]:
+        - generic [ref=e344]:
+          - generic [ref=e345]: B
+          - generic [ref=e346]:
+            - paragraph [ref=e347]: BenyBox
+            - paragraph [ref=e348]: BenyBox
+          - generic [ref=e349]: Discovery
+        - generic [ref=e350]: —
+        - generic [ref=e351]:
+          - img [ref=e352]
+          - generic [ref=e356]: Map your first workflow to define the current process
+        - paragraph [ref=e357]: Families with aging parents face a critical gap in managing and sharing essential legal, medical, and insurance documents — existing tools like Dropbox lack guided assessment features, and lawyer-specific solutions are too narrow in scope. BenyBox is being built to fill this first-to-market gap by combining secure document storage with personalized guidance on what documents families actually need. The trigger is the real-world scenario where adult children need immediate access to critical documents like powers of attorney during emergencies but have no organized, secure way to obtain them.
+        - generic [ref=e360]:
+          - img [ref=e361]
+          - generic [ref=e364]:
+            - img [ref=e365]
+            - text: All done
+        - generic [ref=e369]:
+          - generic [ref=e370]: Q
+          - generic [ref=e372]: 14 days ago
+      - generic [ref=e373] [cursor=pointer]:
+        - generic [ref=e374]:
+          - generic [ref=e375]: IA
+          - paragraph [ref=e377]: Internal Aerospace Inventory Manager
+          - generic [ref=e378]: Discovery
+        - generic [ref=e379]: —
+        - generic [ref=e380]:
+          - img [ref=e381]
+          - generic [ref=e385]: Map your first workflow to define the current process
+        - paragraph [ref=e386]: The client acquired a large inventory of diverse aerospace parts in a major transaction, ranging from specialized screws to turbine engines and landing gears. This inventory is currently sitting idle in a warehouse with no classification system in place, preventing the organization from monetizing it. There is an identified market for these parts, but the sheer volume and niche nature of the inventory makes manual classification impractical.
+        - generic [ref=e388]:
+          - generic [ref=e389]: Q
+          - generic [ref=e391]: 23 days ago
+      - generic [ref=e392] [cursor=pointer]:
+        - generic [ref=e393]:
+          - generic [ref=e394]: BO
+          - generic [ref=e395]:
+            - paragraph [ref=e396]: Business Onboarding & RevOps Platform
+            - paragraph [ref=e397]: Business Onboarding & RevOps Platform
+          - generic [ref=e398]: Discovery
+        - generic [ref=e404]: 45%
+        - generic [ref=e405]:
+          - img [ref=e406]
+          - generic [ref=e410]: Map your first workflow to define the current process
+        - paragraph [ref=e411]: Valerie, a boutique consultant, has a proven manual process for helping small business owners understand how to grow revenue, but delivery speed and scale have become the bottleneck. Her current approach relies on bespoke consulting hours, limiting how many clients she can serve and how quickly. The goal is to productize her existing intellectual property into a repeatable, sellable system that removes her as the sole delivery mechanism.
+        - generic [ref=e414]:
+          - img [ref=e415]
+          - text: 1 pending
+        - generic [ref=e419]:
+          - generic [ref=e420]: Q
+          - generic [ref=e422]: 26 days ago
+      - generic [ref=e423] [cursor=pointer]:
+        - generic [ref=e424]:
+          - generic [ref=e425]: DP
+          - generic [ref=e426]:
+            - paragraph [ref=e427]: Dr. Proctor
+            - paragraph [ref=e428]: Dr. Proctor
+          - generic [ref=e429]: Discovery
+        - generic [ref=e430]: —
+        - generic [ref=e431]:
+          - img [ref=e432]
+          - generic [ref=e436]: Map your first workflow to define the current process
+        - paragraph [ref=e437]: Proctorio is a global provider of automated and live remote proctoring services that helps education institutions maintain academic integrity for online assessments. The company currently relies heavily on human intervention to deliver its proctoring services, which limits its ability to scale and grow. The trigger for building Dr. Proctor is a strategic initiative to apply AI and automation across the entire platform to reduce manual overhead and enable scalable growth.
+        - generic [ref=e440]:
+          - img [ref=e441]
+          - text: 2 pending
+        - generic [ref=e444]:
+          - generic [ref=e445]: Q
+          - generic [ref=e447]: about 1 month ago
+      - generic [ref=e448] [cursor=pointer]:
+        - generic [ref=e449]:
+          - generic [ref=e450]: ED
+          - paragraph [ref=e452]: Ensure Direct Bill
+          - generic [ref=e453]: Discovery
+        - generic [ref=e454]: —
+        - generic [ref=e455]:
+          - img [ref=e456]
+          - generic [ref=e460]: Map your first workflow to define the current process
+        - paragraph [ref=e461]: MassMutual's operations currently rely on manual, legacy processes for policy checking and commission reconciliation, resulting in excessive time consumption and frequent errors. The organization is seeking to modernize by transitioning from traditional Business Process Management (BPM) to an AI-powered co-pilot model. The integration of Policy Insights® ExpressCheck and Direct Bill Complete represents a strategic initiative to reduce operational risk and free skilled professionals for higher-value work.
+        - generic [ref=e463]:
+          - generic [ref=e464]: Q
+          - generic [ref=e466]: about 1 month ago
+      - generic [ref=e467] [cursor=pointer]:
+        - generic [ref=e468]:
+          - generic [ref=e469]: PG
+          - generic [ref=e470]:
+            - paragraph [ref=e471]: Pre-Clinical Guidance
+            - paragraph [ref=e472]: Pre-Clinical Guidance
+          - generic [ref=e473]: Discovery
+        - generic [ref=e474]: —
+        - generic [ref=e475]:
+          - img [ref=e476]
+          - generic [ref=e480]: Map your first workflow to define the current process
+        - paragraph [ref=e481]: Proquint, operating in the Life Sciences industry, currently relies on a manual system to deliver preclinical regulatory guidance to clients across biotech, pharmaceutical, and medical device sectors. The organization recognized that evolving global regulatory demands and client expectations for faster, more autonomous workflows have outpaced their existing capabilities. The trigger for this project is the need to modernize operations through AI-powered automation and self-service solutions that reduce dependency on manual expert intervention.
+        - generic [ref=e483]:
+          - generic [ref=e484]: Q
+          - generic [ref=e486]: about 1 month ago
+      - generic [ref=e487] [cursor=pointer]:
+        - generic [ref=e488]:
+          - generic [ref=e489]: AC
+          - paragraph [ref=e491]: ABO Certification Renewal Prototype
+          - generic [ref=e492]: Discovery
+        - generic [ref=e493]: —
+        - generic [ref=e494]:
+          - img [ref=e495]
+          - generic [ref=e499]: Map your first workflow to define the current process
+        - paragraph [ref=e500]: The American Board of Orthodontics currently relies on a clunky, once-a-year online assessment process for certification renewal that lacks flexibility and personalization. The organization wants to explore a more frequent, dynamic, and mobile-first approach to assessments that better serves board-certified orthodontists. A trade show setting provides an opportunity to prototype and validate this new assessment feedback approach while capturing leads for future development.
+        - generic [ref=e503]:
+          - img [ref=e504]
+          - generic [ref=e507]:
+            - img [ref=e508]
+            - text: All done
+        - generic [ref=e512]:
+          - generic [ref=e513]: Q
+          - generic [ref=e515]: about 1 month ago
+      - generic [ref=e516] [cursor=pointer]:
+        - generic [ref=e517]:
+          - generic [ref=e518]: P
+          - generic [ref=e519]:
+            - paragraph [ref=e520]: PersonaPulse
+            - paragraph [ref=e521]: PersonaPulse
+          - generic [ref=e522]: Discovery
+        - generic [ref=e528]: 42%
+        - generic [ref=e529]:
+          - img [ref=e530]
+          - generic [ref=e534]: Map your first workflow to define the current process
+        - paragraph [ref=e535]: Content creators in the AI and tech space struggle to consistently produce high-quality social media posts from their daily stream of news, ideas, and insights. The current content creation process is time-consuming and often results in generic, AI-generated content that lacks authenticity and fails to resonate with audiences. There is a clear market need for a tool that learns an individual's voice and continuously optimizes content performance across platforms.
+        - generic [ref=e538]:
+          - img [ref=e539]
+          - text: 1 pending
+        - generic [ref=e542]:
+          - generic [ref=e543]: Q
+          - generic [ref=e545]: about 1 month ago
+      - generic [ref=e546] [cursor=pointer]:
+        - generic [ref=e547]:
+          - generic [ref=e548]: PP
+          - paragraph [ref=e550]: People Pulse
+          - generic [ref=e551]: Discovery
+        - generic [ref=e557]: 39%
+        - generic [ref=e558]:
+          - img [ref=e559]
+          - generic [ref=e563]: Map your first workflow to define the current process
+        - paragraph [ref=e564]: "The client is building PersonaPulse because they are frustrated with the inefficiency and inauthenticity of working with marketing agencies and generic AI tools like Gemini and ChatGPT that fail to capture a founder's unique voice. The trigger is a clear operational pain point: turning raw thoughts or voice notes into cohesive, multi-channel content campaigns is too time-consuming and costly with existing solutions. The business context is dual-use — enabling founders to build their personal brand while also distributing company messaging in an authentic, founder-native voice."
+        - generic [ref=e567]:
+          - img [ref=e568]
+          - generic [ref=e571]:
+            - img [ref=e572]
+            - text: All done
+        - generic [ref=e575]:
+          - generic [ref=e576]: Q
+          - generic [ref=e578]: about 1 month ago
+      - generic [ref=e579] [cursor=pointer]:
+        - generic [ref=e580]:
+          - generic [ref=e581]: OA
+          - paragraph [ref=e583]: Ortho Assessment v2
+          - generic [ref=e584]: Discovery
+        - generic [ref=e590]: 34%
+        - generic [ref=e591]:
+          - img [ref=e592]
+          - generic [ref=e596]: Map your first workflow to define the current process
+        - paragraph [ref=e597]: The American Board of Orthodontics currently administers its certification process only once per year, limiting engagement with its orthodontist community and reducing the frequency of skills validation. The organization seeks to modernize its credentialing approach by moving to a more frequent and persistent certification and training model. This initiative is driven by a strategic goal to deepen community engagement and provide continuous educational value to practicing orthodontists.
+        - generic [ref=e599]:
+          - generic [ref=e600]: Q
+          - generic [ref=e602]: about 1 month ago
+      - generic [ref=e603] [cursor=pointer]:
+        - generic [ref=e604]:
+          - generic [ref=e605]: OA
+          - paragraph [ref=e607]: Ortho Assessment
+          - generic [ref=e608]: Discovery
+        - generic [ref=e614]: 2%
+        - generic [ref=e615]:
+          - img [ref=e616]
+          - generic [ref=e620]: Map your first workflow to define the current process
+        - paragraph [ref=e621]: The American Board of Orthodontics currently relies on a manual, once-yearly certification testing approach that suffers from poor engagement and outdated methodology. With an upcoming Florida trade show as a catalyst, the ABO seeks to modernize how orthodontists get certified and increase the frequency of certification opportunities. This prototype represents a strategic shift toward a digital, interactive, and community-driven assessment model that bridges the gap between traditional board certification and modern professional development expectations.
+        - generic [ref=e624]:
+          - img [ref=e625]
+          - generic [ref=e628]:
+            - img [ref=e629]
+            - text: All done
+        - generic [ref=e632]:
+          - generic [ref=e633]: Q
+          - generic [ref=e635]: about 1 month ago
+      - generic [ref=e636] [cursor=pointer]:
+        - generic [ref=e637]:
+          - generic [ref=e638]: SM
+          - paragraph [ref=e640]: Stardust MRDS - Pipeline Test
+          - generic [ref=e641]: Discovery
+        - generic [ref=e647]: 27%
+        - generic [ref=e648]:
+          - img [ref=e649]
+          - generic [ref=e653]: Map your first workflow to define the current process
+        - paragraph [ref=e654]: "The Material Resource Distribution System (MRDS) enhances productivity and efficiency in material donation procurement, is scalable, and reduces duplicative expenses for nonprofits. The system enables: • Acquiring and distributing pallet and truckload level donations from organizations like Good 360 • Providing pallet storage options for organizations with no storage capacity • Enabling donation sharing within the nonprofit sector ensuring materials are in the community, not warehouses • Sorting pallets to improve accessibility and distribution success • Supporting volunteer events for nonprofit partners • Reducing employee and warehouse space needs and costs for nonprofit partners • Providing a financially independent, sustainable model by self-funding through surplus revenue • Improving material demand forecasting and planning using historical data • Decreasing distribution bottlenecks and reducing manual processes The system serves Partner Agencies (who distribute to clients), Distribution Partners (who receive truckloads and distribute to PAs), and Stardust management staff across an initial 30 users scaling to 75 within 2 years."
+        - generic [ref=e656]:
+          - generic [ref=e657]: Q
+          - generic [ref=e659]: about 1 month ago
+      - generic [ref=e660] [cursor=pointer]:
+        - generic [ref=e661]:
+          - generic [ref=e662]: SC
+          - generic [ref=e663]:
+            - paragraph [ref=e664]: Seton Communio
+            - paragraph [ref=e665]: Seton Communio
+          - generic [ref=e666]: Prototype
+        - generic [ref=e672]: 47%
+        - generic [ref=e673]:
+          - img [ref=e674]
+          - generic [ref=e678]: Map your first workflow to define the current process
+        - paragraph [ref=e679]: Church engagement platform transforming parish data into actionable insights
+        - generic [ref=e682]:
+          - img [ref=e683]
+          - text: 2 pending
+        - generic [ref=e686]:
+          - generic [ref=e687]: Q
+          - generic [ref=e688]:
+            - button "Ready to advance stage" [ref=e689]:
+              - img [ref=e690]
+            - generic [ref=e692]: about 1 month ago
+      - generic [ref=e693] [cursor=pointer]:
+        - generic [ref=e694]:
+          - generic [ref=e695]: U
+          - generic [ref=e696]:
+            - paragraph [ref=e697]: Unmasked
+            - paragraph [ref=e698]: Unmasked
+          - generic [ref=e699]: Discovery
+        - generic [ref=e705]: 44%
+        - generic [ref=e706]:
+          - img [ref=e707]
+          - generic [ref=e711]: Map your first workflow to define the current process
+        - paragraph [ref=e712]: Personal transformation app helping users break autopilot patterns through personalized practices, guided reflection, and coach-led support. Focuses on moving from awareness to intentional action.
+        - generic [ref=e715]:
+          - img [ref=e716]
+          - generic [ref=e719]:
+            - img [ref=e720]
+            - text: All done
+        - generic [ref=e723]:
+          - generic [ref=e724]: Q
+          - generic [ref=e726]: about 2 months ago

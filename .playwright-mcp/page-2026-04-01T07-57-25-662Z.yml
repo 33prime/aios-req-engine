@@ -1,0 +1,136 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e14]
+  - complementary [ref=e1834]:
+    - generic [ref=e1835]:
+      - link "Readytogo" [ref=e1836] [cursor=pointer]:
+        - /url: /projects
+        - img "Readytogo" [ref=e1837]
+      - button "New project" [ref=e1839] [cursor=pointer]:
+        - img [ref=e1840]
+    - navigation [ref=e1841]:
+      - link "Home" [ref=e1842] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e1844]
+        - generic [ref=e1847]: Home
+      - link "Projects" [ref=e1848] [cursor=pointer]:
+        - /url: /projects
+        - img [ref=e1850]
+        - generic [ref=e1852]: Projects
+      - link "Tasks" [ref=e1853] [cursor=pointer]:
+        - /url: /tasks
+        - img [ref=e1855]
+        - generic [ref=e1858]: Tasks
+      - link "Clients" [ref=e1859] [cursor=pointer]:
+        - /url: /clients
+        - img [ref=e1861]
+        - generic [ref=e1865]: Clients
+      - link "People" [ref=e1866] [cursor=pointer]:
+        - /url: /people
+        - img [ref=e1868]
+        - generic [ref=e1872]: People
+      - link "Meetings" [ref=e1873] [cursor=pointer]:
+        - /url: /meetings
+        - img [ref=e1875]
+        - generic [ref=e1877]: Meetings
+      - link "Settings" [ref=e1878] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e1880]
+        - generic [ref=e1883]: Settings
+    - button "Collapse sidebar" [ref=e1884] [cursor=pointer]:
+      - img [ref=e1885]
+    - link "QA Tester qa-tester@readytogo.ai" [ref=e1888] [cursor=pointer]:
+      - /url: /settings
+      - img [ref=e1890]
+      - generic [ref=e1893]:
+        - paragraph [ref=e1894]: QA Tester
+        - paragraph [ref=e1895]: qa-tester@readytogo.ai
+  - generic [ref=e1897]:
+    - generic [ref=e1898]:
+      - generic [ref=e1899]:
+        - heading "Daily Snapshot" [level=1] [ref=e1900]
+        - paragraph [ref=e1901]: Welcome back QA! Here's the latest for Wednesday, April 1.
+        - paragraph [ref=e1902]: 15 projects · 0 meetings today
+      - button [ref=e1904] [cursor=pointer]:
+        - img [ref=e1905]
+    - generic [ref=e1908]:
+      - generic [ref=e1909]:
+        - paragraph [ref=e1910]: Latest Projects
+        - generic [ref=e1911] [cursor=pointer]:
+          - generic [ref=e1912]:
+            - generic [ref=e1913]:
+              - paragraph [ref=e1914]: Customer Onboarding Portal
+              - generic [ref=e1915]: Discovery
+            - generic [ref=e1916]:
+              - paragraph [ref=e1918]: "Readiness: 0%"
+              - img [ref=e1921]
+          - generic [ref=e1924]:
+            - generic [ref=e1925]:
+              - paragraph [ref=e1926]: Next Steps
+              - generic [ref=e1928]:
+                - img [ref=e1929]
+                - generic [ref=e1932]: Map your first workflow to define the current process
+            - generic [ref=e1933]:
+              - paragraph [ref=e1934]: Client Updates
+              - paragraph [ref=e1939]: No portal activity
+          - paragraph [ref=e1940]: Updated 2 days ago
+        - generic [ref=e1941] [cursor=pointer]:
+          - generic [ref=e1942]:
+            - generic [ref=e1943]:
+              - paragraph [ref=e1944]: BenyBox
+              - paragraph [ref=e1945]: BenyBox
+              - generic [ref=e1946]: Discovery
+            - generic [ref=e1947]:
+              - paragraph [ref=e1949]: "Readiness: 0%"
+              - img [ref=e1952]
+          - generic [ref=e1955]:
+            - generic [ref=e1956]:
+              - paragraph [ref=e1957]: Next Steps
+              - generic [ref=e1959]:
+                - img [ref=e1960]
+                - generic [ref=e1963]: Map your first workflow to define the current process
+            - generic [ref=e1964]:
+              - paragraph [ref=e1965]: Client Updates
+              - paragraph [ref=e1970]: No portal activity
+          - paragraph [ref=e1971]: Updated 14 days ago
+        - generic [ref=e1972] [cursor=pointer]:
+          - generic [ref=e1973]:
+            - generic [ref=e1974]:
+              - paragraph [ref=e1975]: Internal Aerospace Inventory Manager
+              - generic [ref=e1976]: Discovery
+            - generic [ref=e1977]:
+              - paragraph [ref=e1979]: "Readiness: 0%"
+              - img [ref=e1982]
+          - generic [ref=e1985]:
+            - generic [ref=e1986]:
+              - paragraph [ref=e1987]: Next Steps
+              - generic [ref=e1989]:
+                - img [ref=e1990]
+                - generic [ref=e1993]: Map your first workflow to define the current process
+            - generic [ref=e1994]:
+              - paragraph [ref=e1995]: Client Updates
+              - paragraph [ref=e2000]: No portal activity
+          - paragraph [ref=e2001]: Updated 23 days ago
+      - generic [ref=e2002]:
+        - paragraph [ref=e2003]: Overview
+        - generic [ref=e2004]:
+          - generic [ref=e2005]:
+            - heading "Tasks" [level=3] [ref=e2006]:
+              - img [ref=e2007]
+              - text: Tasks
+            - generic [ref=e2010] [cursor=pointer]: View all
+          - generic [ref=e2011]:
+            - img [ref=e2012]
+            - generic [ref=e2015]: All caught up
+        - generic [ref=e2016]:
+          - generic [ref=e2017]:
+            - heading "Schedule" [level=3] [ref=e2018]:
+              - img [ref=e2019]
+              - text: Schedule
+            - generic [ref=e2021] [cursor=pointer]: View all
+          - generic [ref=e2023]:
+            - paragraph [ref=e2024]: WED, APR 15
+            - generic [ref=e2029] [cursor=pointer]:
+              - generic [ref=e2030]:
+                - generic [ref=e2031]: 10:00 AM
+                - generic [ref=e2032]: QA Audit Discovery Session
+              - paragraph [ref=e2033]: Customer Onboarding Portal

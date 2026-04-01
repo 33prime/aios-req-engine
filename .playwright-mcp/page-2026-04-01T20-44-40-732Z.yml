@@ -1,0 +1,266 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e7]:
+    - complementary [ref=e8]:
+      - generic [ref=e9]:
+        - link "Readytogo" [ref=e10] [cursor=pointer]:
+          - /url: /projects
+          - img "Readytogo" [ref=e11]
+        - button "New project" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+      - navigation [ref=e15]:
+        - link "Home" [ref=e16] [cursor=pointer]:
+          - /url: /home
+          - img [ref=e18]
+        - link "Projects" [ref=e21] [cursor=pointer]:
+          - /url: /projects
+          - img [ref=e23]
+        - link "Tasks" [ref=e25] [cursor=pointer]:
+          - /url: /tasks
+          - img [ref=e27]
+        - link "Clients" [ref=e30] [cursor=pointer]:
+          - /url: /clients
+          - img [ref=e32]
+        - link "People" [ref=e36] [cursor=pointer]:
+          - /url: /people
+          - img [ref=e38]
+        - link "Meetings" [ref=e42] [cursor=pointer]:
+          - /url: /meetings
+          - img [ref=e44]
+        - link "Settings" [ref=e46] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e48]
+      - button "Expand sidebar" [ref=e51] [cursor=pointer]:
+        - img [ref=e52]
+      - link "QA Tester" [ref=e55] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e57]
+    - generic [ref=e60]:
+      - banner [ref=e61]:
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - heading "Customer Onboarding Portal" [level=1] [ref=e65]
+            - button "Project Health" [ref=e66] [cursor=pointer]:
+              - img [ref=e67]
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - button "Overview" [active] [ref=e71] [cursor=pointer]:
+                - img [ref=e72]
+                - generic [ref=e77]: Overview
+              - button "Discovery" [ref=e78] [cursor=pointer]:
+                - img [ref=e79]
+                - generic [ref=e82]: Discovery
+              - button "Build" [ref=e83] [cursor=pointer]:
+                - img [ref=e84]
+                - generic [ref=e86]: Build
+              - button "Live" [ref=e87] [cursor=pointer]:
+                - img [ref=e88]
+                - generic [ref=e93]: Live
+            - button "Collaborate" [ref=e95] [cursor=pointer]:
+              - img [ref=e96]
+              - text: Collaborate
+      - main [ref=e101]:
+        - generic [ref=e697]:
+          - generic [ref=e698]:
+            - button "73% Good" [ref=e699] [cursor=pointer]:
+              - generic [ref=e700]:
+                - img [ref=e701]
+                - generic [ref=e704]:
+                  - generic [ref=e705]: 73%
+                  - generic [ref=e706]: Good
+            - generic [ref=e707]:
+              - paragraph [ref=e708]: Welcome back
+              - heading "Customer Onboarding Portal" [level=1] [ref=e709]
+              - paragraph [ref=e710]: Strong start — 2 personas identified, 8 workflows mapped, 7 requirements captured.
+            - button "Open BRD" [ref=e711] [cursor=pointer]:
+              - text: Open BRD
+              - img [ref=e712]
+          - generic [ref=e714]:
+            - generic [ref=e715]:
+              - generic [ref=e716]:
+                - img [ref=e717]
+                - heading "Project Pulse" [level=2] [ref=e719]
+              - generic [ref=e720]:
+                - generic [ref=e721]:
+                  - generic [ref=e722]: Vision
+                  - generic [ref=e725]: 80%
+                - generic [ref=e726]:
+                  - generic [ref=e727]: Constraints
+                  - generic [ref=e730]: 60%
+                - generic [ref=e731]:
+                  - generic [ref=e732]: Workflows
+                  - generic [ref=e735]: 100%
+                - generic [ref=e736]:
+                  - generic [ref=e737]: Features
+                  - generic [ref=e740]: 80%
+              - generic [ref=e741]:
+                - generic [ref=e742]:
+                  - img [ref=e743]
+                  - text: Vision
+                - generic [ref=e746]:
+                  - img [ref=e747]
+                  - text: Constraints
+                - generic [ref=e750]:
+                  - img [ref=e751]
+                  - text: Workflows
+                - generic [ref=e754]:
+                  - img [ref=e755]
+                  - text: Features
+            - generic [ref=e758]:
+              - generic [ref=e759]:
+                - img [ref=e760]
+                - heading "Next Best Actions" [level=2] [ref=e762]
+              - generic [ref=e763]:
+                - button "Walk through the New Customer Account Provisioning workflow with Sarah Chen to understand current handoff points and identify which steps are still manual versus automated. Talking to the VP directly prevents us from building a solution flow based on incomplete BRD assumptions—we'll hear about hidden dependencies and stakeholder friction. Sarah Chen Book a call" [ref=e764] [cursor=pointer]:
+                  - img [ref=e766]
+                  - generic [ref=e771]:
+                    - paragraph [ref=e772]: Walk through the New Customer Account Provisioning workflow with Sarah Chen to understand current handoff points and identify which steps are still manual versus automated.
+                    - paragraph [ref=e773]: Talking to the VP directly prevents us from building a solution flow based on incomplete BRD assumptions—we'll hear about hidden dependencies and stakeholder friction.
+                    - generic [ref=e774]:
+                      - generic [ref=e775]:
+                        - img [ref=e776]
+                        - text: Sarah Chen
+                      - generic [ref=e781]: Book a call
+                  - img [ref=e782]
+                - button "Review and validate the 1 unconfirmed feature and 2 unconfirmed workflows against the BRD source document to expose any capability gaps before solution design. A single unvalidated workflow could derail downstream solution architecture; catching it now is cheaper than rework after flow design. Start conversation" [ref=e784] [cursor=pointer]:
+                  - img [ref=e786]
+                  - generic [ref=e789]:
+                    - paragraph [ref=e790]: Review and validate the 1 unconfirmed feature and 2 unconfirmed workflows against the BRD source document to expose any capability gaps before solution design.
+                    - paragraph [ref=e791]: A single unvalidated workflow could derail downstream solution architecture; catching it now is cheaper than rework after flow design.
+                    - generic [ref=e793]: Start conversation
+                  - img [ref=e794]
+                - button "Create a ranked priority matrix of the eight workflows mapped against Sarah's stated business drivers (effort hours, scalability, customer self-service) to sequence solution flow layers. Prioritizing workflows by business driver impact prevents us from building a feature-complete but strategically misaligned solution. Sarah Chen Prep meeting" [ref=e796] [cursor=pointer]:
+                  - img [ref=e798]
+                  - generic [ref=e801]:
+                    - paragraph [ref=e802]: Create a ranked priority matrix of the eight workflows mapped against Sarah's stated business drivers (effort hours, scalability, customer self-service) to sequence solution flow layers.
+                    - paragraph [ref=e803]: Prioritizing workflows by business driver impact prevents us from building a feature-complete but strategically misaligned solution.
+                    - generic [ref=e804]:
+                      - generic [ref=e805]:
+                        - img [ref=e806]
+                        - text: Sarah Chen
+                      - generic [ref=e811]: Prep meeting
+                  - img [ref=e812]
+            - generic [ref=e814]:
+              - generic [ref=e816]:
+                - img [ref=e817]
+                - heading "Tasks" [level=2] [ref=e820]
+              - generic [ref=e823]:
+                - img [ref=e824]
+                - heading "All caught up!" [level=3] [ref=e827]
+                - paragraph [ref=e828]: No pending tasks. New tasks will appear here when signals are processed.
+          - generic [ref=e829]:
+            - generic [ref=e830]:
+              - generic [ref=e831]:
+                - img [ref=e832]
+                - heading "Recent Activity" [level=2] [ref=e834]
+              - generic [ref=e835]:
+                - img [ref=e836]
+                - paragraph [ref=e838]: No activity yet
+            - generic [ref=e839]:
+              - generic [ref=e840]:
+                - img [ref=e841]
+                - heading "Upcoming Meetings" [level=2] [ref=e843]
+              - generic [ref=e847]:
+                - paragraph [ref=e848]: QA Audit Discovery Session
+                - generic [ref=e849]:
+                  - generic [ref=e850]: Apr 15 at 10:00 AM
+                  - generic [ref=e851]: discovery
+            - generic [ref=e852]:
+              - generic [ref=e853]:
+                - img [ref=e854]
+                - heading "Client Portal" [level=2] [ref=e857]
+              - generic [ref=e858]:
+                - img [ref=e860]
+                - paragraph [ref=e863]: Coming soon
+                - paragraph [ref=e864]: Client review notifications
+      - generic [ref=e378]:
+        - button "Unlocks" [ref=e379] [cursor=pointer]:
+          - img [ref=e380]
+          - generic [ref=e382]: Unlocks
+        - button "Evidence" [ref=e383] [cursor=pointer]:
+          - img [ref=e384]
+          - generic [ref=e388]: Evidence
+        - button "Memory" [ref=e389] [cursor=pointer]:
+          - img [ref=e390]
+          - generic [ref=e393]: Memory
+        - button "Calls" [ref=e394] [cursor=pointer]:
+          - img [ref=e395]
+          - generic [ref=e397]: Calls
+    - button "Open assistant (⌘J)" [ref=e398] [cursor=pointer]:
+      - img [ref=e399]
+    - generic [ref=e401]:
+      - generic [ref=e403]:
+        - generic [ref=e404]:
+          - button "Briefing" [ref=e405] [cursor=pointer]:
+            - img [ref=e406]
+            - text: Briefing
+          - button "Chat" [ref=e408] [cursor=pointer]:
+            - img [ref=e409]
+            - text: Chat
+        - button "Close (Esc)" [ref=e411] [cursor=pointer]:
+          - img [ref=e412]
+      - button "Wed 2:00 AM" [ref=e415] [cursor=pointer]:
+        - generic [ref=e419]: Wed 2:00 AM
+        - img [ref=e420]
+      - generic [ref=e423]:
+        - generic [ref=e424]:
+          - generic [ref=e425]: Refining
+          - generic [ref=e426]: 93%
+          - button "Refresh briefing" [ref=e626] [cursor=pointer]:
+            - img [ref=e627]
+        - generic [ref=e427]:
+          - generic [ref=e428]:
+            - paragraph [ref=e632]: "Customer Onboarding Portal is 93% through refining with solid structural bones — 4 workflows mapped (current vs. future state), 7 features identified, and 2 personas defined around Acme Corp's onboarding team and new customers. Sarah Chen is the sole stakeholder on record. The challenge: all 5 confirmed features (Automated Account Provisioning, Self-Service Configuration Wizard, Onboarding Team Progress Dashboard, Dual User Role Management, Customer Onboarding Status Tracking) exist without evidence trails — they're named but not grounded in stakeholder conversations or requirements docs. The belief system is empty, which means no hypotheses are being tested yet. You're at the natural inflection point: lock down evidence for these features and start building conviction around what will actually move Acme from 2 weeks to 2 days."
+            - generic [ref=e633]:
+              - paragraph [ref=e634]: "The 5 confirmed features are floating without anchors — no one's validated them against Sarah Chen's priorities or Acme's 50-customers-per-month reality. That's your unlock: a focused evidence-gathering session with Sarah to pressure-test which features are must-haves vs. nice-to-haves for hitting the 2-day target."
+              - generic [ref=e635]:
+                - paragraph [ref=e636]: All 7 features lack evidence trails — start with Sarah Chen to validate which ones actually compress the 2-week cycle
+                - paragraph [ref=e637]: Workflows are well-mapped (20 current steps → 15 future steps) but beliefs are empty — no hypotheses being tested means no learning loop yet
+                - paragraph [ref=e638]: Dual User Role Management and Progress Dashboard feel like infrastructure plays — confirm they're not over-engineering for 50 customers/month
+                - paragraph [ref=e639]: 93% through refining with no beliefs suggests you've been building structure, not conviction — time to shift gears
+          - generic [ref=e640]:
+            - button "You mentioned stalled customers in the monitoring workflow — what usually causes someone to get stuck halfway through? signal Explore" [ref=e641] [cursor=pointer]:
+              - img [ref=e643]
+              - generic [ref=e646]:
+                - paragraph [ref=e647]:
+                  - text: You mentioned
+                  - strong [ref=e648]: stalled customers
+                  - text: in the monitoring workflow —
+                  - emphasis [ref=e649]: what usually causes someone to get stuck halfway through?
+                - generic [ref=e650]:
+                  - generic [ref=e651]:
+                    - img [ref=e652]
+                    - text: signal
+                  - generic [ref=e655]: Explore
+                  - img [ref=e656]
+            - button "The wizard handles self-service configuration, but there's a handoff when the onboarding team needs to intervene — how does that transition actually work? signal Build" [ref=e658] [cursor=pointer]:
+              - img [ref=e660]
+              - generic [ref=e664]:
+                - paragraph [ref=e665]:
+                  - text: The wizard handles
+                  - strong [ref=e666]: self-service configuration
+                  - text: ", but there's a handoff when the onboarding team needs to intervene —"
+                  - emphasis [ref=e667]: how does that transition actually work?
+                - generic [ref=e668]:
+                  - generic [ref=e669]:
+                    - img [ref=e670]
+                    - text: signal
+                  - generic [ref=e673]: Build
+                  - img [ref=e674]
+            - button "I see 7 features captured so far, but the analytics dashboard feels light — want to run through what metrics actually matter for tracking performance? signal Review" [ref=e676] [cursor=pointer]:
+              - img [ref=e678]
+              - generic [ref=e681]:
+                - paragraph [ref=e682]:
+                  - text: I see
+                  - strong [ref=e683]: 7 features
+                  - text: captured so far, but the analytics dashboard feels light —
+                  - emphasis [ref=e684]: want to run through what metrics actually matter for tracking performance?
+                - generic [ref=e685]:
+                  - generic [ref=e686]:
+                    - img [ref=e687]
+                    - text: signal
+                  - generic [ref=e690]: Review
+                  - img [ref=e691]
+          - button "Upload a document" [ref=e694] [cursor=pointer]:
+            - img [ref=e695]
+            - text: Upload a document

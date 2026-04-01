@@ -1,0 +1,180 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - complementary [ref=e445]:
+    - generic [ref=e446]:
+      - link "Readytogo" [ref=e447] [cursor=pointer]:
+        - /url: /projects
+        - img "Readytogo" [ref=e448]
+      - button "New project" [ref=e450] [cursor=pointer]:
+        - img [ref=e451]
+    - navigation [ref=e452]:
+      - link "Home" [ref=e453] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e455]
+        - generic [ref=e458]: Home
+      - link "Projects" [ref=e459] [cursor=pointer]:
+        - /url: /projects
+        - img [ref=e461]
+        - generic [ref=e463]: Projects
+      - link "Tasks" [ref=e464] [cursor=pointer]:
+        - /url: /tasks
+        - img [ref=e466]
+        - generic [ref=e469]: Tasks
+      - link "Clients" [ref=e470] [cursor=pointer]:
+        - /url: /clients
+        - img [ref=e472]
+        - generic [ref=e476]: Clients
+      - link "People" [ref=e477] [cursor=pointer]:
+        - /url: /people
+        - img [ref=e479]
+        - generic [ref=e483]: People
+      - link "Meetings" [ref=e484] [cursor=pointer]:
+        - /url: /meetings
+        - img [ref=e486]
+        - generic [ref=e488]: Meetings
+      - link "Settings" [ref=e489] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e491]
+        - generic [ref=e494]: Settings
+    - button "Collapse sidebar" [ref=e495] [cursor=pointer]:
+      - img [ref=e496]
+    - link "QA Tester qa-tester@readytogo.ai" [ref=e499] [cursor=pointer]:
+      - /url: /settings
+      - img [ref=e501]
+      - generic [ref=e504]:
+        - paragraph [ref=e505]: QA Tester
+        - paragraph [ref=e506]: qa-tester@readytogo.ai
+  - generic [ref=e508]:
+    - generic [ref=e509]:
+      - generic [ref=e510]:
+        - button "Meetings" [ref=e511] [cursor=pointer]
+        - generic [ref=e512]: /
+        - generic [ref=e513]: QA Audit Discovery Session
+      - generic [ref=e514]:
+        - button "Email Agenda" [ref=e515] [cursor=pointer]:
+          - img [ref=e516]
+          - text: Email Agenda
+        - button "Edit" [ref=e519] [cursor=pointer]:
+          - img [ref=e520]
+          - text: Edit
+        - button [ref=e524] [cursor=pointer]:
+          - img [ref=e525]
+        - button "Hide intelligence panel" [ref=e529] [cursor=pointer]:
+          - img [ref=e530]
+    - generic [ref=e532]:
+      - generic [ref=e534]:
+        - generic [ref=e535]:
+          - heading "QA Audit Discovery Session" [level=1] [ref=e536]
+          - generic [ref=e537]:
+            - generic [ref=e538]:
+              - img [ref=e539]
+              - text: Apr 15, 2026, 10:00 AM – 11:00 AM America/New_York
+            - generic [ref=e541]:
+              - img [ref=e542]
+              - text: 60 min
+            - generic [ref=e545]: Discovery
+            - generic [ref=e546]: Scheduled
+        - generic [ref=e547]:
+          - generic [ref=e548]:
+            - generic [ref=e549]:
+              - text: Participants
+              - generic [ref=e550]: "0"
+            - button [ref=e551] [cursor=pointer]:
+              - img [ref=e552]
+          - generic [ref=e554]: No participants added yet
+        - generic [ref=e594]:
+          - heading "Discovery Themes" [level=3] [ref=e595]:
+            - img [ref=e596]
+            - text: Discovery Themes
+          - generic [ref=e599]:
+            - generic [ref=e600]:
+              - generic [ref=e601]:
+                - generic [ref=e602]: "1"
+                - generic [ref=e603]:
+                  - generic [ref=e605]: Critical
+                  - paragraph [ref=e606]: Map the Moment Contract Closes to Account Live
+              - paragraph [ref=e607]: The New Customer Account Provisioning workflow is the single biggest bottleneck in the 2-week cycle — every downstream step is blocked until manual provisioning completes. We understand the pain at a high level, but we don't yet know who touches this handoff, in what order, or what edge cases break it.
+              - paragraph [ref=e609]: Sarah, walk me through the last time a new customer was handed off to your team after contract close — who sends the first notification, what does your team do in the first 30 minutes, and where does it most often go sideways?
+              - generic [ref=e610]:
+                - generic [ref=e611]: "Explores: New Customer Account Provisioning — current state steps: Receive new customer notification, Create spreadsheet record, Manually provision account"
+                - generic [ref=e612]: No centralized intake — notifications arrive inconsistently via email and require manual logging into spreadsheets
+                - generic [ref=e613]: Fully manual technical provisioning step that blocks all downstream onboarding activity until completed
+                - generic [ref=e614]: "Signal: replacing spreadsheets/email to handle 3x growth post-Series B"
+              - generic [ref=e619]: Partially explored
+            - generic [ref=e620]:
+              - generic [ref=e621]:
+                - generic [ref=e622]: "2"
+                - generic [ref=e623]:
+                  - generic [ref=e625]: Critical
+                  - paragraph [ref=e626]: Uncover Where Customers Get Stuck in Self-Service
+              - paragraph [ref=e627]: The Self-Service Configuration Wizard is the centerpiece of the future state, but we have no visibility into which configuration steps cause customers to stall, make errors, or abandon. The current-state pain confirms customers frequently get stuck — we need to map exactly where and why before we can design the wizard to prevent it.
+              - paragraph [ref=e629]: Sarah, tell me about a recent customer who got stuck during the configuration phase — what were they trying to set up, how did your team find out they were blocked, and how long did it take to get them unstuck?
+              - generic [ref=e630]:
+                - generic [ref=e631]: "Explores: Customer Self-Service Configuration — current state steps: Attempt configuration independently, Email onboarding team with questions, Wait for onboarding team response; Feature: Self-Service Configuration Wizard"
+                - generic [ref=e632]: No guided workflow means customers frequently get stuck, make errors, or skip required steps
+                - generic [ref=e633]: Email-based support introduces hours or days of waiting time per question, compounding delays
+                - generic [ref=e634]: Response delays are the primary driver of the 2-week onboarding cycle
+              - generic [ref=e639]: Needs exploration
+            - generic [ref=e640]:
+              - generic [ref=e641]:
+                - generic [ref=e642]: "3"
+                - generic [ref=e643]:
+                  - generic [ref=e645]: Critical
+                  - paragraph [ref=e646]: Explore How the Onboarding Team Spots a Customer in Trouble
+              - paragraph [ref=e647]: Onboarding Progress Monitoring is entirely reactive today — stalled customers are only discovered through periodic manual spreadsheet review, by which point delays have already compounded. Before designing automated stall detection, we need to understand what signals the team currently uses to recognize a customer is at risk and what intervention looks like in practice.
+              - paragraph [ref=e649]: Sarah, how does your team currently decide which customers to follow up with on any given day — walk me through what that review process looks like and tell me about a time a customer fell through the cracks before anyone noticed?
+              - generic [ref=e650]:
+                - generic [ref=e651]: "Explores: Onboarding Progress Monitoring — current state steps: Cross-reference email threads, Identify stalled customers, Send follow-up emails; Feature: Onboarding Team Progress Dashboard"
+                - generic [ref=e652]: No automated alerting means stalled customers are only discovered through periodic manual review, allowing delays to compound
+                - generic [ref=e653]: Status is fragmented across multiple email threads, making it time-consuming to get an accurate picture of any single customer
+                - generic [ref=e654]: At 50 customers per month, follow-up volume becomes unmanageable
+              - generic [ref=e659]: Partially explored
+            - generic [ref=e660]:
+              - generic [ref=e661]:
+                - generic [ref=e662]: "4"
+                - generic [ref=e663]:
+                  - generic [ref=e665]: High
+                  - paragraph [ref=e666]: Map What Good Onboarding Performance Looks Like to Leadership
+              - paragraph [ref=e667]: The Onboarding Performance Reporting workflow is AI-generated with no source signal backing it — we've assumed what metrics Sarah needs, but we haven't heard it from her. With Series B growth targets driving this project, the metrics Sarah actually cares about will shape the entire analytics dashboard design and determine what 'success' means for this portal.
+              - paragraph [ref=e669]: Sarah, when your CEO asks you how onboarding is going, what do you wish you could tell them that you currently can't — and what does the data you're working with today make it impossible to answer?
+              - generic [ref=e670]:
+                - generic [ref=e671]: "Explores: Onboarding Performance Reporting — current state steps: Request status update from onboarding team, Identify trends manually; Feature: Onboarding Team Progress Dashboard"
+                - generic [ref=e672]: No self-serve reporting means leadership must interrupt the onboarding team to get performance data
+                - generic [ref=e673]: Static summaries lack the granularity needed to identify specific process bottlenecks or at-risk customer segments
+                - generic [ref=e674]: "Knowledge gap flagged: Dashboard & Onboarding — 2 unresolved gaps"
+              - generic [ref=e679]: Needs exploration
+            - generic [ref=e680]:
+              - generic [ref=e681]:
+                - generic [ref=e682]: "5"
+                - generic [ref=e683]:
+                  - generic [ref=e685]: High
+                  - paragraph [ref=e686]: Uncover the Boundary Between Customer Self-Service and Team Intervention
+              - paragraph [ref=e687]: The future state splits responsibility between fully automated customer self-service and semi-automated team intervention on exceptions — but the handoff logic between these two modes is undefined. We need to understand what conditions should trigger a human escalation versus letting the wizard handle it, and who on the team owns that intervention.
+              - paragraph [ref=e689]: Sarah, when a customer hits a wall during configuration today — something your team can't just answer with a quick email — what does your team actually do, and are there situations where you'd never want a customer to handle something on their own without a team member involved?
+              - generic [ref=e690]:
+                - generic [ref=e691]: "Explores: Customer Self-Service Configuration — future state steps: Follow guided wizard steps, Configuration confirmed and account activated; Knowledge gap: Role & Dual — Dual User Role Management feature"
+                - generic [ref=e692]: "Knowledge gap flagged: Role & Dual — 2 unresolved gaps"
+                - generic [ref=e693]: Feature 'Dual User Role Management' confirmed but no evidence trail supporting it
+                - generic [ref=e694]: "Future state: team effort focused exclusively on exceptions — but exception criteria not yet defined"
+              - generic [ref=e699]: Needs exploration
+      - generic [ref=e566]:
+        - generic [ref=e567]:
+          - button "Recording" [ref=e568] [cursor=pointer]:
+            - img [ref=e569]
+            - text: Recording
+          - button "Insights" [disabled] [ref=e571]:
+            - img [ref=e572]
+            - text: Insights
+          - button "Performance" [disabled] [ref=e574]:
+            - img [ref=e575]
+            - text: Performance
+          - button "Signals" [disabled] [ref=e578]:
+            - img [ref=e579]
+            - text: Signals
+        - generic [ref=e582]:
+          - img [ref=e583]
+          - paragraph [ref=e586]: Record this meeting to unlock post-call intelligence
+          - paragraph [ref=e587]: Deploy a recording bot or seed a recording to get insights, performance coaching, and signal extraction.
+          - button "Seed Recording" [ref=e589] [cursor=pointer]:
+            - img [ref=e590]
+            - text: Seed Recording

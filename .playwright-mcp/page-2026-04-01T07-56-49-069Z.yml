@@ -1,0 +1,360 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e14]
+  - complementary [ref=e1321]:
+    - generic [ref=e1322]:
+      - link "Readytogo" [ref=e1323] [cursor=pointer]:
+        - /url: /projects
+        - img "Readytogo" [ref=e1324]
+      - button "New project" [ref=e1326] [cursor=pointer]:
+        - img [ref=e1327]
+    - navigation [ref=e1328]:
+      - link "Home" [ref=e1329] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e1331]
+        - generic [ref=e1334]: Home
+      - link "Projects" [ref=e1335] [cursor=pointer]:
+        - /url: /projects
+        - img [ref=e1337]
+        - generic [ref=e1339]: Projects
+      - link "Tasks" [ref=e1340] [cursor=pointer]:
+        - /url: /tasks
+        - img [ref=e1342]
+        - generic [ref=e1345]: Tasks
+      - link "Clients" [ref=e1346] [cursor=pointer]:
+        - /url: /clients
+        - img [ref=e1348]
+        - generic [ref=e1352]: Clients
+      - link "People" [ref=e1353] [cursor=pointer]:
+        - /url: /people
+        - img [ref=e1355]
+        - generic [ref=e1359]: People
+      - link "Meetings" [ref=e1360] [cursor=pointer]:
+        - /url: /meetings
+        - img [ref=e1362]
+        - generic [ref=e1364]: Meetings
+      - link "Settings" [ref=e1365] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e1367]
+        - generic [ref=e1370]: Settings
+    - button "Collapse sidebar" [ref=e1371] [cursor=pointer]:
+      - img [ref=e1372]
+    - link "QA Tester qa-tester@readytogo.ai" [ref=e1375] [cursor=pointer]:
+      - /url: /settings
+      - img [ref=e1377]
+      - generic [ref=e1380]:
+        - paragraph [ref=e1381]: QA Tester
+        - paragraph [ref=e1382]: qa-tester@readytogo.ai
+  - generic [ref=e1384]:
+    - generic [ref=e1385]:
+      - img [ref=e1386]
+      - heading "Clients" [level=1] [ref=e1390]
+    - generic [ref=e1391]:
+      - generic [ref=e1392]:
+        - generic [ref=e1393]:
+          - img [ref=e1394]
+          - textbox "Search clients..." [ref=e1397]
+        - combobox [ref=e1398] [cursor=pointer]:
+          - option "All Industries" [selected]
+          - option "Technology"
+          - option "Healthcare"
+          - option "Finance"
+          - option "Manufacturing"
+          - option "Retail"
+          - option "Education"
+          - option "Real Estate"
+          - option "Construction"
+          - option "Professional Services"
+          - option "Government"
+          - option "Non-Profit"
+        - button "Refresh" [ref=e1399] [cursor=pointer]:
+          - img [ref=e1400]
+      - button "Add Client" [ref=e1405] [cursor=pointer]:
+        - img [ref=e1406]
+        - text: Add Client
+    - generic [ref=e1407]: 19 clients found
+    - generic [ref=e1408]:
+      - button "AC Acme Corp SaaS 1 project 1 stakeholder ACME Laboratories (acme.com) is a long-running personal freeware laboratory operated by Jef Poskanzer, offering a collection of open-source software tools, mapping utilities, JavaScript/Java utilities, and web toys. Founded in 1972 and on the internet since 1991, it describes itself as a 'purveyor of fine freeware.' The site is not a commercial SaaS company but rather an individual-run hobbyist/open-source project providing free tools and resources to the public." [ref=e1409] [cursor=pointer]:
+        - generic [ref=e1410]:
+          - generic [ref=e1412]: AC
+          - generic [ref=e1413]:
+            - heading "Acme Corp" [level=3] [ref=e1414]
+            - generic [ref=e1415]: SaaS
+          - img [ref=e1416]
+        - generic [ref=e1419]:
+          - generic [ref=e1420]:
+            - img [ref=e1421]
+            - generic [ref=e1423]: 1 project
+          - generic [ref=e1424]:
+            - img [ref=e1425]
+            - generic [ref=e1430]: 1 stakeholder
+        - paragraph [ref=e1431]: ACME Laboratories (acme.com) is a long-running personal freeware laboratory operated by Jef Poskanzer, offering a collection of open-source software tools, mapping utilities, JavaScript/Java utilities, and web toys. Founded in 1972 and on the internet since 1991, it describes itself as a 'purveyor of fine freeware.' The site is not a commercial SaaS company but rather an individual-run hobbyist/open-source project providing free tools and resources to the public.
+      - button "E EndorseMe Legal 1 project 1 stakeholder EndorseMe (endorsemeaz.com) appears to be a legal industry company based on available identity hints, likely operating in Arizona given the 'az' domain suffix. The company name suggests a service related to endorsements, referrals, or legal document processing within the legal sector. Specific details about their mission and full service offerings are unavailable due to limited data." [ref=e1432] [cursor=pointer]:
+        - generic [ref=e1433]:
+          - generic [ref=e1435]: E
+          - generic [ref=e1436]:
+            - heading "EndorseMe" [level=3] [ref=e1437]
+            - generic [ref=e1438]: Legal
+          - img [ref=e1439]
+        - generic [ref=e1442]:
+          - generic [ref=e1443]:
+            - img [ref=e1444]
+            - generic [ref=e1446]: 1 project
+          - generic [ref=e1447]:
+            - img [ref=e1448]
+            - generic [ref=e1453]: 1 stakeholder
+        - paragraph [ref=e1454]: EndorseMe (endorsemeaz.com) appears to be a legal industry company based on available identity hints, likely operating in Arizona given the 'az' domain suffix. The company name suggests a service related to endorsements, referrals, or legal document processing within the legal sector. Specific details about their mission and full service offerings are unavailable due to limited data.
+      - button "E EndorseMe Legal 0 projects 0 stakeholders No summary yet — enrich to get AI insights" [ref=e1455] [cursor=pointer]:
+        - generic [ref=e1456]:
+          - generic [ref=e1458]: E
+          - generic [ref=e1459]:
+            - heading "EndorseMe" [level=3] [ref=e1460]
+            - generic [ref=e1461]: Legal
+          - img [ref=e1462]
+        - generic [ref=e1463]:
+          - generic [ref=e1464]:
+            - img [ref=e1465]
+            - generic [ref=e1467]: 0 projects
+          - generic [ref=e1468]:
+            - img [ref=e1469]
+            - generic [ref=e1474]: 0 stakeholders
+        - paragraph [ref=e1475]: No summary yet — enrich to get AI insights
+      - button "WC Woodbone Consulting Aviatian Consulting 1 project 1 stakeholder No summary yet — enrich to get AI insights" [ref=e1476] [cursor=pointer]:
+        - generic [ref=e1477]:
+          - generic [ref=e1479]: WC
+          - generic [ref=e1480]:
+            - heading "Woodbone Consulting" [level=3] [ref=e1481]
+            - generic [ref=e1482]: Aviatian Consulting
+          - img [ref=e1483]
+        - generic [ref=e1484]:
+          - generic [ref=e1485]:
+            - img [ref=e1486]
+            - generic [ref=e1488]: 1 project
+          - generic [ref=e1489]:
+            - img [ref=e1490]
+            - generic [ref=e1495]: 1 stakeholder
+        - paragraph [ref=e1496]: No summary yet — enrich to get AI insights
+      - button "RN Revenue Northstar Technology consulting 1 project 1 stakeholder Revenue Northstar appears to be a technology consulting firm focused on helping businesses optimize their revenue operations and growth strategies. Based on the available identity information, the company likely provides advisory and consulting services in the technology sector. Specific details about their mission and service offerings are limited due to unavailable website data." [ref=e1497] [cursor=pointer]:
+        - generic [ref=e1498]:
+          - generic [ref=e1500]: RN
+          - generic [ref=e1501]:
+            - heading "Revenue Northstar" [level=3] [ref=e1502]
+            - generic [ref=e1503]: Technology consulting
+          - img [ref=e1504]
+        - generic [ref=e1507]:
+          - generic [ref=e1508]:
+            - img [ref=e1509]
+            - generic [ref=e1511]: 1 project
+          - generic [ref=e1512]:
+            - img [ref=e1513]
+            - generic [ref=e1518]: 1 stakeholder
+        - paragraph [ref=e1519]: Revenue Northstar appears to be a technology consulting firm focused on helping businesses optimize their revenue operations and growth strategies. Based on the available identity information, the company likely provides advisory and consulting services in the technology sector. Specific details about their mission and service offerings are limited due to unavailable website data.
+      - button "DP Dr. Proctor Education 1 project 1 stakeholder Proctorio (listed as 'Dr. Proctor' with website https://proctorio.com) is an automated remote proctoring and exam integrity platform used primarily in higher education and professional certification. The company provides AI-powered tools to monitor online test-takers, detect suspicious behavior, and help institutions maintain academic integrity in remote environments. Their software integrates with major learning management systems (LMS) such as Canvas, Blackboard, and Moodle." [ref=e1520] [cursor=pointer]:
+        - generic [ref=e1521]:
+          - generic [ref=e1523]: DP
+          - generic [ref=e1524]:
+            - heading "Dr. Proctor" [level=3] [ref=e1525]
+            - generic [ref=e1526]: Education
+          - img [ref=e1527]
+        - generic [ref=e1530]:
+          - generic [ref=e1531]:
+            - img [ref=e1532]
+            - generic [ref=e1534]: 1 project
+          - generic [ref=e1535]:
+            - img [ref=e1536]
+            - generic [ref=e1541]: 1 stakeholder
+        - paragraph [ref=e1542]: Proctorio (listed as 'Dr. Proctor' with website https://proctorio.com) is an automated remote proctoring and exam integrity platform used primarily in higher education and professional certification. The company provides AI-powered tools to monitor online test-takers, detect suspicious behavior, and help institutions maintain academic integrity in remote environments. Their software integrates with major learning management systems (LMS) such as Canvas, Blackboard, and Moodle.
+      - button "MI Mutual Insurance Insurance 1 project 1 stakeholder MassMutual (Massachusetts Mutual Life Insurance Company) is a leading mutual life insurance company founded in 1851 and headquartered in Springfield, Massachusetts. As a mutual company, it is owned by its policyholders and offers a broad range of financial products including life insurance, disability income insurance, long-term care insurance, annuities, and investment management services. Its mission centers on helping people secure their future and protect the ones they love." [ref=e1543] [cursor=pointer]:
+        - generic [ref=e1544]:
+          - generic [ref=e1546]: MI
+          - generic [ref=e1547]:
+            - heading "Mutual Insurance" [level=3] [ref=e1548]
+            - generic [ref=e1549]: Insurance
+          - img [ref=e1550]
+        - generic [ref=e1553]:
+          - generic [ref=e1554]:
+            - img [ref=e1555]
+            - generic [ref=e1557]: 1 project
+          - generic [ref=e1558]:
+            - img [ref=e1559]
+            - generic [ref=e1564]: 1 stakeholder
+        - paragraph [ref=e1565]: MassMutual (Massachusetts Mutual Life Insurance Company) is a leading mutual life insurance company founded in 1851 and headquartered in Springfield, Massachusetts. As a mutual company, it is owned by its policyholders and offers a broad range of financial products including life insurance, disability income insurance, long-term care insurance, annuities, and investment management services. Its mission centers on helping people secure their future and protect the ones they love.
+      - button "P Proquint Life Sciences 1 project 1 stakeholder Proquint operates under the web domain eliquent.com and appears to be active in the Life Sciences industry. Due to limited publicly available data and website scraping failure, a detailed description of their mission and specific offerings cannot be confirmed. Further direct engagement with the company would be needed to fully characterize their products or services." [ref=e1566] [cursor=pointer]:
+        - generic [ref=e1567]:
+          - generic [ref=e1569]: P
+          - generic [ref=e1570]:
+            - heading "Proquint" [level=3] [ref=e1571]
+            - generic [ref=e1572]: Life Sciences
+          - img [ref=e1573]
+        - generic [ref=e1576]:
+          - generic [ref=e1577]:
+            - img [ref=e1578]
+            - generic [ref=e1580]: 1 project
+          - generic [ref=e1581]:
+            - img [ref=e1582]
+            - generic [ref=e1587]: 1 stakeholder
+        - paragraph [ref=e1588]: Proquint operates under the web domain eliquent.com and appears to be active in the Life Sciences industry. Due to limited publicly available data and website scraping failure, a detailed description of their mission and specific offerings cannot be confirmed. Further direct engagement with the company would be needed to fully characterize their products or services.
+      - button "AB American Board of Orthodontics Orthodontics and Dentistry 1 project 1 stakeholder The American Board of Orthodontics (ABO) is the oldest and most prestigious certifying board in dentistry, dedicated to promoting the highest standards of orthodontic care through a voluntary certification process for orthodontists. The organization evaluates orthodontists through written and clinical examinations to ensure they meet rigorous standards of clinical competence. Its mission is to protect the public by encouraging orthodontists to achieve and maintain excellence in their specialty." [ref=e1589] [cursor=pointer]:
+        - generic [ref=e1590]:
+          - generic [ref=e1592]: AB
+          - generic [ref=e1593]:
+            - heading "American Board of Orthodontics" [level=3] [ref=e1594]
+            - generic [ref=e1595]: Orthodontics and Dentistry
+          - img [ref=e1596]
+        - generic [ref=e1599]:
+          - generic [ref=e1600]:
+            - img [ref=e1601]
+            - generic [ref=e1603]: 1 project
+          - generic [ref=e1604]:
+            - img [ref=e1605]
+            - generic [ref=e1610]: 1 stakeholder
+        - paragraph [ref=e1611]: The American Board of Orthodontics (ABO) is the oldest and most prestigious certifying board in dentistry, dedicated to promoting the highest standards of orthodontic care through a voluntary certification process for orthodontists. The organization evaluates orthodontists through written and clinical examinations to ensure they meet rigorous standards of clinical competence. Its mission is to protect the public by encouraging orthodontists to achieve and maintain excellence in their specialty.
+      - button "S Steadynamic.com Technology Consulting 1 project 1 stakeholder Steadynamic.com appears to be a technology consulting firm based on the industry hint provided. Due to limited publicly available data and no accessible website content, a detailed description of their mission and specific service offerings cannot be confirmed. The company name suggests a focus on combining stability with dynamic solutions, potentially in IT or business consulting." [ref=e1612] [cursor=pointer]:
+        - generic [ref=e1613]:
+          - generic [ref=e1615]: S
+          - generic [ref=e1616]:
+            - heading "Steadynamic.com" [level=3] [ref=e1617]
+            - generic [ref=e1618]: Technology Consulting
+          - img [ref=e1619]
+        - generic [ref=e1622]:
+          - generic [ref=e1623]:
+            - img [ref=e1624]
+            - generic [ref=e1626]: 1 project
+          - generic [ref=e1627]:
+            - img [ref=e1628]
+            - generic [ref=e1633]: 1 stakeholder
+        - paragraph [ref=e1634]: Steadynamic.com appears to be a technology consulting firm based on the industry hint provided. Due to limited publicly available data and no accessible website content, a detailed description of their mission and specific service offerings cannot be confirmed. The company name suggests a focus on combining stability with dynamic solutions, potentially in IT or business consulting.
+      - button "AB American Board of Orthodontists Medical 1 project 3 stakeholders The American Board of Orthodontics (ABO) is a nonprofit professional certification organization dedicated to promoting the highest standards of orthodontic care. It certifies orthodontists who demonstrate exceptional knowledge, clinical skills, and commitment to excellence in the specialty. The ABO serves as the primary credentialing body for orthodontists in the United States, administering examinations and awarding board certification status." [ref=e1635] [cursor=pointer]:
+        - generic [ref=e1636]:
+          - generic [ref=e1638]: AB
+          - generic [ref=e1639]:
+            - heading "American Board of Orthodontists" [level=3] [ref=e1640]
+            - generic [ref=e1641]: Medical
+          - img [ref=e1642]
+        - generic [ref=e1645]:
+          - generic [ref=e1646]:
+            - img [ref=e1647]
+            - generic [ref=e1649]: 1 project
+          - generic [ref=e1650]:
+            - img [ref=e1651]
+            - generic [ref=e1656]: 3 stakeholders
+        - paragraph [ref=e1657]: The American Board of Orthodontics (ABO) is a nonprofit professional certification organization dedicated to promoting the highest standards of orthodontic care. It certifies orthodontists who demonstrate exceptional knowledge, clinical skills, and commitment to excellence in the specialty. The ABO serves as the primary credentialing body for orthodontists in the United States, administering examinations and awarding board certification status.
+      - button "P PersonaPulse IT 1 project 1 stakeholder No summary yet — enrich to get AI insights" [ref=e1658] [cursor=pointer]:
+        - generic [ref=e1659]:
+          - generic [ref=e1661]: P
+          - generic [ref=e1662]:
+            - heading "PersonaPulse" [level=3] [ref=e1663]
+            - generic [ref=e1664]: IT
+          - img [ref=e1665]
+        - generic [ref=e1666]:
+          - generic [ref=e1667]:
+            - img [ref=e1668]
+            - generic [ref=e1670]: 1 project
+          - generic [ref=e1671]:
+            - img [ref=e1672]
+            - generic [ref=e1677]: 1 stakeholder
+        - paragraph [ref=e1678]: No summary yet — enrich to get AI insights
+      - button "AB American Board of orthodontics Orthodontics 1 project 4 stakeholders The American Board of Orthodontics (ABO) is a professional certification organization that establishes and maintains board certification standards for orthodontists. They provide credentialing services to orthodontic specialists and help patients locate board-certified orthodontists through their directory service." [ref=e1679] [cursor=pointer]:
+        - generic [ref=e1680]:
+          - generic [ref=e1682]: AB
+          - generic [ref=e1683]:
+            - heading "American Board of orthodontics" [level=3] [ref=e1684]
+            - generic [ref=e1685]: Orthodontics
+          - img [ref=e1686]
+        - generic [ref=e1689]:
+          - generic [ref=e1690]:
+            - img [ref=e1691]
+            - generic [ref=e1693]: 1 project
+          - generic [ref=e1694]:
+            - img [ref=e1695]
+            - generic [ref=e1700]: 4 stakeholders
+        - paragraph [ref=e1701]: The American Board of Orthodontics (ABO) is a professional certification organization that establishes and maintains board certification standards for orthodontists. They provide credentialing services to orthodontic specialists and help patients locate board-certified orthodontists through their directory service.
+      - button "AB American Board of Orthodontics Dentistry 0 projects 0 stakeholders The American Board of Orthodontics (ABO) is a professional certification organization that provides board certification for orthodontists through comprehensive written and clinical examinations. The organization's mission is to elevate the quality of orthodontic care for the public by promoting excellence through certification, education and professional collaboration." [ref=e1702] [cursor=pointer]:
+        - generic [ref=e1703]:
+          - generic [ref=e1705]: AB
+          - generic [ref=e1706]:
+            - heading "American Board of Orthodontics" [level=3] [ref=e1707]
+            - generic [ref=e1708]: Dentistry
+          - img [ref=e1709]
+        - generic [ref=e1712]:
+          - generic [ref=e1713]:
+            - img [ref=e1714]
+            - generic [ref=e1716]: 0 projects
+          - generic [ref=e1717]:
+            - img [ref=e1718]
+            - generic [ref=e1723]: 0 stakeholders
+        - paragraph [ref=e1724]: The American Board of Orthodontics (ABO) is a professional certification organization that provides board certification for orthodontists through comprehensive written and clinical examinations. The organization's mission is to elevate the quality of orthodontic care for the public by promoting excellence through certification, education and professional collaboration.
+      - button "S Stardust Non Profit 1 project 0 stakeholders Stardust is a 501(c)(3) nonprofit organization founded in 1997 that operates as a building materials reuse center in the Phoenix metro area. They provide deconstruction services, accept material donations, and sell reclaimed building supplies at 50-80% below retail prices while diverting waste from landfills." [ref=e1725] [cursor=pointer]:
+        - generic [ref=e1726]:
+          - generic [ref=e1728]: S
+          - generic [ref=e1729]:
+            - heading "Stardust" [level=3] [ref=e1730]
+            - generic [ref=e1731]: Non Profit
+          - img [ref=e1732]
+        - generic [ref=e1735]:
+          - generic [ref=e1736]:
+            - img [ref=e1737]
+            - generic [ref=e1739]: 1 project
+          - generic [ref=e1740]:
+            - img [ref=e1741]
+            - generic [ref=e1746]: 0 stakeholders
+        - paragraph [ref=e1747]: Stardust is a 501(c)(3) nonprofit organization founded in 1997 that operates as a building materials reuse center in the Phoenix metro area. They provide deconstruction services, accept material donations, and sell reclaimed building supplies at 50-80% below retail prices while diverting waste from landfills.
+      - button "U Unmasked Personal Development 1 project 5 stakeholders Unmasked is a personal development app focused on helping users break out of autopilot behavioral patterns through personalized practices and guided reflection. The company combines technology-driven personalization with human coach-led support to facilitate intentional personal transformation and move users from awareness to actionable change." [ref=e1748] [cursor=pointer]:
+        - generic [ref=e1749]:
+          - generic [ref=e1751]: U
+          - generic [ref=e1752]:
+            - heading "Unmasked" [level=3] [ref=e1753]
+            - generic [ref=e1754]: Personal Development
+          - img [ref=e1755]
+        - generic [ref=e1758]:
+          - generic [ref=e1759]:
+            - img [ref=e1760]
+            - generic [ref=e1762]: 1 project
+          - generic [ref=e1763]:
+            - img [ref=e1764]
+            - generic [ref=e1769]: 5 stakeholders
+        - paragraph [ref=e1770]: Unmasked is a personal development app focused on helping users break out of autopilot behavioral patterns through personalized practices and guided reflection. The company combines technology-driven personalization with human coach-led support to facilitate intentional personal transformation and move users from awareness to actionable change.
+      - button "CH Catalytic Health Partners Healthcare 0 projects 0 stakeholders No summary yet — enrich to get AI insights" [ref=e1771] [cursor=pointer]:
+        - generic [ref=e1772]:
+          - generic [ref=e1774]: CH
+          - generic [ref=e1775]:
+            - heading "Catalytic Health Partners" [level=3] [ref=e1776]
+            - generic [ref=e1777]: Healthcare
+          - img [ref=e1778]
+        - generic [ref=e1779]:
+          - generic [ref=e1780]:
+            - img [ref=e1781]
+            - generic [ref=e1783]: 0 projects
+          - generic [ref=e1784]:
+            - img [ref=e1785]
+            - generic [ref=e1790]: 0 stakeholders
+        - paragraph [ref=e1791]: No summary yet — enrich to get AI insights
+      - button "R Readytogo AI Consulting 0 projects 0 stakeholders No summary yet — enrich to get AI insights" [ref=e1792] [cursor=pointer]:
+        - generic [ref=e1793]:
+          - generic [ref=e1795]: R
+          - generic [ref=e1796]:
+            - heading "Readytogo" [level=3] [ref=e1797]
+            - generic [ref=e1798]: AI Consulting
+          - img [ref=e1799]
+        - generic [ref=e1800]:
+          - generic [ref=e1801]:
+            - img [ref=e1802]
+            - generic [ref=e1804]: 0 projects
+          - generic [ref=e1805]:
+            - img [ref=e1806]
+            - generic [ref=e1811]: 0 stakeholders
+        - paragraph [ref=e1812]: No summary yet — enrich to get AI insights
+      - button "SC Seton Collaborative Faith-Tech 0 projects 0 stakeholders No summary yet — enrich to get AI insights" [ref=e1813] [cursor=pointer]:
+        - generic [ref=e1814]:
+          - generic [ref=e1816]: SC
+          - generic [ref=e1817]:
+            - heading "Seton Collaborative" [level=3] [ref=e1818]
+            - generic [ref=e1819]: Faith-Tech
+          - img [ref=e1820]
+        - generic [ref=e1821]:
+          - generic [ref=e1822]:
+            - img [ref=e1823]
+            - generic [ref=e1825]: 0 projects
+          - generic [ref=e1826]:
+            - img [ref=e1827]
+            - generic [ref=e1832]: 0 stakeholders
+        - paragraph [ref=e1833]: No summary yet — enrich to get AI insights

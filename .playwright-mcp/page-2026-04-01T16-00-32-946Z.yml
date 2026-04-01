@@ -1,0 +1,240 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e14]
+  - generic [ref=e19]:
+    - complementary [ref=e20]:
+      - generic [ref=e21]:
+        - link "Readytogo" [ref=e22] [cursor=pointer]:
+          - /url: /projects
+          - img "Readytogo" [ref=e23]
+        - button "New project" [ref=e25] [cursor=pointer]:
+          - img [ref=e26]
+      - navigation [ref=e27]:
+        - link "Home" [ref=e28] [cursor=pointer]:
+          - /url: /home
+          - img [ref=e30]
+        - link "Projects" [ref=e33] [cursor=pointer]:
+          - /url: /projects
+          - img [ref=e35]
+        - link "Tasks" [ref=e37] [cursor=pointer]:
+          - /url: /tasks
+          - img [ref=e39]
+        - link "Clients" [ref=e42] [cursor=pointer]:
+          - /url: /clients
+          - img [ref=e44]
+        - link "People" [ref=e48] [cursor=pointer]:
+          - /url: /people
+          - img [ref=e50]
+        - link "Meetings" [ref=e54] [cursor=pointer]:
+          - /url: /meetings
+          - img [ref=e56]
+        - link "Settings" [ref=e58] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e60]
+      - button "Expand sidebar" [ref=e63] [cursor=pointer]:
+        - img [ref=e64]
+      - link "QA Tester" [ref=e67] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e69]
+    - generic [ref=e72]:
+      - banner [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - heading "Customer Onboarding Portal" [level=1] [ref=e77]
+            - button "Project Health" [ref=e78] [cursor=pointer]:
+              - img [ref=e79]
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - button "Overview" [ref=e83] [cursor=pointer]:
+                - img [ref=e84]
+                - generic [ref=e89]: Overview
+              - button "Discovery" [ref=e90] [cursor=pointer]:
+                - img [ref=e91]
+                - generic [ref=e94]: Discovery
+              - button "Build" [ref=e95] [cursor=pointer]:
+                - img [ref=e96]
+                - generic [ref=e98]: Build
+              - button "Live" [ref=e99] [cursor=pointer]:
+                - img [ref=e100]
+                - generic [ref=e105]: Live
+            - button "Collaborate" [ref=e107] [cursor=pointer]:
+              - img [ref=e108]
+              - text: Collaborate
+      - main [ref=e113]:
+        - generic [ref=e406]:
+          - generic [ref=e408]:
+            - button "Outcomes" [ref=e409] [cursor=pointer]
+            - button "BRD" [ref=e410] [cursor=pointer]
+            - button "Solution Flow" [ref=e411] [cursor=pointer]
+            - button "Data & AI" [ref=e412] [cursor=pointer]
+          - generic [ref=e414]:
+            - generic [ref=e416]:
+              - generic [ref=e417]:
+                - strong [ref=e418]: "0"
+                - text: outcomes
+              - generic [ref=e419]:
+                - strong [ref=e420]: "0"
+                - text: strong (90+)
+              - generic [ref=e421]:
+                - text: Avg strength
+                - strong [ref=e422]: "0"
+              - generic [ref=e423]:
+                - strong [ref=e424]: "2"
+                - text: actors
+              - generic [ref=e425]:
+                - strong [ref=e426]: "4"
+                - text: workflows
+            - generic [ref=e427]:
+              - img [ref=e428]
+              - generic [ref=e432]: Outcomes
+              - generic [ref=e433]: "0"
+            - generic [ref=e435]:
+              - img [ref=e436]
+              - generic [ref=e441]: Actors
+              - generic [ref=e442]: "2"
+            - generic [ref=e444]:
+              - generic [ref=e446] [cursor=pointer]:
+                - generic [ref=e447]: O
+                - generic [ref=e448]:
+                  - generic [ref=e449]: Onboarding Manager
+                  - generic [ref=e450]: Customer Onboarding Team Member
+                - img [ref=e568]
+              - generic [ref=e455] [cursor=pointer]:
+                - generic [ref=e456]: "N"
+                - generic [ref=e457]:
+                  - generic [ref=e458]: New Customer Admin
+                  - generic [ref=e459]: Customer-Side Administrator / New User
+                - img [ref=e461]
+            - generic [ref=e463]:
+              - img [ref=e464]
+              - generic [ref=e468]: Workflows
+              - generic [ref=e469]: "4"
+            - generic [ref=e471]:
+              - generic [ref=e473] [cursor=pointer]:
+                - img [ref=e474]
+                - generic [ref=e478]:
+                  - generic [ref=e479]: New Customer Account Provisioning
+                  - generic [ref=e480]: The process of creating and configuring a new customer account on the Acme Corp platform, from contract close to active account. Currently a manual, email-driven process handled by the onboarding team.
+                - generic [ref=e481]:
+                  - generic [ref=e482]: 5 steps
+                  - generic [ref=e483]: 97.2% faster
+                  - img [ref=e484]
+              - generic [ref=e487] [cursor=pointer]:
+                - img [ref=e488]
+                - generic [ref=e492]:
+                  - generic [ref=e493]: Customer Self-Service Configuration
+                  - generic [ref=e494]: The process by which a new customer configures their account on the Acme Corp platform after provisioning. Currently dependent on back-and-forth email guidance from the onboarding team; future state is fully self-service via a guided wizard.
+                - generic [ref=e495]:
+                  - generic [ref=e496]: 4 steps
+                  - generic [ref=e497]: 98.3% faster
+                  - img [ref=e498]
+              - generic [ref=e501] [cursor=pointer]:
+                - img [ref=e502]
+                - generic [ref=e506]:
+                  - generic [ref=e507]: Onboarding Progress Monitoring
+                  - generic [ref=e508]: The ongoing process by which the onboarding team tracks the status of all active customer onboardings and intervenes when customers are stalled. Currently performed through manual spreadsheet reviews and email chains.
+                - generic [ref=e509]:
+                  - generic [ref=e510]: 5 steps
+                  - generic [ref=e511]: 85% faster
+                  - img [ref=e512]
+              - generic [ref=e515] [cursor=pointer]:
+                - img [ref=e516]
+                - generic [ref=e520]:
+                  - generic [ref=e521]: Onboarding Performance Reporting
+                  - generic [ref=e522]: The process by which leadership — specifically the VP of Customer Success — reviews aggregate onboarding performance metrics to assess whether the portal is meeting its goals and where improvements are needed.
+                - generic [ref=e523]:
+                  - generic [ref=e524]: 4 steps
+                  - generic [ref=e525]: 91.9% faster
+                  - img [ref=e526]
+      - generic [ref=e280]:
+        - button "Unlocks" [ref=e281] [cursor=pointer]:
+          - img [ref=e282]
+          - generic [ref=e284]: Unlocks
+        - button "Evidence" [ref=e285] [cursor=pointer]:
+          - img [ref=e286]
+          - generic [ref=e290]: Evidence
+        - button "Memory" [ref=e291] [cursor=pointer]:
+          - img [ref=e292]
+          - generic [ref=e295]: Memory
+        - button "Calls" [ref=e296] [cursor=pointer]:
+          - img [ref=e297]
+          - generic [ref=e299]: Calls
+    - button "Open assistant (⌘J)" [ref=e300] [cursor=pointer]:
+      - img [ref=e301]
+    - generic [ref=e303]:
+      - generic [ref=e305]:
+        - generic [ref=e306]:
+          - button "Briefing" [ref=e307] [cursor=pointer]:
+            - img [ref=e308]
+            - text: Briefing
+          - button "Chat" [ref=e310] [cursor=pointer]:
+            - img [ref=e311]
+            - text: Chat
+        - button "Close (Esc)" [ref=e313] [cursor=pointer]:
+          - img [ref=e314]
+      - button "Wed 2:00 AM" [ref=e317] [cursor=pointer]:
+        - generic [ref=e321]: Wed 2:00 AM
+        - img [ref=e322]
+      - generic [ref=e325]:
+        - generic [ref=e326]:
+          - generic [ref=e327]: Refining
+          - generic [ref=e328]: 93%
+          - button "Refresh briefing" [ref=e334] [cursor=pointer]:
+            - img [ref=e335]
+        - generic [ref=e329]:
+          - generic [ref=e330]:
+            - paragraph [ref=e340]: "Customer Onboarding Portal is 93% through refining with solid structural bones — 4 workflows mapped (current vs future state), 7 features scoped, and 2 personas defined around Acme Corp's push to collapse onboarding from 2 weeks to 2 days. The architecture is clear: onboarding team gets oversight dashboards, customers get a self-service wizard, all triggered by automated provisioning to handle 3x post-Series B growth. But here's the gap — every single confirmed feature (Automated Account Provisioning, Self-Service Configuration Wizard, Progress Dashboard, Dual Role Management, Status Tracking) exists without an evidence trail. No beliefs have formed yet, which means the project hasn't connected features to real stakeholder pain or workflow friction. Sarah Chen is your lone stakeholder anchor — time to validate these features against her world or risk building a solution searching for a problem."
+            - generic [ref=e341]:
+              - paragraph [ref=e342]: You've built a coherent system architecture but haven't validated it against reality. Five features are confirmed without evidence, and zero beliefs exist to ground them in stakeholder needs — that's a red flag this late in refining.
+              - generic [ref=e343]:
+                - paragraph [ref=e344]: All 7 features lack evidence trails — Automated Account Provisioning, Self-Service Wizard, Progress Dashboard, Dual Role Management, and Status Tracking are confirmed but unvalidated against Sarah Chen or workflow pain
+                - paragraph [ref=e345]: Zero beliefs formed means no stakeholder quotes, pain points, or workflow friction have been captured to justify the 2-week-to-2-days transformation claim
+                - paragraph [ref=e346]: Sarah Chen is your only stakeholder — expand coverage to onboarding team members and actual new customers to stress-test the dual-persona model
+                - paragraph [ref=e347]: Workflow futures are well-articulated (wizard-driven, dashboard-monitored) but need evidence that spreadsheet/email chaos is the real bottleneck vs. other friction points
+          - generic [ref=e348]:
+            - button "You've got automated account provisioning as a feature, but the workflow shows credentials being 'delivered automatically' — how does that handoff actually work? signal Build" [ref=e349] [cursor=pointer]:
+              - img [ref=e351]
+              - generic [ref=e355]:
+                - paragraph [ref=e356]:
+                  - text: You've got
+                  - strong [ref=e357]: automated account provisioning
+                  - text: as a feature, but the workflow shows credentials being 'delivered automatically' —
+                  - emphasis [ref=e358]: how does that handoff actually work?
+                - generic [ref=e359]:
+                  - generic [ref=e360]:
+                    - img [ref=e361]
+                    - text: signal
+                  - generic [ref=e364]: Build
+                  - img [ref=e365]
+            - button "The onboarding manager role keeps showing up in the future workflows — what does 'intervene on exceptions' actually look like day-to-day? signal Explore" [ref=e367] [cursor=pointer]:
+              - img [ref=e369]
+              - generic [ref=e372]:
+                - paragraph [ref=e373]:
+                  - text: The
+                  - strong [ref=e374]: onboarding manager
+                  - text: role keeps showing up in the future workflows —
+                  - emphasis [ref=e375]: what does 'intervene on exceptions' actually look like day-to-day?
+                - generic [ref=e376]:
+                  - generic [ref=e377]:
+                    - img [ref=e378]
+                    - text: signal
+                  - generic [ref=e381]: Explore
+                  - img [ref=e382]
+            - button "I'm seeing cycle time and manual effort reduction as success metrics — want to put some actual numbers on what 'good' looks like? signal Review" [ref=e384] [cursor=pointer]:
+              - img [ref=e386]
+              - generic [ref=e389]:
+                - paragraph [ref=e390]:
+                  - text: I'm seeing
+                  - strong [ref=e391]: cycle time
+                  - text: and
+                  - strong [ref=e392]: manual effort reduction
+                  - text: as success metrics —
+                  - emphasis [ref=e393]: want to put some actual numbers on what 'good' looks like?
+                - generic [ref=e394]:
+                  - generic [ref=e395]:
+                    - img [ref=e396]
+                    - text: signal
+                  - generic [ref=e399]: Review
+                  - img [ref=e400]
+          - button "Upload a document" [ref=e403] [cursor=pointer]:
+            - img [ref=e404]
+            - text: Upload a document

@@ -1,0 +1,548 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e7]:
+    - complementary [ref=e8]:
+      - generic [ref=e9]:
+        - link "Readytogo" [ref=e10] [cursor=pointer]:
+          - /url: /projects
+          - img "Readytogo" [ref=e11]
+        - button "New project" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+      - navigation [ref=e15]:
+        - link "Home" [ref=e16] [cursor=pointer]:
+          - /url: /home
+          - img [ref=e18]
+        - link "Projects" [ref=e21] [cursor=pointer]:
+          - /url: /projects
+          - img [ref=e23]
+        - link "Tasks" [ref=e25] [cursor=pointer]:
+          - /url: /tasks
+          - img [ref=e27]
+        - link "Clients" [ref=e30] [cursor=pointer]:
+          - /url: /clients
+          - img [ref=e32]
+        - link "People" [ref=e36] [cursor=pointer]:
+          - /url: /people
+          - img [ref=e38]
+        - link "Meetings" [ref=e42] [cursor=pointer]:
+          - /url: /meetings
+          - img [ref=e44]
+        - link "Settings" [ref=e46] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e48]
+      - button "Expand sidebar" [ref=e51] [cursor=pointer]:
+        - img [ref=e52]
+      - link "QA Tester" [ref=e55] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e57]
+    - generic [ref=e60]:
+      - banner [ref=e61]:
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - heading "Customer Onboarding Portal" [level=1] [ref=e65]
+            - button "Project Health" [ref=e66] [cursor=pointer]:
+              - img [ref=e67]
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - button "Overview" [ref=e71] [cursor=pointer]:
+                - img [ref=e72]
+                - generic [ref=e77]: Overview
+              - button "Discovery" [ref=e78] [cursor=pointer]:
+                - img [ref=e79]
+                - generic [ref=e82]: Discovery
+              - button "Build" [ref=e83] [cursor=pointer]:
+                - img [ref=e84]
+                - generic [ref=e86]: Build
+              - button "Live" [ref=e87] [cursor=pointer]:
+                - img [ref=e88]
+                - generic [ref=e93]: Live
+            - button "Collaborate" [ref=e95] [cursor=pointer]:
+              - img [ref=e96]
+              - text: Collaborate
+      - main [ref=e101]:
+        - generic [ref=e865]:
+          - generic [ref=e867]:
+            - button "Outcomes" [active] [ref=e868] [cursor=pointer]
+            - button "BRD" [ref=e869] [cursor=pointer]
+            - button "Solution Flow" [ref=e870] [cursor=pointer]
+            - button "Data & AI" [ref=e871] [cursor=pointer]
+          - generic [ref=e2144]:
+            - generic [ref=e2145]:
+              - generic [ref=e2146]:
+                - img [ref=e2147]
+                - heading "Product Requirements Document" [level=1] [ref=e2150]
+              - paragraph [ref=e2151]: The living foundation of your project — every requirement, decision, and insight traced back to its source.
+            - generic [ref=e2153]:
+              - generic [ref=e2154]:
+                - generic [ref=e2155]:
+                  - img [ref=e2156]
+                  - generic [ref=e2158]: Market Problem
+                - paragraph [ref=e2159]: Acme's customer onboarding transforms from a manual, email-driven 14-day process into an automated, self-service system that delivers customers to fully active status within 2 business days — at 3x the volume, with the same team.
+              - generic [ref=e2160]:
+                - generic [ref=e2161]:
+                  - img [ref=e2162]
+                  - generic [ref=e2164]: Proposed Solution
+                - paragraph [ref=e2165]: A self-service onboarding portal that automates account provisioning, guides customers through configuration independently, and gives the onboarding team real-time visibility — compressing a 14-day manual process to 2 days at 3x volume.
+            - generic [ref=e2166]:
+              - generic [ref=e2168]:
+                - generic [ref=e2169]:
+                  - button "BUSINESS THESES 4 All confirmed" [ref=e2170] [cursor=pointer]:
+                    - generic [ref=e2171]:
+                      - img [ref=e2172]
+                      - generic [ref=e2176]: BUSINESS THESES
+                      - generic [ref=e2177]: "4"
+                      - generic [ref=e2178]:
+                        - img [ref=e2179]
+                        - text: All confirmed
+                    - img [ref=e2183]
+                  - generic [ref=e2185]:
+                    - button "Customers should be able to configure their own accounts through a guided wizard without requiring hands-on support from the onboarding team for every step. 2 src Confirmed" [ref=e2187] [cursor=pointer]:
+                      - img [ref=e2188]
+                      - generic [ref=e2190]: Customers should be able to configure their own accounts through a guided wizard without requiring hands-on support from the onboarding team for every step.
+                      - generic [ref=e2191]:
+                        - img [ref=e2192]
+                        - text: 2 src
+                      - button "Confirmed" [ref=e2196]
+                      - generic "2 evidence sources, no features linked, no persona, no alignment data" [ref=e2197]
+                    - button "The portal must be designed to handle significantly higher onboarding volumes — from ~50 customers/month to ~150 customers/month — without proportional headcount increases. 2 src Confirmed" [ref=e2203] [cursor=pointer]:
+                      - img [ref=e2204]
+                      - generic [ref=e2206]: The portal must be designed to handle significantly higher onboarding volumes — from ~50 customers/month to ~150 customers/month — without proportional headcount increases.
+                      - generic [ref=e2207]:
+                        - img [ref=e2208]
+                        - text: 2 src
+                      - button "Confirmed" [ref=e2212]
+                      - generic "2 evidence sources, no features linked, no persona, no alignment data" [ref=e2213]
+                    - button "The primary outcome goal is a 10x reduction in onboarding cycle time through automation and self-service, enabling customers to go live on the platform within 2 business days. 1 src Confirmed" [ref=e2219] [cursor=pointer]:
+                      - img [ref=e2220]
+                      - generic [ref=e2222]: The primary outcome goal is a 10x reduction in onboarding cycle time through automation and self-service, enabling customers to go live on the platform within 2 business days.
+                      - generic [ref=e2223]:
+                        - img [ref=e2224]
+                        - text: 1 src
+                      - button "Confirmed" [ref=e2228]
+                      - generic "1 evidence source, no features linked, no persona, no alignment data" [ref=e2229]
+                    - button "Account creation and provisioning steps currently handled manually should be fully automated, removing human bottlenecks from the critical path of onboarding. 1 src Confirmed" [ref=e2235] [cursor=pointer]:
+                      - img [ref=e2236]
+                      - generic [ref=e2238]: Account creation and provisioning steps currently handled manually should be fully automated, removing human bottlenecks from the critical path of onboarding.
+                      - generic [ref=e2239]:
+                        - img [ref=e2240]
+                        - text: 1 src
+                      - button "Confirmed" [ref=e2244]
+                      - generic "1 evidence source, no features linked, no persona, no alignment data" [ref=e2245]
+                - generic [ref=e2250]:
+                  - button "MARKET INSIGHTS" [ref=e2251] [cursor=pointer]:
+                    - generic [ref=e2252]:
+                      - img [ref=e2253]
+                      - generic [ref=e2255]: MARKET INSIGHTS
+                    - img [ref=e2257]
+                  - paragraph [ref=e2260]: No pain points identified yet
+                - generic [ref=e2261]:
+                  - button "SUCCESS METRICS 4 2/4 Confirm all" [ref=e2262] [cursor=pointer]:
+                    - generic [ref=e2263]:
+                      - img [ref=e2264]
+                      - generic [ref=e2266]: SUCCESS METRICS
+                      - generic [ref=e2267]: "4"
+                      - generic [ref=e2268]:
+                        - img [ref=e2269]
+                        - text: 2/4
+                    - generic [ref=e2272]:
+                      - generic [ref=e2273]: Confirm all
+                      - img [ref=e2274]
+                  - generic [ref=e2276]:
+                    - button "The system must support a tripling of monthly onboarding volume from the current baseline of 50 new customers per month to approximately 150 following projected growth. 2 src Confirmed" [ref=e2278] [cursor=pointer]:
+                      - img [ref=e2279]
+                      - generic [ref=e2281]: The system must support a tripling of monthly onboarding volume from the current baseline of 50 new customers per month to approximately 150 following projected growth.
+                      - generic [ref=e2282]:
+                        - img [ref=e2283]
+                        - text: 2 src
+                      - button "Confirmed" [ref=e2287]
+                      - generic "2 evidence sources, no features linked, no persona, no alignment data" [ref=e2288]
+                    - button "The primary performance metric is average time-to-completion for customer onboarding, measured from account creation initiation to fully configured and active status. 1 src Confirmed" [ref=e2294] [cursor=pointer]:
+                      - img [ref=e2295]
+                      - generic [ref=e2297]: The primary performance metric is average time-to-completion for customer onboarding, measured from account creation initiation to fully configured and active status.
+                      - generic [ref=e2298]:
+                        - img [ref=e2299]
+                        - text: 1 src
+                      - button "Confirmed" [ref=e2303]
+                      - generic "1 evidence source, no features linked, no persona, no alignment data" [ref=e2304]
+                    - button "The hours of manual effort required from the onboarding team per customer should decrease significantly as automation and self-service absorb tasks previously done by hand. 2 src AI Draft" [ref=e2310] [cursor=pointer]:
+                      - img [ref=e2311]
+                      - generic [ref=e2313]: The hours of manual effort required from the onboarding team per customer should decrease significantly as automation and self-service absorb tasks previously done by hand.
+                      - generic [ref=e2314]:
+                        - img [ref=e2315]
+                        - text: 2 src
+                      - button "AI Draft" [ref=e2319]
+                      - generic "2 evidence sources, no features linked, no persona, no alignment data" [ref=e2320]
+                    - button "The percentage of customers who complete the configuration wizard without requiring escalation to the onboarding team is a key indicator of self-service effectiveness. 2 src AI Draft" [ref=e2326] [cursor=pointer]:
+                      - img [ref=e2327]
+                      - generic [ref=e2329]: The percentage of customers who complete the configuration wizard without requiring escalation to the onboarding team is a key indicator of self-service effectiveness.
+                      - generic [ref=e2330]:
+                        - img [ref=e2331]
+                        - text: 2 src
+                      - button "AI Draft" [ref=e2335]
+                      - generic "2 evidence sources, no features linked, no persona, no alignment data" [ref=e2336]
+              - generic [ref=e2343]:
+                - generic [ref=e2345]:
+                  - heading "Personas" [level=2] [ref=e2346]
+                  - generic [ref=e2347]: (2)
+                - generic [ref=e2348]:
+                  - button "OM Onboarding Manager (Customer Onboarding Team Member) 10 drivers Confirmed" [ref=e2350] [cursor=pointer]:
+                    - img [ref=e2351]
+                    - generic [ref=e2353]: OM
+                    - generic [ref=e2354]:
+                      - generic [ref=e2355]:
+                        - generic [ref=e2356]: Onboarding Manager
+                        - generic [ref=e2357]: (Customer Onboarding Team Member)
+                      - generic [ref=e2359]:
+                        - img [ref=e2360]
+                        - text: 10 drivers
+                    - button "Set canvas role" [ref=e2363]:
+                      - img [ref=e2364]
+                    - button "Confirmed" [ref=e2367]
+                  - button "NC New Customer Admin (Customer-Side Administrator / New User) 10 drivers Confirmed" [ref=e2369] [cursor=pointer]:
+                    - img [ref=e2370]
+                    - generic [ref=e2372]: NC
+                    - generic [ref=e2373]:
+                      - generic [ref=e2374]:
+                        - generic [ref=e2375]: New Customer Admin
+                        - generic [ref=e2376]: (Customer-Side Administrator / New User)
+                      - generic [ref=e2378]:
+                        - img [ref=e2379]
+                        - text: 10 drivers
+                    - button "Set canvas role" [ref=e2382]:
+                      - img [ref=e2383]
+                    - button "Confirmed" [ref=e2386]
+              - generic [ref=e2389]:
+                - generic [ref=e2390]:
+                  - generic [ref=e2391]:
+                    - generic [ref=e2392]:
+                      - 'generic "Completeness: 100%" [ref=e2393]':
+                        - img [ref=e2394]
+                      - heading "Desired Outcome Flows" [level=2] [ref=e2397]
+                      - generic [ref=e2398]: (4)
+                    - button "Confirm All" [ref=e2400] [cursor=pointer]:
+                      - img [ref=e2401]
+                      - text: Confirm All
+                  - button "Add Workflow" [ref=e2403] [cursor=pointer]:
+                    - img [ref=e2404]
+                    - text: Add Workflow
+                - generic [ref=e2405]:
+                  - 'button "New Customer Account Provisioning Current: 500min Future: 14min Confirmed 486min saved (97.2%)" [ref=e2407] [cursor=pointer]':
+                    - img [ref=e2408]
+                    - img [ref=e2410]
+                    - generic [ref=e2414]: New Customer Account Provisioning
+                    - generic [ref=e2415]: "Current: 500min"
+                    - generic [ref=e2416]: "Future: 14min"
+                    - generic [ref=e2417]:
+                      - button "Confirmed" [ref=e2418]
+                      - generic [ref=e2419]: 486min saved (97.2%)
+                      - button "Edit workflow" [ref=e2420]:
+                        - img [ref=e2421]
+                      - button "Delete workflow" [ref=e2424]:
+                        - img [ref=e2425]
+                  - 'button "Customer Self-Service Configuration Current: 3900min Future: 68min Confirmed 3832min saved (98.3%)" [ref=e2429] [cursor=pointer]':
+                    - img [ref=e2430]
+                    - img [ref=e2432]
+                    - generic [ref=e2436]: Customer Self-Service Configuration
+                    - generic [ref=e2437]: "Current: 3900min"
+                    - generic [ref=e2438]: "Future: 68min"
+                    - generic [ref=e2439]:
+                      - button "Confirmed" [ref=e2440]
+                      - generic [ref=e2441]: 3832min saved (98.3%)
+                      - button "Edit workflow" [ref=e2442]:
+                        - img [ref=e2443]
+                      - button "Delete workflow" [ref=e2446]:
+                        - img [ref=e2447]
+                  - 'button "Onboarding Progress Monitoring Current: 180min Future: 27min Confirmed 153min saved (85%)" [ref=e2451] [cursor=pointer]':
+                    - img [ref=e2452]
+                    - img [ref=e2454]
+                    - generic [ref=e2458]: Onboarding Progress Monitoring
+                    - generic [ref=e2459]: "Current: 180min"
+                    - generic [ref=e2460]: "Future: 27min"
+                    - generic [ref=e2461]:
+                      - button "Confirmed" [ref=e2462]
+                      - generic [ref=e2463]: 153min saved (85%)
+                      - button "Edit workflow" [ref=e2464]:
+                        - img [ref=e2465]
+                      - button "Delete workflow" [ref=e2468]:
+                        - img [ref=e2469]
+                  - 'button "Onboarding Performance Reporting Current: 270min Future: 22min AI Draft 248min saved (91.9%)" [ref=e2473] [cursor=pointer]':
+                    - img [ref=e2474]
+                    - img [ref=e2476]
+                    - generic [ref=e2480]: Onboarding Performance Reporting
+                    - generic [ref=e2481]: "Current: 270min"
+                    - generic [ref=e2482]: "Future: 22min"
+                    - generic [ref=e2483]:
+                      - button "AI Draft" [ref=e2484]
+                      - generic [ref=e2485]: 248min saved (91.9%)
+                      - button "Edit workflow" [ref=e2486]:
+                        - img [ref=e2487]
+                      - button "Delete workflow" [ref=e2490]:
+                        - img [ref=e2491]
+              - generic [ref=e2496]:
+                - generic [ref=e2497]:
+                  - generic [ref=e2498]:
+                    - 'generic "Completeness: 80%" [ref=e2499]':
+                      - img [ref=e2500]
+                    - heading "Capabilities" [level=2] [ref=e2503]
+                    - generic [ref=e2504]: (7)
+                  - button "Confirm All" [ref=e2506] [cursor=pointer]:
+                    - img [ref=e2507]
+                    - text: Confirm All
+                - generic [ref=e2509]:
+                  - generic [ref=e2510]:
+                    - generic [ref=e2512]:
+                      - generic [ref=e2513]: Must Have
+                      - generic [ref=e2514]: (6)
+                    - generic [ref=e2515]:
+                      - button "Automated Account Provisioning (core) Confirmed" [ref=e2518] [cursor=pointer]:
+                        - button [ref=e2519]:
+                          - img [ref=e2520]
+                        - img [ref=e2527]
+                        - img [ref=e2529]
+                        - generic [ref=e2533]: Automated Account Provisioning
+                        - generic [ref=e2534]: (core)
+                        - button "Confirmed" [ref=e2536]
+                      - button "Self-Service Configuration Wizard (ux) Confirmed" [ref=e2539] [cursor=pointer]:
+                        - button [ref=e2540]:
+                          - img [ref=e2541]
+                        - img [ref=e2548]
+                        - img [ref=e2550]
+                        - generic [ref=e2554]: Self-Service Configuration Wizard
+                        - generic [ref=e2555]: (ux)
+                        - button "Confirmed" [ref=e2557]
+                      - button "Onboarding Team Progress Dashboard (reporting) Confirmed" [ref=e2560] [cursor=pointer]:
+                        - button [ref=e2561]:
+                          - img [ref=e2562]
+                        - img [ref=e2569]
+                        - img [ref=e2571]
+                        - generic [ref=e2575]: Onboarding Team Progress Dashboard
+                        - generic [ref=e2576]: (reporting)
+                        - button "Confirmed" [ref=e2578]
+                      - button "Dual User Role Management (core) Confirmed" [ref=e2581] [cursor=pointer]:
+                        - button [ref=e2582]:
+                          - img [ref=e2583]
+                        - img [ref=e2590]
+                        - img [ref=e2592]
+                        - generic [ref=e2596]: Dual User Role Management
+                        - generic [ref=e2597]: (core)
+                        - button "Confirmed" [ref=e2599]
+                      - button "Customer Onboarding Status Tracking (core) Confirmed" [ref=e2602] [cursor=pointer]:
+                        - button [ref=e2603]:
+                          - img [ref=e2604]
+                        - img [ref=e2611]
+                        - img [ref=e2613]
+                        - generic [ref=e2617]: Customer Onboarding Status Tracking
+                        - generic [ref=e2618]: (core)
+                        - button "Confirmed" [ref=e2620]
+                      - button "High-Volume Onboarding Scalability (core) Confirmed" [ref=e2623] [cursor=pointer]:
+                        - button [ref=e2624]:
+                          - img [ref=e2625]
+                        - img [ref=e2632]
+                        - img [ref=e2634]
+                        - generic [ref=e2638]: High-Volume Onboarding Scalability
+                        - generic [ref=e2639]: (core)
+                        - button "Confirmed" [ref=e2641]
+                  - generic [ref=e2642]:
+                    - generic [ref=e2644]:
+                      - generic [ref=e2645]: Should Have
+                      - generic [ref=e2646]: (1)
+                    - button "Onboarding Analytics and Reporting (reporting) Needs validation AI Draft" [ref=e2650] [cursor=pointer]:
+                      - button [ref=e2651]:
+                        - img [ref=e2652]
+                      - img [ref=e2659]
+                      - img [ref=e2661]
+                      - generic [ref=e2665]: Onboarding Analytics and Reporting
+                      - generic [ref=e2666]: (reporting)
+                      - generic [ref=e2667]: Needs validation
+                      - button "AI Draft" [ref=e2669]
+                  - generic [ref=e2670]:
+                    - generic [ref=e2672]:
+                      - generic [ref=e2673]: Could Have
+                      - generic [ref=e2674]: (0)
+                    - generic [ref=e2675]: No features
+                  - generic [ref=e2676]:
+                    - generic [ref=e2678]:
+                      - generic [ref=e2679]: Out of Scope
+                      - generic [ref=e2680]: (0)
+                    - generic [ref=e2681]: No features
+                - status [ref=e2682]
+              - generic [ref=e2685]:
+                - generic [ref=e2686]:
+                  - generic [ref=e2687]:
+                    - generic [ref=e2688]:
+                      - 'generic "Completeness: 60%" [ref=e2689]':
+                        - img [ref=e2690]
+                      - heading "Market & Regulatory Constraints" [level=2] [ref=e2693]
+                      - generic [ref=e2694]: (5)
+                    - button "Confirm All" [ref=e2696] [cursor=pointer]:
+                      - img [ref=e2697]
+                      - text: Confirm All
+                  - button "Suggest Constraints" [ref=e2699] [cursor=pointer]:
+                    - img [ref=e2700]
+                    - text: Suggest Constraints
+                - generic [ref=e2702]:
+                  - generic [ref=e2703]:
+                    - generic [ref=e2704]:
+                      - img [ref=e2705]
+                      - heading "Regulatory" [level=3] [ref=e2709]
+                      - generic [ref=e2710]: (2)
+                    - generic [ref=e2711]:
+                      - button "Data Privacy and PII Compliance AI 92% Critical AI Draft" [ref=e2713] [cursor=pointer]:
+                        - img [ref=e2714]
+                        - img [ref=e2716]
+                        - generic [ref=e2720]: Data Privacy and PII Compliance
+                        - generic [ref=e2721]:
+                          - img [ref=e2722]
+                          - text: AI
+                        - generic [ref=e2724]: 92%
+                        - generic [ref=e2725]: Critical
+                        - button "AI Draft" [ref=e2727]
+                      - button "Analytics Data Retention and Audit Trail Policy AI 80% High AI Draft" [ref=e2729] [cursor=pointer]:
+                        - img [ref=e2730]
+                        - img [ref=e2732]
+                        - generic [ref=e2736]: Analytics Data Retention and Audit Trail Policy
+                        - generic [ref=e2737]:
+                          - img [ref=e2738]
+                          - text: AI
+                        - generic [ref=e2740]: 80%
+                        - generic [ref=e2741]: High
+                        - button "AI Draft" [ref=e2743]
+                  - generic [ref=e2744]:
+                    - generic [ref=e2745]:
+                      - img [ref=e2746]
+                      - heading "Organizational" [level=3] [ref=e2750]
+                      - generic [ref=e2751]: (1)
+                    - button "Integration Dependency on Existing Identity and Provisioning Systems AI 78% High AI Draft" [ref=e2754] [cursor=pointer]:
+                      - img [ref=e2755]
+                      - img [ref=e2757]
+                      - generic [ref=e2761]: Integration Dependency on Existing Identity and Provisioning Systems
+                      - generic [ref=e2762]:
+                        - img [ref=e2763]
+                        - text: AI
+                      - generic [ref=e2765]: 78%
+                      - generic [ref=e2766]: High
+                      - button "AI Draft" [ref=e2768]
+                  - generic [ref=e2769]:
+                    - generic [ref=e2770]:
+                      - img [ref=e2771]
+                      - heading "Technical" [level=3] [ref=e2774]
+                      - generic [ref=e2775]: (2)
+                    - generic [ref=e2776]:
+                      - button "Role-Based Access Control Security Standards AI 90% Critical AI Draft" [ref=e2778] [cursor=pointer]:
+                        - img [ref=e2779]
+                        - img [ref=e2781]
+                        - generic [ref=e2784]: Role-Based Access Control Security Standards
+                        - generic [ref=e2785]:
+                          - img [ref=e2786]
+                          - text: AI
+                        - generic [ref=e2788]: 90%
+                        - generic [ref=e2789]: Critical
+                        - button "AI Draft" [ref=e2791]
+                      - button "Scalability Infrastructure Capacity Planning AI 87% High AI Draft" [ref=e2793] [cursor=pointer]:
+                        - img [ref=e2794]
+                        - img [ref=e2796]
+                        - generic [ref=e2799]: Scalability Infrastructure Capacity Planning
+                        - generic [ref=e2800]:
+                          - img [ref=e2801]
+                          - text: AI
+                        - generic [ref=e2803]: 87%
+                        - generic [ref=e2804]: High
+                        - button "AI Draft" [ref=e2806]
+              - generic [ref=e2808]:
+                - generic [ref=e2809]:
+                  - img [ref=e2810]
+                  - generic [ref=e2813]: Intelligence Requirements
+                - generic [ref=e2815]:
+                  - img [ref=e2816]
+                  - paragraph [ref=e2819]: Intelligence requirements will appear as outcomes are defined and refined.
+      - generic [ref=e378]:
+        - button "Unlocks" [ref=e379] [cursor=pointer]:
+          - img [ref=e380]
+          - generic [ref=e382]: Unlocks
+        - button "Evidence" [ref=e383] [cursor=pointer]:
+          - img [ref=e384]
+          - generic [ref=e388]: Evidence
+        - button "Memory" [ref=e389] [cursor=pointer]:
+          - img [ref=e390]
+          - generic [ref=e393]: Memory
+        - button "Calls" [ref=e394] [cursor=pointer]:
+          - img [ref=e395]
+          - generic [ref=e397]: Calls
+    - button "Open assistant (⌘J)" [ref=e398] [cursor=pointer]:
+      - img [ref=e399]
+    - generic [ref=e401]:
+      - generic [ref=e403]:
+        - generic [ref=e404]:
+          - button "Briefing" [ref=e405] [cursor=pointer]:
+            - img [ref=e406]
+            - text: Briefing
+          - button "Chat" [ref=e408] [cursor=pointer]:
+            - img [ref=e409]
+            - text: Chat
+        - button "Close (Esc)" [ref=e411] [cursor=pointer]:
+          - img [ref=e412]
+      - button "Wed 2:00 AM" [ref=e415] [cursor=pointer]:
+        - generic [ref=e419]: Wed 2:00 AM
+        - img [ref=e420]
+      - generic [ref=e423]:
+        - generic [ref=e424]:
+          - generic [ref=e425]: Refining
+          - generic [ref=e426]: 93%
+          - button "Refresh briefing" [ref=e626] [cursor=pointer]:
+            - img [ref=e627]
+        - generic [ref=e427]:
+          - generic [ref=e428]:
+            - paragraph [ref=e632]: "Customer Onboarding Portal is 93% through refining with solid structural bones — 4 workflows mapped (current vs. future state), 7 features identified, and 2 personas defined around Acme Corp's onboarding team and new customers. Sarah Chen is the sole stakeholder on record. The challenge: all 5 confirmed features (Automated Account Provisioning, Self-Service Configuration Wizard, Onboarding Team Progress Dashboard, Dual User Role Management, Customer Onboarding Status Tracking) exist without evidence trails — they're named but not grounded in stakeholder conversations or requirements docs. The belief system is empty, which means no hypotheses are being tested yet. You're at the natural inflection point: lock down evidence for these features and start building conviction around what will actually move Acme from 2 weeks to 2 days."
+            - generic [ref=e633]:
+              - paragraph [ref=e634]: "The 5 confirmed features are floating without anchors — no one's validated them against Sarah Chen's priorities or Acme's 50-customers-per-month reality. That's your unlock: a focused evidence-gathering session with Sarah to pressure-test which features are must-haves vs. nice-to-haves for hitting the 2-day target."
+              - generic [ref=e635]:
+                - paragraph [ref=e636]: All 7 features lack evidence trails — start with Sarah Chen to validate which ones actually compress the 2-week cycle
+                - paragraph [ref=e637]: Workflows are well-mapped (20 current steps → 15 future steps) but beliefs are empty — no hypotheses being tested means no learning loop yet
+                - paragraph [ref=e638]: Dual User Role Management and Progress Dashboard feel like infrastructure plays — confirm they're not over-engineering for 50 customers/month
+                - paragraph [ref=e639]: 93% through refining with no beliefs suggests you've been building structure, not conviction — time to shift gears
+          - generic [ref=e640]:
+            - button "You mentioned stalled customers in the monitoring workflow — what usually causes someone to get stuck halfway through? signal Explore" [ref=e641] [cursor=pointer]:
+              - img [ref=e643]
+              - generic [ref=e646]:
+                - paragraph [ref=e647]:
+                  - text: You mentioned
+                  - strong [ref=e648]: stalled customers
+                  - text: in the monitoring workflow —
+                  - emphasis [ref=e649]: what usually causes someone to get stuck halfway through?
+                - generic [ref=e650]:
+                  - generic [ref=e651]:
+                    - img [ref=e652]
+                    - text: signal
+                  - generic [ref=e655]: Explore
+                  - img [ref=e656]
+            - button "The wizard handles self-service configuration, but there's a handoff when the onboarding team needs to intervene — how does that transition actually work? signal Build" [ref=e658] [cursor=pointer]:
+              - img [ref=e660]
+              - generic [ref=e664]:
+                - paragraph [ref=e665]:
+                  - text: The wizard handles
+                  - strong [ref=e666]: self-service configuration
+                  - text: ", but there's a handoff when the onboarding team needs to intervene —"
+                  - emphasis [ref=e667]: how does that transition actually work?
+                - generic [ref=e668]:
+                  - generic [ref=e669]:
+                    - img [ref=e670]
+                    - text: signal
+                  - generic [ref=e673]: Build
+                  - img [ref=e674]
+            - button "I see 7 features captured so far, but the analytics dashboard feels light — want to run through what metrics actually matter for tracking performance? signal Review" [ref=e676] [cursor=pointer]:
+              - img [ref=e678]
+              - generic [ref=e681]:
+                - paragraph [ref=e682]:
+                  - text: I see
+                  - strong [ref=e683]: 7 features
+                  - text: captured so far, but the analytics dashboard feels light —
+                  - emphasis [ref=e684]: want to run through what metrics actually matter for tracking performance?
+                - generic [ref=e685]:
+                  - generic [ref=e686]:
+                    - img [ref=e687]
+                    - text: signal
+                  - generic [ref=e690]: Review
+                  - img [ref=e691]
+          - button "Upload a document" [ref=e694] [cursor=pointer]:
+            - img [ref=e695]
+            - text: Upload a document

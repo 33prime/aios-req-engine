@@ -1,0 +1,428 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e7]:
+    - complementary [ref=e8]:
+      - generic [ref=e9]:
+        - link "Readytogo" [ref=e10] [cursor=pointer]:
+          - /url: /projects
+          - img "Readytogo" [ref=e11]
+        - button "New project" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+      - navigation [ref=e15]:
+        - link "Home" [ref=e16] [cursor=pointer]:
+          - /url: /home
+          - img [ref=e18]
+        - link "Projects" [ref=e21] [cursor=pointer]:
+          - /url: /projects
+          - img [ref=e23]
+        - link "Tasks" [ref=e25] [cursor=pointer]:
+          - /url: /tasks
+          - img [ref=e27]
+        - link "Clients" [ref=e30] [cursor=pointer]:
+          - /url: /clients
+          - img [ref=e32]
+        - link "People" [ref=e36] [cursor=pointer]:
+          - /url: /people
+          - img [ref=e38]
+        - link "Meetings" [ref=e42] [cursor=pointer]:
+          - /url: /meetings
+          - img [ref=e44]
+        - link "Settings" [ref=e46] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e48]
+      - button "Expand sidebar" [ref=e51] [cursor=pointer]:
+        - img [ref=e52]
+      - link "QA Tester" [ref=e55] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e57]
+    - generic [ref=e60]:
+      - banner [ref=e61]:
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - heading "Customer Onboarding Portal" [level=1] [ref=e65]
+            - button "Project Health" [ref=e66] [cursor=pointer]:
+              - img [ref=e67]
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - button "Overview" [ref=e71] [cursor=pointer]:
+                - img [ref=e72]
+                - generic [ref=e77]: Overview
+              - button "Discovery" [ref=e78] [cursor=pointer]:
+                - img [ref=e79]
+                - generic [ref=e82]: Discovery
+              - button "Build" [ref=e83] [cursor=pointer]:
+                - img [ref=e84]
+                - generic [ref=e86]: Build
+              - button "Live" [ref=e87] [cursor=pointer]:
+                - img [ref=e88]
+                - generic [ref=e93]: Live
+            - button "Collaborate" [ref=e95] [cursor=pointer]:
+              - img [ref=e96]
+              - text: Collaborate
+      - main [ref=e101]:
+        - generic [ref=e102]:
+          - generic [ref=e104]:
+            - button "Outcomes" [ref=e105] [cursor=pointer]
+            - button "BRD" [ref=e106] [cursor=pointer]
+            - button "Solution Flow" [ref=e107] [cursor=pointer]
+            - button "Data & AI" [ref=e108] [cursor=pointer]
+          - generic [ref=e835]:
+            - generic [ref=e836]:
+              - generic [ref=e837]: Macro Outcome
+              - generic [ref=e838]: Acme's customer onboarding transforms from a manual, email-driven 14-day process into an automated, self-service system that delivers customers to fully active status within 2 business days — at 3x the volume, with the same team.
+              - generic [ref=e839]:
+                - generic [ref=e840]:
+                  - strong [ref=e841]: "6"
+                  - text: outcomes
+                - generic [ref=e842]:
+                  - strong [ref=e843]: "0"
+                  - text: strong (90+)
+                - generic [ref=e844]:
+                  - text: Avg strength
+                  - strong [ref=e845]: "83.8"
+                - generic [ref=e846]:
+                  - strong [ref=e847]: "2"
+                  - text: actors
+                - generic [ref=e848]:
+                  - strong [ref=e849]: "4"
+                  - text: workflows
+            - generic [ref=e850]:
+              - img [ref=e851]
+              - generic [ref=e855]: Outcomes
+              - generic [ref=e856]: "6"
+            - generic [ref=e858]:
+              - button "85 18 scenario 24 observable 23 specificity 20 cost of failure Outcome H1 Onboarding cycle time collapses from 14 days to 2 days H1 Onboarding Manager New Customer Admin" [ref=e860] [cursor=pointer]:
+                - generic [ref=e861]:
+                  - img [ref=e862]
+                  - generic [ref=e865]: "85"
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: "18"
+                          - generic: scenario
+                        - generic:
+                          - generic: "24"
+                          - generic: observable
+                        - generic:
+                          - generic: "23"
+                          - generic: specificity
+                        - generic:
+                          - generic: "20"
+                          - generic: cost of failure
+                - generic [ref=e866]:
+                  - generic [ref=e867]: Outcome H1
+                  - generic [ref=e868]: Onboarding cycle time collapses from 14 days to 2 days
+                  - generic [ref=e869]:
+                    - generic [ref=e870]: H1
+                    - generic [ref=e871]: Onboarding Manager
+                    - generic [ref=e872]: New Customer Admin
+                - img [ref=e873]
+              - button "83 18 scenario 23 observable 22 specificity 20 cost of failure Outcome H1 Account provisioning is fully automated and no longer requires human execution H1 Onboarding Manager New Customer Admin" [ref=e876] [cursor=pointer]:
+                - generic [ref=e877]:
+                  - img [ref=e878]
+                  - generic [ref=e881]: "83"
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: "18"
+                          - generic: scenario
+                        - generic:
+                          - generic: "23"
+                          - generic: observable
+                        - generic:
+                          - generic: "22"
+                          - generic: specificity
+                        - generic:
+                          - generic: "20"
+                          - generic: cost of failure
+                - generic [ref=e882]:
+                  - generic [ref=e883]: Outcome H1
+                  - generic [ref=e884]: Account provisioning is fully automated and no longer requires human execution
+                  - generic [ref=e885]:
+                    - generic [ref=e886]: H1
+                    - generic [ref=e887]: Onboarding Manager
+                    - generic [ref=e888]: New Customer Admin
+                - img [ref=e889]
+              - button "84 18 scenario 24 observable 22 specificity 20 cost of failure Outcome H1 Customers complete configuration independently without requiring onboarding team support H1 New Customer Admin Onboarding Manager" [ref=e892] [cursor=pointer]:
+                - generic [ref=e893]:
+                  - img [ref=e894]
+                  - generic [ref=e897]: "84"
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: "18"
+                          - generic: scenario
+                        - generic:
+                          - generic: "24"
+                          - generic: observable
+                        - generic:
+                          - generic: "22"
+                          - generic: specificity
+                        - generic:
+                          - generic: "20"
+                          - generic: cost of failure
+                - generic [ref=e898]:
+                  - generic [ref=e899]: Outcome H1
+                  - generic [ref=e900]: Customers complete configuration independently without requiring onboarding team support
+                  - generic [ref=e901]:
+                    - generic [ref=e902]: H1
+                    - generic [ref=e903]: New Customer Admin
+                    - generic [ref=e904]: Onboarding Manager
+                - img [ref=e905]
+              - button "83 20 scenario 23 observable 22 specificity 18 cost of failure Outcome H1 Onboarding team has real-time visibility into every customer's progress and blockers H1 Onboarding Manager New Customer Admin" [ref=e908] [cursor=pointer]:
+                - generic [ref=e909]:
+                  - img [ref=e910]
+                  - generic [ref=e913]: "83"
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: "20"
+                          - generic: scenario
+                        - generic:
+                          - generic: "23"
+                          - generic: observable
+                        - generic:
+                          - generic: "22"
+                          - generic: specificity
+                        - generic:
+                          - generic: "18"
+                          - generic: cost of failure
+                - generic [ref=e914]:
+                  - generic [ref=e915]: Outcome H1
+                  - generic [ref=e916]: Onboarding team has real-time visibility into every customer's progress and blockers
+                  - generic [ref=e917]:
+                    - generic [ref=e918]: H1
+                    - generic [ref=e919]: Onboarding Manager
+                    - generic [ref=e920]: New Customer Admin
+                - img [ref=e921]
+              - button "85 18 scenario 24 observable 23 specificity 20 cost of failure Outcome H2 Onboarding operations scale to 3x volume without proportional headcount growth H2 Onboarding Manager New Customer Admin" [ref=e924] [cursor=pointer]:
+                - generic [ref=e925]:
+                  - img [ref=e926]
+                  - generic [ref=e929]: "85"
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: "18"
+                          - generic: scenario
+                        - generic:
+                          - generic: "24"
+                          - generic: observable
+                        - generic:
+                          - generic: "23"
+                          - generic: specificity
+                        - generic:
+                          - generic: "20"
+                          - generic: cost of failure
+                - generic [ref=e930]:
+                  - generic [ref=e931]: Outcome H2
+                  - generic [ref=e932]: Onboarding operations scale to 3x volume without proportional headcount growth
+                  - generic [ref=e933]:
+                    - generic [ref=e934]: H2
+                    - generic [ref=e935]: Onboarding Manager
+                    - generic [ref=e936]: New Customer Admin
+                - img [ref=e937]
+              - button "83 20 scenario 23 observable 22 specificity 18 cost of failure Outcome H2 Onboarding performance is continuously measured and used to drive process improvement H2 Onboarding Manager New Customer Admin" [ref=e940] [cursor=pointer]:
+                - generic [ref=e941]:
+                  - img [ref=e942]
+                  - generic [ref=e945]: "83"
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: "20"
+                          - generic: scenario
+                        - generic:
+                          - generic: "23"
+                          - generic: observable
+                        - generic:
+                          - generic: "22"
+                          - generic: specificity
+                        - generic:
+                          - generic: "18"
+                          - generic: cost of failure
+                - generic [ref=e946]:
+                  - generic [ref=e947]: Outcome H2
+                  - generic [ref=e948]: Onboarding performance is continuously measured and used to drive process improvement
+                  - generic [ref=e949]:
+                    - generic [ref=e950]: H2
+                    - generic [ref=e951]: Onboarding Manager
+                    - generic [ref=e952]: New Customer Admin
+                - img [ref=e953]
+            - generic [ref=e955]:
+              - img [ref=e956]
+              - generic [ref=e961]: Actors
+              - generic [ref=e962]: "2"
+            - generic [ref=e964]:
+              - button "O Onboarding Manager Customer Onboarding Team Member 6 outcomes Onboarding cycle time collapses from 14 days to 2 days Account provisioning is fully automated and no longer requires human execution Customers complete configuration independently without requiring onboarding team support +3 more" [ref=e965] [cursor=pointer]:
+                - generic [ref=e966]:
+                  - generic [ref=e967]: O
+                  - generic [ref=e968]:
+                    - generic [ref=e969]: Onboarding Manager
+                    - generic [ref=e970]: Customer Onboarding Team Member
+                  - generic [ref=e971]:
+                    - generic [ref=e972]: 6 outcomes
+                    - img [ref=e973]
+                - generic [ref=e975]:
+                  - generic [ref=e978]: Onboarding cycle time collapses from 14 days to 2 days
+                  - generic [ref=e981]: Account provisioning is fully automated and no longer requires human execution
+                  - generic [ref=e984]: Customers complete configuration independently without requiring onboarding team support
+                  - generic [ref=e985]: +3 more
+              - button "N New Customer Admin Customer-Side Administrator / New User 6 outcomes Onboarding cycle time collapses from 14 days to 2 days Account provisioning is fully automated and no longer requires human execution Customers complete configuration independently without requiring onboarding team support +3 more" [ref=e986] [cursor=pointer]:
+                - generic [ref=e987]:
+                  - generic [ref=e988]: "N"
+                  - generic [ref=e989]:
+                    - generic [ref=e990]: New Customer Admin
+                    - generic [ref=e991]: Customer-Side Administrator / New User
+                  - generic [ref=e992]:
+                    - generic [ref=e993]: 6 outcomes
+                    - img [ref=e994]
+                - generic [ref=e996]:
+                  - generic [ref=e999]: Onboarding cycle time collapses from 14 days to 2 days
+                  - generic [ref=e1002]: Account provisioning is fully automated and no longer requires human execution
+                  - generic [ref=e1005]: Customers complete configuration independently without requiring onboarding team support
+                  - generic [ref=e1006]: +3 more
+            - generic [ref=e1007]:
+              - img [ref=e1008]
+              - generic [ref=e1012]: Workflows
+              - generic [ref=e1013]: "4"
+            - generic [ref=e1015]:
+              - button "New Customer Account Provisioning The process of creating and configuring a new customer account on the Acme Corp platform, from contract close to active account. Currently a manual, email-driven process handled by the onboarding team. 6 steps 97.2% faster 2 outcomes" [ref=e1017] [cursor=pointer]:
+                - img [ref=e1018]
+                - generic [ref=e1022]:
+                  - generic [ref=e1023]: New Customer Account Provisioning
+                  - generic [ref=e1024]: The process of creating and configuring a new customer account on the Acme Corp platform, from contract close to active account. Currently a manual, email-driven process handled by the onboarding team.
+                - generic [ref=e1025]:
+                  - generic [ref=e1026]: 6 steps
+                  - generic [ref=e1027]: 97.2% faster
+                  - generic [ref=e1028]: 2 outcomes
+                  - img [ref=e1029]
+              - button "Customer Self-Service Configuration The process by which a new customer configures their account on the Acme Corp platform after provisioning. Currently dependent on back-and-forth email guidance from the onboarding team; future state is fully self-service via a guided wizard. 5 steps 98.3% faster 2 outcomes" [ref=e1032] [cursor=pointer]:
+                - img [ref=e1033]
+                - generic [ref=e1037]:
+                  - generic [ref=e1038]: Customer Self-Service Configuration
+                  - generic [ref=e1039]: The process by which a new customer configures their account on the Acme Corp platform after provisioning. Currently dependent on back-and-forth email guidance from the onboarding team; future state is fully self-service via a guided wizard.
+                - generic [ref=e1040]:
+                  - generic [ref=e1041]: 5 steps
+                  - generic [ref=e1042]: 98.3% faster
+                  - generic [ref=e1043]: 2 outcomes
+                  - img [ref=e1044]
+              - button "Onboarding Progress Monitoring The ongoing process by which the onboarding team tracks the status of all active customer onboardings and intervenes when customers are stalled. Currently performed through manual spreadsheet reviews and email chains. 5 steps 85% faster 1 outcome" [ref=e1047] [cursor=pointer]:
+                - img [ref=e1048]
+                - generic [ref=e1052]:
+                  - generic [ref=e1053]: Onboarding Progress Monitoring
+                  - generic [ref=e1054]: The ongoing process by which the onboarding team tracks the status of all active customer onboardings and intervenes when customers are stalled. Currently performed through manual spreadsheet reviews and email chains.
+                - generic [ref=e1055]:
+                  - generic [ref=e1056]: 5 steps
+                  - generic [ref=e1057]: 85% faster
+                  - generic [ref=e1058]: 1 outcome
+                  - img [ref=e1059]
+              - button "Onboarding Performance Reporting The process by which leadership — specifically the VP of Customer Success — reviews aggregate onboarding performance metrics to assess whether the portal is meeting its goals and where improvements are needed. 4 steps 91.9% faster 2 outcomes" [ref=e1062] [cursor=pointer]:
+                - img [ref=e1063]
+                - generic [ref=e1067]:
+                  - generic [ref=e1068]: Onboarding Performance Reporting
+                  - generic [ref=e1069]: The process by which leadership — specifically the VP of Customer Success — reviews aggregate onboarding performance metrics to assess whether the portal is meeting its goals and where improvements are needed.
+                - generic [ref=e1070]:
+                  - generic [ref=e1071]: 4 steps
+                  - generic [ref=e1072]: 91.9% faster
+                  - generic [ref=e1073]: 2 outcomes
+                  - img [ref=e1074]
+      - generic [ref=e753]:
+        - button "Unlocks" [ref=e754] [cursor=pointer]:
+          - img [ref=e755]
+          - generic [ref=e757]: Unlocks
+        - button "Evidence" [ref=e758] [cursor=pointer]:
+          - img [ref=e759]
+          - generic [ref=e763]: Evidence
+        - button "Memory" [ref=e764] [cursor=pointer]:
+          - img [ref=e765]
+          - generic [ref=e768]: Memory
+        - button "Calls" [ref=e769] [cursor=pointer]:
+          - img [ref=e770]
+          - generic [ref=e772]: Calls
+    - button "Open assistant (⌘J)" [ref=e773] [cursor=pointer]:
+      - img [ref=e774]
+    - generic [ref=e776]:
+      - generic [ref=e778]:
+        - generic [ref=e779]:
+          - button "Briefing" [ref=e780] [cursor=pointer]:
+            - img [ref=e781]
+            - text: Briefing
+          - button "Chat" [ref=e783] [cursor=pointer]:
+            - img [ref=e784]
+            - text: Chat
+        - button "Close (Esc)" [ref=e786] [cursor=pointer]:
+          - img [ref=e787]
+      - button "Wed 2:00 AM" [ref=e790] [cursor=pointer]:
+        - generic [ref=e794]: Wed 2:00 AM
+        - img [ref=e795]
+      - generic [ref=e798]:
+        - generic [ref=e799]:
+          - generic [ref=e800]: Refining
+          - generic [ref=e801]: 93%
+          - button "Refresh briefing" [ref=e1076] [cursor=pointer]:
+            - img [ref=e1077]
+        - generic [ref=e802]:
+          - generic [ref=e803]:
+            - paragraph [ref=e1082]: "Customer Onboarding Portal is 93% through refining with solid structural bones — 4 workflows mapped (current vs. future), 7 features confirmed, and 2 personas identified around Sarah Chen's VP Customer Success vision. The project aims to collapse Acme Corp's 2-week onboarding cycle to 2 days by replacing spreadsheet chaos with automated provisioning and a self-service wizard for 50 monthly customers. But here's the gap: all 5 confirmed features are floating without evidence trails — no artifacts, no stakeholder quotes, nothing anchoring them to reality. The workflows tell a clear before/after story (manual provisioning → auto-triggered flows, email ping-pong → guided wizard), but the belief system is empty. You're at the natural pivot point: validate these features against real signals or risk building on assumptions."
+            - generic [ref=e1083]:
+              - paragraph [ref=e1084]: Sarah Chen is your only named stakeholder, but she's a VP — you need her onboarding team's voices and actual customer pain points to ground these 7 features. The 'Dual User Role Management' feature especially needs validation since it serves two distinct personas (onboarding team + new customers) with different dashboard needs.
+              - generic [ref=e1085]:
+                - paragraph [ref=e1086]: All 5 core features lack evidence — hunt for BRDs, interview transcripts, or customer feedback that confirm automated provisioning and wizard priorities
+                - paragraph [ref=e1087]: Sarah Chen's 2-week-to-2-days goal is ambitious for 50 customers/month — validate whether bottleneck is truly manual provisioning or something else in the workflow
+                - paragraph [ref=e1088]: The dual-dashboard feature (onboarding team oversight + customer self-service) is architecturally complex — confirm both personas actually need separate views before committing
+                - paragraph [ref=e1089]: Workflow maps are crisp, but zero beliefs captured yet — next session should extract why spreadsheets failed and what 'stalled customers' actually look like
+          - generic [ref=e1090]:
+            - button "The New Customer Account Provisioning workflow shows a clean before/after — but I'm curious what happens when auto-provisioning hits an edge case. signal Build" [ref=e1091] [cursor=pointer]:
+              - img [ref=e1093]
+              - generic [ref=e1097]:
+                - paragraph [ref=e1098]:
+                  - text: The
+                  - strong [ref=e1099]: New Customer Account Provisioning
+                  - text: workflow shows a clean before/after —
+                  - emphasis [ref=e1100]: but I'm curious what happens when auto-provisioning hits an edge case
+                  - text: .
+                - generic [ref=e1101]:
+                  - generic [ref=e1102]:
+                    - img [ref=e1103]
+                    - text: signal
+                  - generic [ref=e1106]: Build
+                  - img [ref=e1107]
+            - button "The self-service configuration wizard is doing a lot of heavy lifting here — what does 'guided' actually mean for Acme's customers? signal Explore" [ref=e1109] [cursor=pointer]:
+              - img [ref=e1111]
+              - generic [ref=e1114]:
+                - paragraph [ref=e1115]:
+                  - text: The
+                  - strong [ref=e1116]: self-service configuration wizard
+                  - text: is doing a lot of heavy lifting here —
+                  - emphasis [ref=e1117]: what does 'guided' actually mean for Acme's customers?
+                - generic [ref=e1118]:
+                  - generic [ref=e1119]:
+                    - img [ref=e1120]
+                    - text: signal
+                  - generic [ref=e1123]: Explore
+                  - img [ref=e1124]
+            - button "You've got onboarding managers and customer admins both using this system — might be worth aligning on what each role actually sees and does. signal Meeting" [ref=e1126] [cursor=pointer]:
+              - img [ref=e1128]
+              - generic [ref=e1130]:
+                - paragraph [ref=e1131]:
+                  - text: You've got
+                  - strong [ref=e1132]: onboarding managers
+                  - text: and
+                  - strong [ref=e1133]: customer admins
+                  - text: both using this system —
+                  - emphasis [ref=e1134]: might be worth aligning on what each role actually sees and does
+                  - text: .
+                - generic [ref=e1135]:
+                  - generic [ref=e1136]:
+                    - img [ref=e1137]
+                    - text: signal
+                  - generic [ref=e1140]: Meeting
+                  - img [ref=e1141]
+          - button "Upload a document" [ref=e1144] [cursor=pointer]:
+            - img [ref=e1145]
+            - text: Upload a document

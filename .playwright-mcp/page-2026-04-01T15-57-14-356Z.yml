@@ -1,0 +1,210 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e14]
+  - generic [ref=e19]:
+    - complementary [ref=e20]:
+      - generic [ref=e21]:
+        - link "Readytogo" [ref=e22] [cursor=pointer]:
+          - /url: /projects
+          - img "Readytogo" [ref=e23]
+        - button "New project" [ref=e25] [cursor=pointer]:
+          - img [ref=e26]
+      - navigation [ref=e27]:
+        - link "Home" [ref=e28] [cursor=pointer]:
+          - /url: /home
+          - img [ref=e30]
+        - link "Projects" [ref=e33] [cursor=pointer]:
+          - /url: /projects
+          - img [ref=e35]
+        - link "Tasks" [ref=e37] [cursor=pointer]:
+          - /url: /tasks
+          - img [ref=e39]
+        - link "Clients" [ref=e42] [cursor=pointer]:
+          - /url: /clients
+          - img [ref=e44]
+        - link "People" [ref=e48] [cursor=pointer]:
+          - /url: /people
+          - img [ref=e50]
+        - link "Meetings" [ref=e54] [cursor=pointer]:
+          - /url: /meetings
+          - img [ref=e56]
+        - link "Settings" [ref=e58] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e60]
+      - button "Expand sidebar" [ref=e63] [cursor=pointer]:
+        - img [ref=e64]
+      - link "QA Tester" [ref=e67] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e69]
+    - generic [ref=e72]:
+      - banner [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - heading "Customer Onboarding Portal" [level=1] [ref=e77]
+            - button "Project Health" [ref=e78] [cursor=pointer]:
+              - img [ref=e79]
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - button "Overview" [ref=e83] [cursor=pointer]:
+                - img [ref=e84]
+                - generic [ref=e89]: Overview
+              - button "Discovery" [ref=e90] [cursor=pointer]:
+                - img [ref=e91]
+                - generic [ref=e94]: Discovery
+              - button "Build" [ref=e95] [cursor=pointer]:
+                - img [ref=e96]
+                - generic [ref=e98]: Build
+              - button "Live" [ref=e99] [cursor=pointer]:
+                - img [ref=e100]
+                - generic [ref=e105]: Live
+            - button "Collaborate" [ref=e107] [cursor=pointer]:
+              - img [ref=e108]
+              - text: Collaborate
+      - main [ref=e113]:
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - button "67% Good" [ref=e116] [cursor=pointer]:
+              - generic [ref=e117]:
+                - img [ref=e118]
+                - generic [ref=e121]:
+                  - generic [ref=e122]: 67%
+                  - generic [ref=e123]: Good
+            - generic [ref=e124]:
+              - paragraph [ref=e125]: Welcome back
+              - heading "Customer Onboarding Portal" [level=1] [ref=e126]
+            - button "Open BRD" [ref=e127] [cursor=pointer]:
+              - text: Open BRD
+              - img [ref=e128]
+          - generic [ref=e130]:
+            - generic [ref=e131]:
+              - generic [ref=e132]:
+                - img [ref=e133]
+                - heading "Project Pulse" [level=2] [ref=e135]
+              - generic [ref=e136]:
+                - generic [ref=e137]:
+                  - generic [ref=e138]: Vision
+                  - generic [ref=e141]: 80%
+                - generic [ref=e142]:
+                  - generic [ref=e143]: Constraints
+                  - generic [ref=e145]: 0%
+                - generic [ref=e146]:
+                  - generic [ref=e147]: Workflows
+                  - generic [ref=e150]: 100%
+                - generic [ref=e151]:
+                  - generic [ref=e152]: Features
+                  - generic [ref=e155]: 80%
+              - generic [ref=e156]:
+                - generic [ref=e157]:
+                  - img [ref=e158]
+                  - text: Vision
+                - generic [ref=e161]:
+                  - img [ref=e162]
+                  - text: Workflows
+                - generic [ref=e165]:
+                  - img [ref=e166]
+                  - text: Features
+                - generic [ref=e169]:
+                  - img [ref=e170]
+                  - text: Constraints
+            - generic [ref=e172]:
+              - generic [ref=e173]:
+                - img [ref=e174]
+                - heading "Next Best Actions" [level=2] [ref=e176]
+              - generic [ref=e177]:
+                - button "Walk through the New Customer Account Provisioning workflow with Sarah Chen to understand current handoff points and identify which steps are still manual versus automated. Talking to the VP directly prevents us from building a solution flow based on incomplete BRD assumptions—we'll hear about hidden dependencies and stakeholder friction. Sarah Chen Book a call" [ref=e178] [cursor=pointer]:
+                  - img [ref=e180]
+                  - generic [ref=e185]:
+                    - paragraph [ref=e186]: Walk through the New Customer Account Provisioning workflow with Sarah Chen to understand current handoff points and identify which steps are still manual versus automated.
+                    - paragraph [ref=e187]: Talking to the VP directly prevents us from building a solution flow based on incomplete BRD assumptions—we'll hear about hidden dependencies and stakeholder friction.
+                    - generic [ref=e188]:
+                      - generic [ref=e189]:
+                        - img [ref=e190]
+                        - text: Sarah Chen
+                      - generic [ref=e195]: Book a call
+                  - img [ref=e196]
+                - button "Review and validate the 1 unconfirmed feature and 2 unconfirmed workflows against the BRD source document to expose any capability gaps before solution design. A single unvalidated workflow could derail downstream solution architecture; catching it now is cheaper than rework after flow design. Start conversation" [ref=e198] [cursor=pointer]:
+                  - img [ref=e200]
+                  - generic [ref=e203]:
+                    - paragraph [ref=e204]: Review and validate the 1 unconfirmed feature and 2 unconfirmed workflows against the BRD source document to expose any capability gaps before solution design.
+                    - paragraph [ref=e205]: A single unvalidated workflow could derail downstream solution architecture; catching it now is cheaper than rework after flow design.
+                    - generic [ref=e207]: Start conversation
+                  - img [ref=e208]
+                - button "Create a ranked priority matrix of the eight workflows mapped against Sarah's stated business drivers (effort hours, scalability, customer self-service) to sequence solution flow layers. Prioritizing workflows by business driver impact prevents us from building a feature-complete but strategically misaligned solution. Sarah Chen Prep meeting" [ref=e210] [cursor=pointer]:
+                  - img [ref=e212]
+                  - generic [ref=e215]:
+                    - paragraph [ref=e216]: Create a ranked priority matrix of the eight workflows mapped against Sarah's stated business drivers (effort hours, scalability, customer self-service) to sequence solution flow layers.
+                    - paragraph [ref=e217]: Prioritizing workflows by business driver impact prevents us from building a feature-complete but strategically misaligned solution.
+                    - generic [ref=e218]:
+                      - generic [ref=e219]:
+                        - img [ref=e220]
+                        - text: Sarah Chen
+                      - generic [ref=e225]: Prep meeting
+                  - img [ref=e226]
+            - generic [ref=e228]:
+              - generic [ref=e230]:
+                - img [ref=e231]
+                - heading "Tasks" [level=2] [ref=e234]
+              - generic [ref=e237]:
+                - img [ref=e238]
+                - heading "All caught up!" [level=3] [ref=e241]
+                - paragraph [ref=e242]: No pending tasks. New tasks will appear here when signals are processed.
+          - generic [ref=e243]:
+            - generic [ref=e244]:
+              - generic [ref=e245]:
+                - img [ref=e246]
+                - heading "Recent Activity" [level=2] [ref=e248]
+              - generic [ref=e249]:
+                - img [ref=e250]
+                - paragraph [ref=e252]: No activity yet
+            - generic [ref=e253]:
+              - generic [ref=e254]:
+                - img [ref=e255]
+                - heading "Upcoming Meetings" [level=2] [ref=e257]
+              - generic [ref=e261]:
+                - paragraph [ref=e262]: QA Audit Discovery Session
+                - generic [ref=e263]:
+                  - generic [ref=e264]: Apr 15 at 10:00 AM
+                  - generic [ref=e265]: discovery
+            - generic [ref=e266]:
+              - generic [ref=e267]:
+                - img [ref=e268]
+                - heading "Client Portal" [level=2] [ref=e271]
+              - generic [ref=e272]:
+                - img [ref=e274]
+                - paragraph [ref=e277]: Coming soon
+                - paragraph [ref=e278]: Client review notifications
+      - generic [ref=e280]:
+        - button "Unlocks" [ref=e281] [cursor=pointer]:
+          - img [ref=e282]
+          - generic [ref=e284]: Unlocks
+        - button "Evidence" [ref=e285] [cursor=pointer]:
+          - img [ref=e286]
+          - generic [ref=e290]: Evidence
+        - button "Memory" [ref=e291] [cursor=pointer]:
+          - img [ref=e292]
+          - generic [ref=e295]: Memory
+        - button "Calls" [ref=e296] [cursor=pointer]:
+          - img [ref=e297]
+          - generic [ref=e299]: Calls
+    - button "Open assistant (⌘J)" [ref=e300] [cursor=pointer]:
+      - img [ref=e301]
+    - generic [ref=e303]:
+      - generic [ref=e305]:
+        - generic [ref=e306]:
+          - button "Briefing" [ref=e307] [cursor=pointer]:
+            - img [ref=e308]
+            - text: Briefing
+          - button "Chat" [ref=e310] [cursor=pointer]:
+            - img [ref=e311]
+            - text: Chat
+        - button "Close (Esc)" [ref=e313] [cursor=pointer]:
+          - img [ref=e314]
+      - button "Wed 2:00 AM" [ref=e317] [cursor=pointer]:
+        - generic [ref=e321]: Wed 2:00 AM
+        - img [ref=e322]
+      - generic [ref=e325]:
+        - generic [ref=e326]:
+          - generic [ref=e327]: ...
+          - generic [ref=e328]: 0%
+        - generic [ref=e330]:
+          - img [ref=e331]
+          - text: Preparing briefing...

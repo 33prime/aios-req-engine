@@ -1,0 +1,16 @@
+[     299ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:8000/v1/organizations/profile/me:0
+[    5305ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:8000/v1/organizations/profile/me:0
+[   30314ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:8000/v1/organizations/profile/me:0
+[   34084ms] [WARNING] Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element: JSHandle@node @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:107
+[  142232ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/v1/projects/launch:0
+[  142233ms] [ERROR] Launch failed: ApiError: {"detail":"Failed to create project"}
+    at apiRequest (webpack-internal:///(app-pages-browser)/./lib/api/core.ts:76:15)
+    at async handleLaunch (webpack-internal:///(app-pages-browser)/./app/projects/components/HybridOnboardingModal.tsx:305:30) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33
+[  426973ms] [WARNING] Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element: JSHandle@node @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:107
+[  426987ms] [WARNING] Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element: JSHandle@node @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:107
+[  550123ms] [ERROR] Access to fetch at 'http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/launch/b5308a15-442e-4b77-bd20-92dc847a44c4/progress' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://localhost:3000/projects:0
+[  550124ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/launch/b5308a15-442e-4b77-bd20-92dc847a44c4/progress:0
+[  550124ms] [ERROR] Failed to poll launch progress: TypeError: Failed to fetch
+    at apiRequest (webpack-internal:///(app-pages-browser)/./lib/api/core.ts:66:28)
+    at getLaunchProgress (webpack-internal:///(app-pages-browser)/./lib/api/admin.ts:101:99)
+    at poll (webpack-internal:///(app-pages-browser)/./app/projects/components/BuildingProgressModal.tsx:127:95) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33

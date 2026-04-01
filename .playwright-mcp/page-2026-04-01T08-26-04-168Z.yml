@@ -1,0 +1,298 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - link "Readytogo" [ref=e5] [cursor=pointer]:
+        - /url: /projects
+        - img "Readytogo" [ref=e6]
+      - button "New project" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+    - navigation [ref=e10]:
+      - link "Home" [ref=e11] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e13]
+        - generic [ref=e16]: Home
+      - link "Projects" [ref=e17] [cursor=pointer]:
+        - /url: /projects
+        - img [ref=e19]
+        - generic [ref=e21]: Projects
+      - link "Tasks" [ref=e22] [cursor=pointer]:
+        - /url: /tasks
+        - img [ref=e24]
+        - generic [ref=e27]: Tasks
+      - link "Clients" [ref=e28] [cursor=pointer]:
+        - /url: /clients
+        - img [ref=e30]
+        - generic [ref=e34]: Clients
+      - link "People" [ref=e35] [cursor=pointer]:
+        - /url: /people
+        - img [ref=e37]
+        - generic [ref=e41]: People
+      - link "Meetings" [ref=e42] [cursor=pointer]:
+        - /url: /meetings
+        - img [ref=e44]
+        - generic [ref=e46]: Meetings
+      - link "Settings" [ref=e47] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e49]
+        - generic [ref=e52]: Settings
+    - button "Collapse sidebar" [ref=e53] [cursor=pointer]:
+      - img [ref=e54]
+    - link "QA Tester qa-tester@readytogo.ai" [ref=e69] [cursor=pointer]:
+      - /url: /settings
+      - img [ref=e59]
+      - generic [ref=e62]:
+        - paragraph [ref=e63]: QA Tester
+        - paragraph [ref=e64]: qa-tester@readytogo.ai
+  - generic [ref=e66]:
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - button "Filter" [ref=e72] [cursor=pointer]:
+          - img [ref=e73]
+          - generic [ref=e74]: Filter
+        - button "Last Updated" [ref=e75] [cursor=pointer]:
+          - generic [ref=e76]: Last Updated
+          - img [ref=e77]
+        - button "Refresh projects" [ref=e79] [cursor=pointer]:
+          - img [ref=e80]
+      - generic [ref=e85]:
+        - button "Search projects" [ref=e87] [cursor=pointer]:
+          - img [ref=e88]
+        - generic [ref=e91]:
+          - button "Table view" [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+          - button "Cards view" [ref=e94] [cursor=pointer]:
+            - img [ref=e95]
+          - button "Kanban view" [ref=e99] [cursor=pointer]:
+            - img [ref=e100]
+    - generic [ref=e105]:
+      - generic [ref=e106] [cursor=pointer]:
+        - generic [ref=e107]:
+          - generic [ref=e108]: CO
+          - paragraph [ref=e110]: Customer Onboarding Portal
+          - generic [ref=e111]: Discovery
+        - generic [ref=e112]: —
+        - paragraph [ref=e113]: Acme Corp, a mid-size SaaS company, is currently onboarding new customers using spreadsheets and email, a manual process that takes two weeks and does not scale. Having recently closed a Series B funding round, they are projecting 3x growth in the coming year and need to automate onboarding before volume overwhelms their team. The VP of Customer Success is championing this initiative to reduce onboarding time from two weeks to two days.
+        - generic [ref=e114]:
+          - generic [ref=e116]:
+            - img [ref=e117]
+            - text: 1 upcoming
+          - generic [ref=e119]:
+            - img [ref=e120]
+            - generic [ref=e122]: Apr 15 at 10:00 AM
+            - generic [ref=e123]: QA Audit Discovery Session
+        - generic [ref=e124]:
+          - generic [ref=e125]: Q
+          - generic [ref=e127]: 2 days ago
+      - generic [ref=e128] [cursor=pointer]:
+        - generic [ref=e129]:
+          - generic [ref=e130]: B
+          - generic [ref=e131]:
+            - paragraph [ref=e132]: BenyBox
+            - paragraph [ref=e133]: BenyBox
+          - generic [ref=e134]: Discovery
+        - generic [ref=e135]: —
+        - paragraph [ref=e136]: Families with aging parents face a critical gap in managing and sharing essential legal, medical, and insurance documents — existing tools like Dropbox lack guided assessment features, and lawyer-specific solutions are too narrow in scope. BenyBox is being built to fill this first-to-market gap by combining secure document storage with personalized guidance on what documents families actually need. The trigger is the real-world scenario where adult children need immediate access to critical documents like powers of attorney during emergencies but have no organized, secure way to obtain them.
+        - generic [ref=e139]:
+          - img [ref=e140]
+          - generic [ref=e143]:
+            - img [ref=e144]
+            - text: All done
+        - generic [ref=e148]:
+          - generic [ref=e149]: Q
+          - generic [ref=e151]: 14 days ago
+      - generic [ref=e152] [cursor=pointer]:
+        - generic [ref=e153]:
+          - generic [ref=e154]: IA
+          - paragraph [ref=e156]: Internal Aerospace Inventory Manager
+          - generic [ref=e157]: Discovery
+        - generic [ref=e158]: —
+        - paragraph [ref=e159]: The client acquired a large inventory of diverse aerospace parts in a major transaction, ranging from specialized screws to turbine engines and landing gears. This inventory is currently sitting idle in a warehouse with no classification system in place, preventing the organization from monetizing it. There is an identified market for these parts, but the sheer volume and niche nature of the inventory makes manual classification impractical.
+        - generic [ref=e161]:
+          - generic [ref=e162]: Q
+          - generic [ref=e164]: 23 days ago
+      - generic [ref=e165] [cursor=pointer]:
+        - generic [ref=e166]:
+          - generic [ref=e167]: BO
+          - generic [ref=e168]:
+            - paragraph [ref=e169]: Business Onboarding & RevOps Platform
+            - paragraph [ref=e170]: Business Onboarding & RevOps Platform
+          - generic [ref=e171]: Discovery
+        - generic [ref=e173]:
+          - generic [ref=e177]: 45%
+          - generic [ref=e432]:
+            - paragraph [ref=e433]: Readiness Breakdown
+            - generic [ref=e434]:
+              - generic [ref=e435]:
+                - generic [ref=e436]: Value Path
+                - generic [ref=e439]: 38%
+              - generic [ref=e440]:
+                - generic [ref=e441]: Problem
+                - generic [ref=e444]: 20%
+              - generic [ref=e445]:
+                - generic [ref=e446]: Solution
+                - generic [ref=e449]: 66%
+              - generic [ref=e450]:
+                - generic [ref=e451]: Engagement
+                - generic [ref=e454]: 70%
+        - paragraph [ref=e178]: Valerie, a boutique consultant, has a proven manual process for helping small business owners understand how to grow revenue, but delivery speed and scale have become the bottleneck. Her current approach relies on bespoke consulting hours, limiting how many clients she can serve and how quickly. The goal is to productize her existing intellectual property into a repeatable, sellable system that removes her as the sole delivery mechanism.
+        - generic [ref=e181]:
+          - img [ref=e182]
+          - generic [ref=e185]:
+            - img [ref=e186]
+            - text: All done
+        - generic [ref=e190]:
+          - generic [ref=e191]: Q
+          - generic [ref=e193]: 26 days ago
+      - generic [ref=e194] [cursor=pointer]:
+        - generic [ref=e195]:
+          - generic [ref=e196]: DP
+          - generic [ref=e197]:
+            - paragraph [ref=e198]: Dr. Proctor
+            - paragraph [ref=e199]: Dr. Proctor
+          - generic [ref=e200]: Discovery
+        - generic [ref=e201]: —
+        - paragraph [ref=e202]: Proctorio is a global provider of automated and live remote proctoring services that helps education institutions maintain academic integrity for online assessments. The company currently relies heavily on human intervention to deliver its proctoring services, which limits its ability to scale and grow. The trigger for building Dr. Proctor is a strategic initiative to apply AI and automation across the entire platform to reduce manual overhead and enable scalable growth.
+        - generic [ref=e205]:
+          - img [ref=e206]
+          - text: 2 pending
+        - generic [ref=e209]:
+          - generic [ref=e210]: Q
+          - generic [ref=e212]: about 1 month ago
+      - generic [ref=e213] [cursor=pointer]:
+        - generic [ref=e214]:
+          - generic [ref=e215]: ED
+          - paragraph [ref=e217]: Ensure Direct Bill
+          - generic [ref=e218]: Discovery
+        - generic [ref=e219]: —
+        - paragraph [ref=e220]: MassMutual's operations currently rely on manual, legacy processes for policy checking and commission reconciliation, resulting in excessive time consumption and frequent errors. The organization is seeking to modernize by transitioning from traditional Business Process Management (BPM) to an AI-powered co-pilot model. The integration of Policy Insights® ExpressCheck and Direct Bill Complete represents a strategic initiative to reduce operational risk and free skilled professionals for higher-value work.
+        - generic [ref=e222]:
+          - generic [ref=e223]: Q
+          - generic [ref=e225]: about 1 month ago
+      - generic [ref=e226] [cursor=pointer]:
+        - generic [ref=e227]:
+          - generic [ref=e228]: PG
+          - generic [ref=e229]:
+            - paragraph [ref=e230]: Pre-Clinical Guidance
+            - paragraph [ref=e231]: Pre-Clinical Guidance
+          - generic [ref=e232]: Discovery
+        - generic [ref=e233]: —
+        - paragraph [ref=e234]: Proquint, operating in the Life Sciences industry, currently relies on a manual system to deliver preclinical regulatory guidance to clients across biotech, pharmaceutical, and medical device sectors. The organization recognized that evolving global regulatory demands and client expectations for faster, more autonomous workflows have outpaced their existing capabilities. The trigger for this project is the need to modernize operations through AI-powered automation and self-service solutions that reduce dependency on manual expert intervention.
+        - generic [ref=e236]:
+          - generic [ref=e237]: Q
+          - generic [ref=e239]: about 1 month ago
+      - generic [ref=e240] [cursor=pointer]:
+        - generic [ref=e241]:
+          - generic [ref=e242]: AC
+          - paragraph [ref=e244]: ABO Certification Renewal Prototype
+          - generic [ref=e245]: Discovery
+        - generic [ref=e246]: —
+        - paragraph [ref=e247]: The American Board of Orthodontics currently relies on a clunky, once-a-year online assessment process for certification renewal that lacks flexibility and personalization. The organization wants to explore a more frequent, dynamic, and mobile-first approach to assessments that better serves board-certified orthodontists. A trade show setting provides an opportunity to prototype and validate this new assessment feedback approach while capturing leads for future development.
+        - generic [ref=e250]:
+          - img [ref=e251]
+          - generic [ref=e254]:
+            - img [ref=e255]
+            - text: All done
+        - generic [ref=e259]:
+          - generic [ref=e260]: Q
+          - generic [ref=e262]: about 1 month ago
+      - generic [ref=e263] [cursor=pointer]:
+        - generic [ref=e264]:
+          - generic [ref=e265]: P
+          - generic [ref=e266]:
+            - paragraph [ref=e267]: PersonaPulse
+            - paragraph [ref=e268]: PersonaPulse
+          - generic [ref=e269]: Discovery
+        - generic [ref=e275]: 42%
+        - paragraph [ref=e276]: Content creators in the AI and tech space struggle to consistently produce high-quality social media posts from their daily stream of news, ideas, and insights. The current content creation process is time-consuming and often results in generic, AI-generated content that lacks authenticity and fails to resonate with audiences. There is a clear market need for a tool that learns an individual's voice and continuously optimizes content performance across platforms.
+        - generic [ref=e279]:
+          - img [ref=e280]
+          - text: 1 pending
+        - generic [ref=e283]:
+          - generic [ref=e284]: Q
+          - generic [ref=e286]: about 1 month ago
+      - generic [ref=e287] [cursor=pointer]:
+        - generic [ref=e288]:
+          - generic [ref=e289]: PP
+          - paragraph [ref=e291]: People Pulse
+          - generic [ref=e292]: Discovery
+        - generic [ref=e298]: 39%
+        - paragraph [ref=e299]: "The client is building PersonaPulse because they are frustrated with the inefficiency and inauthenticity of working with marketing agencies and generic AI tools like Gemini and ChatGPT that fail to capture a founder's unique voice. The trigger is a clear operational pain point: turning raw thoughts or voice notes into cohesive, multi-channel content campaigns is too time-consuming and costly with existing solutions. The business context is dual-use — enabling founders to build their personal brand while also distributing company messaging in an authentic, founder-native voice."
+        - generic [ref=e302]:
+          - img [ref=e303]
+          - generic [ref=e306]:
+            - img [ref=e307]
+            - text: All done
+        - generic [ref=e310]:
+          - generic [ref=e311]: Q
+          - generic [ref=e313]: about 1 month ago
+      - generic [ref=e314] [cursor=pointer]:
+        - generic [ref=e315]:
+          - generic [ref=e316]: OA
+          - paragraph [ref=e318]: Ortho Assessment v2
+          - generic [ref=e319]: Discovery
+        - generic [ref=e325]: 34%
+        - paragraph [ref=e326]: The American Board of Orthodontics currently administers its certification process only once per year, limiting engagement with its orthodontist community and reducing the frequency of skills validation. The organization seeks to modernize its credentialing approach by moving to a more frequent and persistent certification and training model. This initiative is driven by a strategic goal to deepen community engagement and provide continuous educational value to practicing orthodontists.
+        - generic [ref=e328]:
+          - generic [ref=e329]: Q
+          - generic [ref=e331]: about 1 month ago
+      - generic [ref=e332] [cursor=pointer]:
+        - generic [ref=e333]:
+          - generic [ref=e334]: OA
+          - paragraph [ref=e336]: Ortho Assessment
+          - generic [ref=e337]: Discovery
+        - generic [ref=e343]: 2%
+        - paragraph [ref=e344]: The American Board of Orthodontics currently relies on a manual, once-yearly certification testing approach that suffers from poor engagement and outdated methodology. With an upcoming Florida trade show as a catalyst, the ABO seeks to modernize how orthodontists get certified and increase the frequency of certification opportunities. This prototype represents a strategic shift toward a digital, interactive, and community-driven assessment model that bridges the gap between traditional board certification and modern professional development expectations.
+        - generic [ref=e347]:
+          - img [ref=e348]
+          - generic [ref=e351]:
+            - img [ref=e352]
+            - text: All done
+        - generic [ref=e355]:
+          - generic [ref=e356]: Q
+          - generic [ref=e358]: about 1 month ago
+      - generic [ref=e359] [cursor=pointer]:
+        - generic [ref=e360]:
+          - generic [ref=e361]: SM
+          - paragraph [ref=e363]: Stardust MRDS - Pipeline Test
+          - generic [ref=e364]: Discovery
+        - generic [ref=e370]: 27%
+        - paragraph [ref=e371]: "The Material Resource Distribution System (MRDS) enhances productivity and efficiency in material donation procurement, is scalable, and reduces duplicative expenses for nonprofits. The system enables: • Acquiring and distributing pallet and truckload level donations from organizations like Good 360 • Providing pallet storage options for organizations with no storage capacity • Enabling donation sharing within the nonprofit sector ensuring materials are in the community, not warehouses • Sorting pallets to improve accessibility and distribution success • Supporting volunteer events for nonprofit partners • Reducing employee and warehouse space needs and costs for nonprofit partners • Providing a financially independent, sustainable model by self-funding through surplus revenue • Improving material demand forecasting and planning using historical data • Decreasing distribution bottlenecks and reducing manual processes The system serves Partner Agencies (who distribute to clients), Distribution Partners (who receive truckloads and distribute to PAs), and Stardust management staff across an initial 30 users scaling to 75 within 2 years."
+        - generic [ref=e373]:
+          - generic [ref=e374]: Q
+          - generic [ref=e376]: about 1 month ago
+      - generic [ref=e377] [cursor=pointer]:
+        - generic [ref=e378]:
+          - generic [ref=e379]: SC
+          - generic [ref=e380]:
+            - paragraph [ref=e381]: Seton Communio
+            - paragraph [ref=e382]: Seton Communio
+          - generic [ref=e383]: Prototype
+        - generic [ref=e389]: 47%
+        - paragraph [ref=e390]: Church engagement platform transforming parish data into actionable insights
+        - generic [ref=e393]:
+          - img [ref=e394]
+          - text: 2 pending
+        - generic [ref=e397]:
+          - generic [ref=e398]: Q
+          - generic [ref=e399]:
+            - button "Ready to advance stage" [ref=e400]:
+              - img [ref=e401]
+            - generic [ref=e403]: about 1 month ago
+      - generic [ref=e404] [cursor=pointer]:
+        - generic [ref=e405]:
+          - generic [ref=e406]: U
+          - generic [ref=e407]:
+            - paragraph [ref=e408]: Unmasked
+            - paragraph [ref=e409]: Unmasked
+          - generic [ref=e410]: Discovery
+        - generic [ref=e416]: 44%
+        - paragraph [ref=e417]: Personal transformation app helping users break autopilot patterns through personalized practices, guided reflection, and coach-led support. Focuses on moving from awareness to intentional action.
+        - generic [ref=e420]:
+          - img [ref=e421]
+          - generic [ref=e424]:
+            - img [ref=e425]
+            - text: All done
+        - generic [ref=e428]:
+          - generic [ref=e429]: Q
+          - generic [ref=e431]: about 2 months ago

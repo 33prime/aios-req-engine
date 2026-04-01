@@ -1,0 +1,47 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - link "Readytogo" [ref=e5] [cursor=pointer]:
+        - /url: /projects
+        - img "Readytogo" [ref=e6]
+      - button "New project" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+    - navigation [ref=e10]:
+      - link "Home" [ref=e11] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e13]
+        - generic [ref=e16]: Home
+      - link "Projects" [ref=e17] [cursor=pointer]:
+        - /url: /projects
+        - img [ref=e19]
+        - generic [ref=e21]: Projects
+      - link "Tasks" [ref=e22] [cursor=pointer]:
+        - /url: /tasks
+        - img [ref=e24]
+        - generic [ref=e27]: Tasks
+      - link "Clients" [ref=e28] [cursor=pointer]:
+        - /url: /clients
+        - img [ref=e30]
+        - generic [ref=e34]: Clients
+      - link "People" [ref=e35] [cursor=pointer]:
+        - /url: /people
+        - img [ref=e37]
+        - generic [ref=e41]: People
+      - link "Meetings" [ref=e42] [cursor=pointer]:
+        - /url: /meetings
+        - img [ref=e44]
+        - generic [ref=e46]: Meetings
+      - link "Settings" [ref=e47] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e49]
+        - generic [ref=e52]: Settings
+    - button "Collapse sidebar" [ref=e53] [cursor=pointer]:
+      - img [ref=e54]
+    - link "qa-tester qa-tester@readytogo.ai" [ref=e57] [cursor=pointer]:
+      - /url: /settings
+      - img [ref=e59]
+      - generic [ref=e62]:
+        - paragraph [ref=e63]: qa-tester
+        - paragraph [ref=e64]: qa-tester@readytogo.ai
+  - paragraph [ref=e68]: Loading projects...

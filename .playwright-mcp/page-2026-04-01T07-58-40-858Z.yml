@@ -1,0 +1,107 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - link "Readytogo" [ref=e5] [cursor=pointer]:
+        - /url: /projects
+        - img "Readytogo" [ref=e6]
+      - button "New project" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+    - navigation [ref=e10]:
+      - link "Home" [ref=e11] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e13]
+        - generic [ref=e16]: Home
+      - link "Projects" [ref=e17] [cursor=pointer]:
+        - /url: /projects
+        - img [ref=e19]
+        - generic [ref=e21]: Projects
+      - link "Tasks" [ref=e22] [cursor=pointer]:
+        - /url: /tasks
+        - img [ref=e24]
+        - generic [ref=e27]: Tasks
+      - link "Clients" [ref=e28] [cursor=pointer]:
+        - /url: /clients
+        - img [ref=e30]
+        - generic [ref=e34]: Clients
+      - link "People" [ref=e35] [cursor=pointer]:
+        - /url: /people
+        - img [ref=e37]
+        - generic [ref=e41]: People
+      - link "Meetings" [ref=e42] [cursor=pointer]:
+        - /url: /meetings
+        - img [ref=e44]
+        - generic [ref=e46]: Meetings
+      - link "Settings" [ref=e47] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e49]
+        - generic [ref=e52]: Settings
+    - button "Collapse sidebar" [ref=e53] [cursor=pointer]:
+      - img [ref=e54]
+    - link "QA Tester qa-tester@readytogo.ai" [ref=e69] [cursor=pointer]:
+      - /url: /settings
+      - img [ref=e59]
+      - generic [ref=e62]:
+        - paragraph [ref=e63]: QA Tester
+        - paragraph [ref=e64]: qa-tester@readytogo.ai
+  - generic [ref=e66]:
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - button "Filter 1" [expanded] [ref=e548] [cursor=pointer]:
+          - img [ref=e73]
+          - generic [ref=e74]: Filter
+          - generic [ref=e549]: "1"
+        - button "Last Updated" [ref=e75] [cursor=pointer]:
+          - generic [ref=e76]: Last Updated
+          - img [ref=e77]
+        - button "Refresh projects" [ref=e79] [cursor=pointer]:
+          - img [ref=e80]
+      - generic [ref=e85]:
+        - button "Search projects" [ref=e87] [cursor=pointer]:
+          - img [ref=e88]
+        - generic [ref=e91]:
+          - button "Table view" [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+          - button "Cards view" [ref=e94] [cursor=pointer]:
+            - img [ref=e95]
+          - button "Kanban view" [ref=e99] [cursor=pointer]:
+            - img [ref=e100]
+    - paragraph [ref=e551]: No projects match your filters
+  - dialog [ref=e519]:
+    - generic [ref=e520]:
+      - generic [ref=e521]:
+        - generic [ref=e522]: Stage
+        - generic [ref=e523]:
+          - generic [ref=e524] [cursor=pointer]:
+            - radio "All Stages" [ref=e525]
+            - generic [ref=e526]: All Stages
+          - generic [ref=e527] [cursor=pointer]:
+            - radio "Discovery" [ref=e528]
+            - generic [ref=e529]: Discovery
+          - generic [ref=e530] [cursor=pointer]:
+            - radio "Validation" [checked] [active] [ref=e531]
+            - generic [ref=e532]: Validation
+          - generic [ref=e533] [cursor=pointer]:
+            - radio "Prototype" [ref=e534]
+            - generic [ref=e535]: Prototype
+          - generic [ref=e536] [cursor=pointer]:
+            - radio "Proposal" [ref=e537]
+            - generic [ref=e538]: Proposal
+          - generic [ref=e539] [cursor=pointer]:
+            - radio "Build" [ref=e540]
+            - generic [ref=e541]: Build
+          - generic [ref=e542] [cursor=pointer]:
+            - radio "Live" [ref=e543]
+            - generic [ref=e544]: Live
+      - generic [ref=e545]:
+        - generic [ref=e546]: Client
+        - combobox [ref=e547]:
+          - option "All Clients" [selected]
+          - option "BenyBox"
+          - option "Business Onboarding & RevOps Platform"
+          - option "Dr. Proctor"
+          - option "PersonaPulse"
+          - option "Pre-Clinical Guidance"
+          - option "Seton Communio"
+          - option "Unmasked"
+      - button "Clear Filters" [ref=e550] [cursor=pointer]

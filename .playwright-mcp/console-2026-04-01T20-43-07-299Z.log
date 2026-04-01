@@ -1,0 +1,132 @@
+[    3106ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38340
+[    9576ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8000/v1/prototypes/by-project/72173057-d025-4e62-ad50-9b5f73c8cc80:0
+[   45269ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd/health:0
+[  189659ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[  981304ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[  985094ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[  989017ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1087089ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1095562ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1096902ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1103001ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1105028ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1111416ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1118073ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1127438ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1133425ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1191110ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1191622ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:88
+[ 1192157ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38340
+[ 1192390ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[ 1192391ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[ 1192391ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[ 1192391ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[ 1192391ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[ 1192395ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/organizations/profile/me:0
+[ 1192396ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80:0
+[ 1192396ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/prototypes/by-project/72173057-d025-4e62-ad50-9b5f73c8cc80:0
+[ 1192396ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[ 1192403ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[ 1192406ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[ 1192407ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[ 1192409ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[ 1192409ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80:0
+[ 1192411ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1197400ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[ 1197405ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[ 1197414ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[ 1197421ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[ 1197421ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1202399ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[ 1202415ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[ 1202416ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[ 1202416ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1202418ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/organizations/profile/me:0
+[ 1202418ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[ 1202425ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[ 1202428ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[ 1202430ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1205057ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1207409ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[ 1212303ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1212419ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1212422ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[ 1212430ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[ 1212432ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1217423ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[ 1217431ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[ 1217442ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1219357ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1222404ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[ 1222414ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[ 1222419ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1222421ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[ 1222427ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[ 1226514ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1227422ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[ 1227430ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/organizations/profile/me:0
+[ 1227430ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1227434ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1227446ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1236548ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1237413ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[ 1237425ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1247025ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1247417ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[ 1252427ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[ 1252442ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/organizations/profile/me:0
+[ 1252442ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1252443ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[ 1252450ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1262435ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[ 1267431ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[ 1267439ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1272411ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[ 1272424ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1272431ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[ 1272436ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[ 1272441ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1277430ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1282430ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[ 1282444ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1287416ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[ 1287436ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1287445ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1302449ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1302452ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1303638ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1305329ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1306536ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1307642ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1312431ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[ 1314328ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1322444ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[ 1327426ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[ 1327440ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1327452ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1332446ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/organizations/profile/me:0
+[ 1337438ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[ 1342414ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[ 1342418ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1352423ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1352443ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1362442ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[ 1362457ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1362460ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1367452ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[ 1372438ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[ 1372456ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1372458ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1377429ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 1553798ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1556822ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1557745ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1564835ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1568584ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161

@@ -1,0 +1,655 @@
+[     370ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38340
+[    4325ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8000/v1/prototypes/by-project/72173057-d025-4e62-ad50-9b5f73c8cc80:0
+[10178482ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[10193227ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[10199967ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[10206783ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[10222492ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[10223850ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[10223964ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33
+[10224039ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33
+[10234467ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33
+[10234751ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33
+[10234848ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33
+[10234914ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33
+[10234967ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/projects/72173057-d025-4e62-ad50-9b5f73c8cc80?_rsc=119u2:0
+[10234973ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/projects/72173057-d025-4e62-ad50-9b5f73c8cc80?_rsc=119u2:0
+[10235026ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/projects/72173057-d025-4e62-ad50-9b5f73c8cc80:0
+[10235212ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///./node_modules/react-dom/cjs/react-dom.development.js:29889
+[10235231ms] ModuleBuildError: Module build failed (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js):
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+
+Caused by:
+    Syntax Error
+    at processResult (file:///Users/matt/aios-req-engine/apps/workbench/node_modules/next/dist/compiled/webpack/bundle5.js:28:398653)
+    at <unknown> (file:///Users/matt/aios-req-engine/apps/workbench/node_modules/next/dist/compiled/webpack/bundle5.js:28:400370)
+    at <unknown> (file:///Users/matt/aios-req-engine/apps/workbench/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:8645)
+    at <unknown> (file:///Users/matt/aios-req-engine/apps/workbench/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:5019)
+    at r.callback (file:///Users/matt/aios-req-engine/apps/workbench/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:4039)
+[10235230ms] [LOG] [HMR] connected @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:45
+[10235231ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10235239ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/favicon.ico:0
+[10237574ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10237684ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10237754ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10292086ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10292086ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:196
+[10292293ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10300283ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10300283ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:196
+[10300373ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10313951ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10313951ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:196
+[10314040ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10343641ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10345152ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10346067ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10496066ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10496352ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10496514ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10545407ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10545684ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10545941ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10573879ms] [ERROR] ./components/workspace/brd/sections/BusinessContextSection.tsx
+Error: 
+  x Unexpected token `section`. Expected jsx identifier
+    ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/BusinessContextSection.tsx:84:1]
+ 84 |   const companyMeta = data.company_name ? { name: data.company_name, industry: data.industry } : null
+ 85 | 
+ 86 |   return (
+ 87 |     <section id="brd-section-business-context" className="space-y-8">
+    :      ^^^^^^^
+ 88 |       {/* Background — Problem Provenance (hidden for new_product — replaced by ProblemSolutionSection) */}
+ 89 |       {!hideNarratives && <div>
+ 90 |         <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/BusinessContextSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[10574078ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:196
+[10574699ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/74c177b5ee195e50.webpack.hot-update.json:0
+[10574700ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:297
+[10575164ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38340
+[10575435ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[10575435ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[10575435ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[10575435ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[10575439ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[10575439ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/organizations/profile/me:0
+[10575439ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80:0
+[10575439ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/prototypes/by-project/72173057-d025-4e62-ad50-9b5f73c8cc80:0
+[10575439ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[10575447ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[10575450ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[10575452ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[10575454ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80:0
+[10575458ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[10580444ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[10580453ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/organizations/profile/me:0
+[10580454ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[10580460ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[10585440ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[10585447ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[10585450ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[10585451ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[10585451ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[10585451ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[10585458ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[10585461ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[10585463ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[10590453ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[10595451ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[10595463ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[10595464ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[10595472ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[10600443ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace:0
+[10600447ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[10600456ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/organizations/profile/me:0
+[10600474ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[10605452ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[10605456ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/collaboration/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/pulse:0
+[10605460ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/intelligence:0
+[10605471ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/brd?include_evidence=true:0
+[10605474ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0
+[10610452ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/actions?max_actions=5&version=v3:0

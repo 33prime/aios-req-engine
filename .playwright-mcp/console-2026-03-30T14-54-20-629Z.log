@@ -1,0 +1,5 @@
+[  823474ms] [WARNING] Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element: JSHandle@node @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:107
+[  823474ms] [WARNING] Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element: JSHandle@node @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:107
+[ 3686074ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8000/v1/prototypes/by-project/72173057-d025-4e62-ad50-9b5f73c8cc80:0
+[ 6524322ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0
+[ 6996892ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/v1/projects/72173057-d025-4e62-ad50-9b5f73c8cc80/workspace/briefing?max_actions=5&force_refresh=false:0

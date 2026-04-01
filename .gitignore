@@ -71,3 +71,4 @@ v0_prompt_*.md
 v0_prompt_*.json
 .netlify/
 apps/workbench/.netlify/
+qa-reports/

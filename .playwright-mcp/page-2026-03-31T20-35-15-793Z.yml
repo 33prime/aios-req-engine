@@ -1,0 +1,217 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - complementary [ref=e212]:
+    - generic [ref=e213]:
+      - link "Readytogo" [ref=e214] [cursor=pointer]:
+        - /url: /projects
+        - img "Readytogo" [ref=e215]
+      - button "New project" [ref=e217] [cursor=pointer]:
+        - img [ref=e218]
+    - navigation [ref=e219]:
+      - link "Home" [ref=e220] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e222]
+        - generic [ref=e225]: Home
+      - link "Projects" [ref=e226] [cursor=pointer]:
+        - /url: /projects
+        - img [ref=e228]
+        - generic [ref=e230]: Projects
+      - link "Tasks" [ref=e231] [cursor=pointer]:
+        - /url: /tasks
+        - img [ref=e233]
+        - generic [ref=e236]: Tasks
+      - link "Clients" [ref=e237] [cursor=pointer]:
+        - /url: /clients
+        - img [ref=e239]
+        - generic [ref=e243]: Clients
+      - link "People" [ref=e244] [cursor=pointer]:
+        - /url: /people
+        - img [ref=e246]
+        - generic [ref=e250]: People
+      - link "Meetings" [ref=e251] [cursor=pointer]:
+        - /url: /meetings
+        - img [ref=e253]
+        - generic [ref=e255]: Meetings
+      - link "Settings" [ref=e256] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e258]
+        - generic [ref=e261]: Settings
+    - button "Collapse sidebar" [ref=e262] [cursor=pointer]:
+      - img [ref=e263]
+    - link "QA Tester qa-tester@readytogo.ai" [ref=e266] [cursor=pointer]:
+      - /url: /settings
+      - img [ref=e268]
+      - generic [ref=e271]:
+        - paragraph [ref=e272]: QA Tester
+        - paragraph [ref=e273]: qa-tester@readytogo.ai
+  - generic [ref=e275]:
+    - generic [ref=e276]:
+      - generic [ref=e277]:
+        - generic [ref=e278]:
+          - heading "Meetings" [level=1] [ref=e279]
+          - paragraph [ref=e280]: Discovery sessions, reviews, and stakeholder calls
+        - generic [ref=e281]:
+          - button "Refresh" [ref=e282] [cursor=pointer]:
+            - img [ref=e283]
+            - text: Refresh
+          - button "New Meeting" [ref=e288] [cursor=pointer]:
+            - img [ref=e289]
+            - text: New Meeting
+      - generic [ref=e290]:
+        - generic [ref=e291]:
+          - button "Upcoming 1" [ref=e292] [cursor=pointer]:
+            - text: Upcoming
+            - generic [ref=e293]: "1"
+          - button "Past 3" [ref=e294] [cursor=pointer]:
+            - text: Past
+            - generic [ref=e295]: "3"
+          - button "Recorded 0" [ref=e296] [cursor=pointer]:
+            - text: Recorded
+            - generic [ref=e298]: "0"
+        - generic [ref=e299]:
+          - button "Table" [ref=e300] [cursor=pointer]
+          - button "Cards" [ref=e301] [cursor=pointer]
+      - generic [ref=e302]:
+        - generic [ref=e303]:
+          - img [ref=e304]
+          - textbox "Search meetings..." [ref=e307]
+        - combobox [ref=e308]:
+          - option "All Types" [selected]
+          - option "Discovery"
+          - option "Validation"
+          - option "Review"
+          - option "Other"
+        - combobox [ref=e309]:
+          - option "All Projects" [selected]
+          - option "Customer Onboarding Portal"
+          - option "BenyBox"
+          - option "Internal Aerospace Inventory Manager"
+          - option "Business Onboarding & RevOps Platform"
+          - option "Dr. Proctor"
+          - option "Ensure Direct Bill"
+          - option "Pre-Clinical Guidance"
+          - option "ABO Certification Renewal Prototype"
+          - option "People Pulse"
+          - option "Ortho Assessment v2"
+          - option "PersonaPulse"
+          - option "Ortho Assessment"
+          - option "Stardust MRDS - Pipeline Test"
+          - option "Unmasked"
+          - option "Seton Communio"
+    - generic [ref=e310]: 1 meeting found
+    - table [ref=e312]:
+      - rowgroup [ref=e313]:
+        - row "Meeting Type Date & Time Duration Participants Status" [ref=e314]:
+          - columnheader "Meeting" [ref=e315]
+          - columnheader "Type" [ref=e316]
+          - columnheader "Date & Time" [ref=e317]
+          - columnheader "Duration" [ref=e318]
+          - columnheader "Participants" [ref=e319]
+          - columnheader "Status" [ref=e320]
+      - rowgroup [ref=e321]:
+        - row "Pulse refinement call Validation Mon, Feb 23 10:00 AM 60 min — Scheduled" [ref=e322] [cursor=pointer]:
+          - cell "Pulse refinement call" [ref=e323]:
+            - generic [ref=e324]:
+              - img [ref=e326]
+              - generic [ref=e329]: Pulse refinement call
+          - cell "Validation" [ref=e330]:
+            - generic [ref=e331]: Validation
+          - cell "Mon, Feb 23 10:00 AM" [ref=e332]:
+            - generic [ref=e333]: Mon, Feb 23
+            - generic [ref=e334]: 10:00 AM
+          - cell "60 min" [ref=e335]:
+            - generic [ref=e336]:
+              - img [ref=e337]
+              - text: 60 min
+          - cell "—" [ref=e340]
+          - cell "Scheduled" [ref=e341]:
+            - generic [ref=e343]: Scheduled
+  - generic [ref=e346]:
+    - generic [ref=e347]:
+      - heading "Schedule Meeting" [level=2] [ref=e348]
+      - button [ref=e349] [cursor=pointer]:
+        - img [ref=e350]
+    - generic [ref=e353]:
+      - generic [ref=e354]:
+        - generic [ref=e355]: Title *
+        - textbox "e.g. Requirements Kickoff with Acme Corp" [ref=e356]: QA Audit Discovery Session
+      - generic [ref=e357]:
+        - generic [ref=e358]: Project *
+        - combobox [ref=e359]:
+          - option "Select project..."
+          - option "Customer Onboarding Portal" [selected]
+          - option "BenyBox"
+          - option "Internal Aerospace Inventory Manager"
+          - option "Business Onboarding & RevOps Platform"
+          - option "Dr. Proctor"
+          - option "Ensure Direct Bill"
+          - option "Pre-Clinical Guidance"
+          - option "ABO Certification Renewal Prototype"
+          - option "People Pulse"
+          - option "Ortho Assessment v2"
+          - option "PersonaPulse"
+          - option "Ortho Assessment"
+          - option "Stardust MRDS - Pipeline Test"
+          - option "Unmasked"
+          - option "Seton Communio"
+      - generic [ref=e360]:
+        - generic [ref=e361]: Meeting Type
+        - generic [ref=e362]:
+          - button "Discovery" [active] [ref=e363] [cursor=pointer]
+          - button "Validation" [ref=e364] [cursor=pointer]
+          - button "Review" [ref=e365] [cursor=pointer]
+          - button "Other" [ref=e366] [cursor=pointer]
+      - generic [ref=e367]:
+        - generic [ref=e368]:
+          - generic [ref=e369]: Date *
+          - textbox [ref=e370]: 2026-04-15
+        - generic [ref=e371]:
+          - generic [ref=e372]: Time *
+          - textbox [ref=e373]: 10:00
+        - generic [ref=e374]:
+          - generic [ref=e375]: Duration
+          - combobox [ref=e376]:
+            - option "30 min"
+            - option "45 min"
+            - option "60 min" [selected]
+            - option "90 min"
+            - option "2 hours"
+      - generic [ref=e377]:
+        - generic [ref=e378]: Timezone
+        - combobox [ref=e379]:
+          - option "Eastern (ET)" [selected]
+          - option "Central (CT)"
+          - option "Mountain (MT)"
+          - option "Pacific (PT)"
+          - option "UTC"
+          - option "London (GMT)"
+      - generic [ref=e380]:
+        - generic [ref=e381]: Description
+        - textbox "Meeting purpose and context (optional)" [ref=e382]
+      - generic [ref=e408]:
+        - generic [ref=e410]:
+          - img [ref=e411]
+          - text: Participants
+        - generic [ref=e417]:
+          - img [ref=e418]
+          - textbox "Search stakeholders..." [ref=e421]
+      - generic [ref=e383]:
+        - generic [ref=e384]:
+          - generic [ref=e385]:
+            - img [ref=e386]
+            - generic [ref=e388]:
+              - paragraph [ref=e389]: Create Google Calendar event
+              - paragraph [ref=e390]:
+                - img [ref=e391]
+                - text: Connect Google in Settings to enable
+          - button [disabled] [ref=e393]
+        - generic [ref=e395]:
+          - generic [ref=e396]:
+            - img [ref=e397]
+            - generic [ref=e400]:
+              - paragraph [ref=e401]: Auto-record this meeting
+              - paragraph [ref=e402]: Participants receive consent notifications
+          - button [ref=e403] [cursor=pointer]
+    - generic [ref=e405]:
+      - button "Cancel" [ref=e406] [cursor=pointer]
+      - button "Schedule Meeting" [ref=e407] [cursor=pointer]

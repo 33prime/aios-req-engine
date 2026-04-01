@@ -1,0 +1,308 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - link "Readytogo" [ref=e5] [cursor=pointer]:
+        - /url: /projects
+        - img "Readytogo" [ref=e6]
+      - button "New project" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+    - navigation [ref=e10]:
+      - link "Home" [ref=e11] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e13]
+        - generic [ref=e16]: Home
+      - link "Projects" [ref=e17] [cursor=pointer]:
+        - /url: /projects
+        - img [ref=e19]
+        - generic [ref=e21]: Projects
+      - link "Tasks" [ref=e22] [cursor=pointer]:
+        - /url: /tasks
+        - img [ref=e24]
+        - generic [ref=e27]: Tasks
+      - link "Clients" [ref=e28] [cursor=pointer]:
+        - /url: /clients
+        - img [ref=e30]
+        - generic [ref=e34]: Clients
+      - link "People" [ref=e35] [cursor=pointer]:
+        - /url: /people
+        - img [ref=e37]
+        - generic [ref=e41]: People
+      - link "Meetings" [ref=e42] [cursor=pointer]:
+        - /url: /meetings
+        - img [ref=e44]
+        - generic [ref=e46]: Meetings
+      - link "Settings" [ref=e47] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e49]
+        - generic [ref=e52]: Settings
+    - button "Collapse sidebar" [ref=e53] [cursor=pointer]:
+      - img [ref=e54]
+    - link "QA Tester qa-tester@readytogo.ai" [ref=e69] [cursor=pointer]:
+      - /url: /settings
+      - img [ref=e59]
+      - generic [ref=e62]:
+        - paragraph [ref=e63]: QA Tester
+        - paragraph [ref=e64]: qa-tester@readytogo.ai
+  - generic [ref=e66]:
+    - generic [ref=e67]:
+      - img [ref=e70]
+      - heading "Clients" [level=1] [ref=e74]
+    - generic [ref=e75]:
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - img [ref=e78]
+          - textbox "Search clients..." [ref=e81]
+        - combobox [ref=e82] [cursor=pointer]:
+          - option "All Industries" [selected]
+          - option "Technology"
+          - option "Healthcare"
+          - option "Finance"
+          - option "Manufacturing"
+          - option "Retail"
+          - option "Education"
+          - option "Real Estate"
+          - option "Construction"
+          - option "Professional Services"
+          - option "Government"
+          - option "Non-Profit"
+        - combobox [ref=e83] [cursor=pointer]:
+          - option "Name" [selected]
+          - option "Projects"
+          - option "Stakeholders"
+          - option "Completeness"
+        - button "Refresh" [ref=e84] [cursor=pointer]:
+          - img [ref=e85]
+      - generic [ref=e90]:
+        - generic [ref=e91]:
+          - button "Table view" [active] [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+          - button "Cards view" [ref=e94] [cursor=pointer]:
+            - img [ref=e95]
+        - button "Add Client" [ref=e100] [cursor=pointer]:
+          - img [ref=e101]
+          - text: Add Client
+    - generic [ref=e102]: 19 clients found
+    - table [ref=e1408]:
+      - rowgroup [ref=e1409]:
+        - row "Client Industry Projects People Completeness Status" [ref=e1410]:
+          - columnheader "Client" [ref=e1411]
+          - columnheader "Industry" [ref=e1412]
+          - columnheader "Projects" [ref=e1413]
+          - columnheader "People" [ref=e1414]
+          - columnheader "Completeness" [ref=e1415]
+          - columnheader "Status" [ref=e1416]
+      - rowgroup [ref=e1417]:
+        - row "AC Acme Corp SaaS 1 1 43%" [ref=e1418] [cursor=pointer]:
+          - cell "AC Acme Corp" [ref=e1419]:
+            - generic [ref=e1420]:
+              - generic [ref=e1422]: AC
+              - generic [ref=e1423]: Acme Corp
+          - cell "SaaS" [ref=e1424]
+          - cell "1" [ref=e1425]
+          - cell "1" [ref=e1426]
+          - cell "43%" [ref=e1427]:
+            - generic [ref=e1431]: 43%
+          - cell [ref=e1432]
+        - row "AB American Board of orthodontics Orthodontics 1 4 0%" [ref=e1435] [cursor=pointer]:
+          - cell "AB American Board of orthodontics" [ref=e1436]:
+            - generic [ref=e1437]:
+              - generic [ref=e1439]: AB
+              - generic [ref=e1440]: American Board of orthodontics
+          - cell "Orthodontics" [ref=e1441]
+          - cell "1" [ref=e1442]
+          - cell "4" [ref=e1443]
+          - cell "0%" [ref=e1444]:
+            - generic [ref=e1447]: 0%
+          - cell [ref=e1448]
+        - row "AB American Board of Orthodontics Orthodontics and Dentistry 1 1 0%" [ref=e1451] [cursor=pointer]:
+          - cell "AB American Board of Orthodontics" [ref=e1452]:
+            - generic [ref=e1453]:
+              - generic [ref=e1455]: AB
+              - generic [ref=e1456]: American Board of Orthodontics
+          - cell "Orthodontics and Dentistry" [ref=e1457]
+          - cell "1" [ref=e1458]
+          - cell "1" [ref=e1459]
+          - cell "0%" [ref=e1460]:
+            - generic [ref=e1463]: 0%
+          - cell [ref=e1464]
+        - row "AB American Board of Orthodontics Dentistry 0 0 0%" [ref=e1467] [cursor=pointer]:
+          - cell "AB American Board of Orthodontics" [ref=e1468]:
+            - generic [ref=e1469]:
+              - generic [ref=e1471]: AB
+              - generic [ref=e1472]: American Board of Orthodontics
+          - cell "Dentistry" [ref=e1473]
+          - cell "0" [ref=e1474]
+          - cell "0" [ref=e1475]
+          - cell "0%" [ref=e1476]:
+            - generic [ref=e1479]: 0%
+          - cell [ref=e1480]
+        - row "AB American Board of Orthodontists Medical 1 3 0%" [ref=e1483] [cursor=pointer]:
+          - cell "AB American Board of Orthodontists" [ref=e1484]:
+            - generic [ref=e1485]:
+              - generic [ref=e1487]: AB
+              - generic [ref=e1488]: American Board of Orthodontists
+          - cell "Medical" [ref=e1489]
+          - cell "1" [ref=e1490]
+          - cell "3" [ref=e1491]
+          - cell "0%" [ref=e1492]:
+            - generic [ref=e1495]: 0%
+          - cell [ref=e1496]
+        - row "CH Catalytic Health Partners Healthcare 0 0 0%" [ref=e1499] [cursor=pointer]:
+          - cell "CH Catalytic Health Partners" [ref=e1500]:
+            - generic [ref=e1501]:
+              - generic [ref=e1503]: CH
+              - generic [ref=e1504]: Catalytic Health Partners
+          - cell "Healthcare" [ref=e1505]
+          - cell "0" [ref=e1506]
+          - cell "0" [ref=e1507]
+          - cell "0%" [ref=e1508]:
+            - generic [ref=e1511]: 0%
+          - cell [ref=e1512]
+        - row "DP Dr. Proctor Education 1 1 0%" [ref=e1515] [cursor=pointer]:
+          - cell "DP Dr. Proctor" [ref=e1516]:
+            - generic [ref=e1517]:
+              - generic [ref=e1519]: DP
+              - generic [ref=e1520]: Dr. Proctor
+          - cell "Education" [ref=e1521]
+          - cell "1" [ref=e1522]
+          - cell "1" [ref=e1523]
+          - cell "0%" [ref=e1524]:
+            - generic [ref=e1527]: 0%
+          - cell [ref=e1528]
+        - row "E EndorseMe Legal 1 1 0% Needs input" [ref=e1531] [cursor=pointer]:
+          - cell "E EndorseMe" [ref=e1532]:
+            - generic [ref=e1533]:
+              - generic [ref=e1535]: E
+              - generic [ref=e1536]: EndorseMe
+          - cell "Legal" [ref=e1537]
+          - cell "1" [ref=e1538]
+          - cell "1" [ref=e1539]
+          - cell "0%" [ref=e1540]:
+            - generic [ref=e1543]: 0%
+          - cell "Needs input" [ref=e1544]:
+            - generic [ref=e1547]: Needs input
+        - row "E EndorseMe Legal 0 0 0%" [ref=e1548] [cursor=pointer]:
+          - cell "E EndorseMe" [ref=e1549]:
+            - generic [ref=e1550]:
+              - generic [ref=e1552]: E
+              - generic [ref=e1553]: EndorseMe
+          - cell "Legal" [ref=e1554]
+          - cell "0" [ref=e1555]
+          - cell "0" [ref=e1556]
+          - cell "0%" [ref=e1557]:
+            - generic [ref=e1560]: 0%
+          - cell [ref=e1561]
+        - row "MI Mutual Insurance Insurance 1 1 0%" [ref=e1564] [cursor=pointer]:
+          - cell "MI Mutual Insurance" [ref=e1565]:
+            - generic [ref=e1566]:
+              - generic [ref=e1568]: MI
+              - generic [ref=e1569]: Mutual Insurance
+          - cell "Insurance" [ref=e1570]
+          - cell "1" [ref=e1571]
+          - cell "1" [ref=e1572]
+          - cell "0%" [ref=e1573]:
+            - generic [ref=e1576]: 0%
+          - cell [ref=e1577]
+        - row "P PersonaPulse IT 1 1 0%" [ref=e1580] [cursor=pointer]:
+          - cell "P PersonaPulse" [ref=e1581]:
+            - generic [ref=e1582]:
+              - generic [ref=e1584]: P
+              - generic [ref=e1585]: PersonaPulse
+          - cell "IT" [ref=e1586]
+          - cell "1" [ref=e1587]
+          - cell "1" [ref=e1588]
+          - cell "0%" [ref=e1589]:
+            - generic [ref=e1592]: 0%
+          - cell [ref=e1593]
+        - row "P Proquint Life Sciences 1 1 0% Needs input" [ref=e1596] [cursor=pointer]:
+          - cell "P Proquint" [ref=e1597]:
+            - generic [ref=e1598]:
+              - generic [ref=e1600]: P
+              - generic [ref=e1601]: Proquint
+          - cell "Life Sciences" [ref=e1602]
+          - cell "1" [ref=e1603]
+          - cell "1" [ref=e1604]
+          - cell "0%" [ref=e1605]:
+            - generic [ref=e1608]: 0%
+          - cell "Needs input" [ref=e1609]:
+            - generic [ref=e1612]: Needs input
+        - row "R Readytogo AI Consulting 0 0 0%" [ref=e1613] [cursor=pointer]:
+          - cell "R Readytogo" [ref=e1614]:
+            - generic [ref=e1615]:
+              - generic [ref=e1617]: R
+              - generic [ref=e1618]: Readytogo
+          - cell "AI Consulting" [ref=e1619]
+          - cell "0" [ref=e1620]
+          - cell "0" [ref=e1621]
+          - cell "0%" [ref=e1622]:
+            - generic [ref=e1625]: 0%
+          - cell [ref=e1626]
+        - row "RN Revenue Northstar Technology consulting 1 1 0% Needs input" [ref=e1629] [cursor=pointer]:
+          - cell "RN Revenue Northstar" [ref=e1630]:
+            - generic [ref=e1631]:
+              - generic [ref=e1633]: RN
+              - generic [ref=e1634]: Revenue Northstar
+          - cell "Technology consulting" [ref=e1635]
+          - cell "1" [ref=e1636]
+          - cell "1" [ref=e1637]
+          - cell "0%" [ref=e1638]:
+            - generic [ref=e1641]: 0%
+          - cell "Needs input" [ref=e1642]:
+            - generic [ref=e1645]: Needs input
+        - row "SC Seton Collaborative Faith-Tech 0 0 0%" [ref=e1646] [cursor=pointer]:
+          - cell "SC Seton Collaborative" [ref=e1647]:
+            - generic [ref=e1648]:
+              - generic [ref=e1650]: SC
+              - generic [ref=e1651]: Seton Collaborative
+          - cell "Faith-Tech" [ref=e1652]
+          - cell "0" [ref=e1653]
+          - cell "0" [ref=e1654]
+          - cell "0%" [ref=e1655]:
+            - generic [ref=e1658]: 0%
+          - cell [ref=e1659]
+        - row "S Stardust Non Profit 1 0 0%" [ref=e1662] [cursor=pointer]:
+          - cell "S Stardust" [ref=e1663]:
+            - generic [ref=e1664]:
+              - generic [ref=e1666]: S
+              - generic [ref=e1667]: Stardust
+          - cell "Non Profit" [ref=e1668]
+          - cell "1" [ref=e1669]
+          - cell "0" [ref=e1670]
+          - cell "0%" [ref=e1671]:
+            - generic [ref=e1674]: 0%
+          - cell [ref=e1675]
+        - row "S Steadynamic.com Technology Consulting 1 1 0% Needs input" [ref=e1678] [cursor=pointer]:
+          - cell "S Steadynamic.com" [ref=e1679]:
+            - generic [ref=e1680]:
+              - generic [ref=e1682]: S
+              - generic [ref=e1683]: Steadynamic.com
+          - cell "Technology Consulting" [ref=e1684]
+          - cell "1" [ref=e1685]
+          - cell "1" [ref=e1686]
+          - cell "0%" [ref=e1687]:
+            - generic [ref=e1690]: 0%
+          - cell "Needs input" [ref=e1691]:
+            - generic [ref=e1694]: Needs input
+        - row "U Unmasked Personal Development 1 5 87%" [ref=e1695] [cursor=pointer]:
+          - cell "U Unmasked" [ref=e1696]:
+            - generic [ref=e1697]:
+              - generic [ref=e1699]: U
+              - generic [ref=e1700]: Unmasked
+          - cell "Personal Development" [ref=e1701]
+          - cell "1" [ref=e1702]
+          - cell "5" [ref=e1703]
+          - cell "87%" [ref=e1704]:
+            - generic [ref=e1708]: 87%
+          - cell [ref=e1709]
+        - row "WC Woodbone Consulting Aviatian Consulting 1 1 0%" [ref=e1712] [cursor=pointer]:
+          - cell "WC Woodbone Consulting" [ref=e1713]:
+            - generic [ref=e1714]:
+              - generic [ref=e1716]: WC
+              - generic [ref=e1717]: Woodbone Consulting
+          - cell "Aviatian Consulting" [ref=e1718]
+          - cell "1" [ref=e1719]
+          - cell "1" [ref=e1720]
+          - cell "0%" [ref=e1721]:
+            - generic [ref=e1724]: 0%
+          - cell [ref=e1725]

@@ -1,0 +1,364 @@
+- generic [ref=e1]:
+  - alert [ref=e14]
+  - complementary [ref=e215]:
+    - generic [ref=e216]:
+      - link "Readytogo" [ref=e217] [cursor=pointer]:
+        - /url: /projects
+        - img "Readytogo" [ref=e218]
+      - button "New project" [ref=e220] [cursor=pointer]:
+        - img [ref=e221]
+    - navigation [ref=e222]:
+      - link "Home" [ref=e223] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e225]
+        - generic [ref=e228]: Home
+      - link "Projects" [ref=e229] [cursor=pointer]:
+        - /url: /projects
+        - img [ref=e231]
+        - generic [ref=e233]: Projects
+      - link "Tasks" [ref=e234] [cursor=pointer]:
+        - /url: /tasks
+        - img [ref=e236]
+        - generic [ref=e239]: Tasks
+      - link "Clients" [ref=e240] [cursor=pointer]:
+        - /url: /clients
+        - img [ref=e242]
+        - generic [ref=e246]: Clients
+      - link "People" [ref=e247] [cursor=pointer]:
+        - /url: /people
+        - img [ref=e249]
+        - generic [ref=e253]: People
+      - link "Meetings" [ref=e254] [cursor=pointer]:
+        - /url: /meetings
+        - img [ref=e256]
+        - generic [ref=e258]: Meetings
+      - link "Settings" [ref=e259] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e261]
+        - generic [ref=e264]: Settings
+    - button "Collapse sidebar" [ref=e265] [cursor=pointer]:
+      - img [ref=e266]
+    - link "QA Tester qa-tester@readytogo.ai" [ref=e269] [cursor=pointer]:
+      - /url: /settings
+      - img [ref=e271]
+      - generic [ref=e274]:
+        - paragraph [ref=e275]: QA Tester
+        - paragraph [ref=e276]: qa-tester@readytogo.ai
+  - generic [ref=e278]:
+    - generic [ref=e279]:
+      - generic [ref=e280]:
+        - button "Filter" [ref=e281] [cursor=pointer]:
+          - img [ref=e282]
+          - generic [ref=e283]: Filter
+        - button "Last Updated" [ref=e284] [cursor=pointer]:
+          - generic [ref=e285]: Last Updated
+          - img [ref=e286]
+        - button "Refresh projects" [ref=e288] [cursor=pointer]:
+          - img [ref=e289]
+      - generic [ref=e294]:
+        - button "Search projects" [ref=e296] [cursor=pointer]:
+          - img [ref=e297]
+        - generic [ref=e300]:
+          - button "Table view" [active] [ref=e301] [cursor=pointer]:
+            - img [ref=e302]
+          - button "Cards view" [ref=e303] [cursor=pointer]:
+            - img [ref=e304]
+          - button "Kanban view" [ref=e308] [cursor=pointer]:
+            - img [ref=e309]
+    - table [ref=e729]:
+      - rowgroup [ref=e730]:
+        - row "Project Stage Client Readiness Owner Updated" [ref=e731]:
+          - columnheader "Project" [ref=e732]:
+            - button "Project" [ref=e733] [cursor=pointer]:
+              - text: Project
+              - img [ref=e734]
+          - columnheader "Stage" [ref=e737]
+          - columnheader "Client" [ref=e738]
+          - columnheader "Readiness" [ref=e739]:
+            - button "Readiness" [ref=e740] [cursor=pointer]:
+              - text: Readiness
+              - img [ref=e741]
+          - columnheader "Owner" [ref=e744]
+          - columnheader "Updated" [ref=e745]:
+            - button "Updated" [ref=e746] [cursor=pointer]:
+              - text: Updated
+              - img [ref=e747]
+      - rowgroup [ref=e749]:
+        - row "CO Customer Onboarding Portal Acme Corp, a mid-size SaaS company, is currently onboarding new customers using spreadsheets and email, a manual process that takes two weeks and does not scale. Having recently closed a Series B funding round, they are projecting 3x growth in the coming year and need to automate onboarding before volume overwhelms their team. The VP of Customer Success is championing this initiative to reduce onboarding time from two weeks to two days. Discovery - — Q QA 2 days ago" [ref=e750] [cursor=pointer]:
+          - cell "CO Customer Onboarding Portal Acme Corp, a mid-size SaaS company, is currently onboarding new customers using spreadsheets and email, a manual process that takes two weeks and does not scale. Having recently closed a Series B funding round, they are projecting 3x growth in the coming year and need to automate onboarding before volume overwhelms their team. The VP of Customer Success is championing this initiative to reduce onboarding time from two weeks to two days." [ref=e751]:
+            - generic [ref=e752]:
+              - generic [ref=e753]: CO
+              - generic [ref=e754]:
+                - generic [ref=e755]: Customer Onboarding Portal
+                - generic [ref=e756]: Acme Corp, a mid-size SaaS company, is currently onboarding new customers using spreadsheets and email, a manual process that takes two weeks and does not scale. Having recently closed a Series B funding round, they are projecting 3x growth in the coming year and need to automate onboarding before volume overwhelms their team. The VP of Customer Success is championing this initiative to reduce onboarding time from two weeks to two days.
+          - cell "Discovery" [ref=e757]:
+            - generic [ref=e758]: Discovery
+          - cell "-" [ref=e759]:
+            - generic [ref=e760]: "-"
+          - cell "—" [ref=e761]
+          - cell "Q QA" [ref=e762]:
+            - generic [ref=e763]:
+              - generic [ref=e764]: Q
+              - generic [ref=e765]: QA
+          - cell "2 days ago" [ref=e766]:
+            - generic [ref=e767]: 2 days ago
+        - row "B BenyBox Families with aging parents face a critical gap in managing and sharing essential legal, medical, and insurance documents — existing tools like Dropbox lack guided assessment features, and lawyer-specific solutions are too narrow in scope. BenyBox is being built to fill this first-to-market gap by combining secure document storage with personalized guidance on what documents families actually need. The trigger is the real-world scenario where adult children need immediate access to critical documents like powers of attorney during emergencies but have no organized, secure way to obtain them. Discovery BenyBox — Q QA 14 days ago" [ref=e768] [cursor=pointer]:
+          - cell "B BenyBox Families with aging parents face a critical gap in managing and sharing essential legal, medical, and insurance documents — existing tools like Dropbox lack guided assessment features, and lawyer-specific solutions are too narrow in scope. BenyBox is being built to fill this first-to-market gap by combining secure document storage with personalized guidance on what documents families actually need. The trigger is the real-world scenario where adult children need immediate access to critical documents like powers of attorney during emergencies but have no organized, secure way to obtain them." [ref=e769]:
+            - generic [ref=e770]:
+              - generic [ref=e771]: B
+              - generic [ref=e772]:
+                - generic [ref=e773]: BenyBox
+                - generic [ref=e774]: Families with aging parents face a critical gap in managing and sharing essential legal, medical, and insurance documents — existing tools like Dropbox lack guided assessment features, and lawyer-specific solutions are too narrow in scope. BenyBox is being built to fill this first-to-market gap by combining secure document storage with personalized guidance on what documents families actually need. The trigger is the real-world scenario where adult children need immediate access to critical documents like powers of attorney during emergencies but have no organized, secure way to obtain them.
+          - cell "Discovery" [ref=e775]:
+            - generic [ref=e776]: Discovery
+          - cell "BenyBox" [ref=e777]:
+            - generic [ref=e778]: BenyBox
+          - cell "—" [ref=e779]
+          - cell "Q QA" [ref=e780]:
+            - generic [ref=e781]:
+              - generic [ref=e782]: Q
+              - generic [ref=e783]: QA
+          - cell "14 days ago" [ref=e784]:
+            - generic [ref=e785]: 14 days ago
+        - row "IA Internal Aerospace Inventory Manager The client acquired a large inventory of diverse aerospace parts in a major transaction, ranging from specialized screws to turbine engines and landing gears. This inventory is currently sitting idle in a warehouse with no classification system in place, preventing the organization from monetizing it. There is an identified market for these parts, but the sheer volume and niche nature of the inventory makes manual classification impractical. Discovery - — Q QA 23 days ago" [ref=e786] [cursor=pointer]:
+          - cell "IA Internal Aerospace Inventory Manager The client acquired a large inventory of diverse aerospace parts in a major transaction, ranging from specialized screws to turbine engines and landing gears. This inventory is currently sitting idle in a warehouse with no classification system in place, preventing the organization from monetizing it. There is an identified market for these parts, but the sheer volume and niche nature of the inventory makes manual classification impractical." [ref=e787]:
+            - generic [ref=e788]:
+              - generic [ref=e789]: IA
+              - generic [ref=e790]:
+                - generic [ref=e791]: Internal Aerospace Inventory Manager
+                - generic [ref=e792]: The client acquired a large inventory of diverse aerospace parts in a major transaction, ranging from specialized screws to turbine engines and landing gears. This inventory is currently sitting idle in a warehouse with no classification system in place, preventing the organization from monetizing it. There is an identified market for these parts, but the sheer volume and niche nature of the inventory makes manual classification impractical.
+          - cell "Discovery" [ref=e793]:
+            - generic [ref=e794]: Discovery
+          - cell "-" [ref=e795]:
+            - generic [ref=e796]: "-"
+          - cell "—" [ref=e797]
+          - cell "Q QA" [ref=e798]:
+            - generic [ref=e799]:
+              - generic [ref=e800]: Q
+              - generic [ref=e801]: QA
+          - cell "23 days ago" [ref=e802]:
+            - generic [ref=e803]: 23 days ago
+        - row "BO Business Onboarding & RevOps Platform Valerie, a boutique consultant, has a proven manual process for helping small business owners understand how to grow revenue, but delivery speed and scale have become the bottleneck. Her current approach relies on bespoke consulting hours, limiting how many clients she can serve and how quickly. The goal is to productize her existing intellectual property into a repeatable, sellable system that removes her as the sole delivery mechanism. Discovery Business Onboarding & RevOps Platform 45% Q QA 26 days ago" [ref=e804] [cursor=pointer]:
+          - cell "BO Business Onboarding & RevOps Platform Valerie, a boutique consultant, has a proven manual process for helping small business owners understand how to grow revenue, but delivery speed and scale have become the bottleneck. Her current approach relies on bespoke consulting hours, limiting how many clients she can serve and how quickly. The goal is to productize her existing intellectual property into a repeatable, sellable system that removes her as the sole delivery mechanism." [ref=e805]:
+            - generic [ref=e806]:
+              - generic [ref=e807]: BO
+              - generic [ref=e808]:
+                - generic [ref=e809]: Business Onboarding & RevOps Platform
+                - generic [ref=e810]: Valerie, a boutique consultant, has a proven manual process for helping small business owners understand how to grow revenue, but delivery speed and scale have become the bottleneck. Her current approach relies on bespoke consulting hours, limiting how many clients she can serve and how quickly. The goal is to productize her existing intellectual property into a repeatable, sellable system that removes her as the sole delivery mechanism.
+          - cell "Discovery" [ref=e811]:
+            - generic [ref=e812]: Discovery
+          - cell "Business Onboarding & RevOps Platform" [ref=e813]:
+            - generic [ref=e814]: Business Onboarding & RevOps Platform
+          - cell "45%" [ref=e815]:
+            - generic [ref=e820]: 45%
+          - cell "Q QA" [ref=e821]:
+            - generic [ref=e822]:
+              - generic [ref=e823]: Q
+              - generic [ref=e824]: QA
+          - cell "26 days ago" [ref=e825]:
+            - generic [ref=e826]: 26 days ago
+        - row "DP Dr. Proctor Proctorio is a global provider of automated and live remote proctoring services that helps education institutions maintain academic integrity for online assessments. The company currently relies heavily on human intervention to deliver its proctoring services, which limits its ability to scale and grow. The trigger for building Dr. Proctor is a strategic initiative to apply AI and automation across the entire platform to reduce manual overhead and enable scalable growth. Discovery Dr. Proctor — Q QA about 1 month ago" [ref=e827] [cursor=pointer]:
+          - cell "DP Dr. Proctor Proctorio is a global provider of automated and live remote proctoring services that helps education institutions maintain academic integrity for online assessments. The company currently relies heavily on human intervention to deliver its proctoring services, which limits its ability to scale and grow. The trigger for building Dr. Proctor is a strategic initiative to apply AI and automation across the entire platform to reduce manual overhead and enable scalable growth." [ref=e828]:
+            - generic [ref=e829]:
+              - generic [ref=e830]: DP
+              - generic [ref=e831]:
+                - generic [ref=e832]: Dr. Proctor
+                - generic [ref=e833]: Proctorio is a global provider of automated and live remote proctoring services that helps education institutions maintain academic integrity for online assessments. The company currently relies heavily on human intervention to deliver its proctoring services, which limits its ability to scale and grow. The trigger for building Dr. Proctor is a strategic initiative to apply AI and automation across the entire platform to reduce manual overhead and enable scalable growth.
+          - cell "Discovery" [ref=e834]:
+            - generic [ref=e835]: Discovery
+          - cell "Dr. Proctor" [ref=e836]:
+            - generic [ref=e837]: Dr. Proctor
+          - cell "—" [ref=e838]
+          - cell "Q QA" [ref=e839]:
+            - generic [ref=e840]:
+              - generic [ref=e841]: Q
+              - generic [ref=e842]: QA
+          - cell "about 1 month ago" [ref=e843]:
+            - generic [ref=e844]: about 1 month ago
+        - row "ED Ensure Direct Bill MassMutual's operations currently rely on manual, legacy processes for policy checking and commission reconciliation, resulting in excessive time consumption and frequent errors. The organization is seeking to modernize by transitioning from traditional Business Process Management (BPM) to an AI-powered co-pilot model. The integration of Policy Insights® ExpressCheck and Direct Bill Complete represents a strategic initiative to reduce operational risk and free skilled professionals for higher-value work. Discovery - — Q QA about 1 month ago" [ref=e845] [cursor=pointer]:
+          - cell "ED Ensure Direct Bill MassMutual's operations currently rely on manual, legacy processes for policy checking and commission reconciliation, resulting in excessive time consumption and frequent errors. The organization is seeking to modernize by transitioning from traditional Business Process Management (BPM) to an AI-powered co-pilot model. The integration of Policy Insights® ExpressCheck and Direct Bill Complete represents a strategic initiative to reduce operational risk and free skilled professionals for higher-value work." [ref=e846]:
+            - generic [ref=e847]:
+              - generic [ref=e848]: ED
+              - generic [ref=e849]:
+                - generic [ref=e850]: Ensure Direct Bill
+                - generic [ref=e851]: MassMutual's operations currently rely on manual, legacy processes for policy checking and commission reconciliation, resulting in excessive time consumption and frequent errors. The organization is seeking to modernize by transitioning from traditional Business Process Management (BPM) to an AI-powered co-pilot model. The integration of Policy Insights® ExpressCheck and Direct Bill Complete represents a strategic initiative to reduce operational risk and free skilled professionals for higher-value work.
+          - cell "Discovery" [ref=e852]:
+            - generic [ref=e853]: Discovery
+          - cell "-" [ref=e854]:
+            - generic [ref=e855]: "-"
+          - cell "—" [ref=e856]
+          - cell "Q QA" [ref=e857]:
+            - generic [ref=e858]:
+              - generic [ref=e859]: Q
+              - generic [ref=e860]: QA
+          - cell "about 1 month ago" [ref=e861]:
+            - generic [ref=e862]: about 1 month ago
+        - row "PG Pre-Clinical Guidance Proquint, operating in the Life Sciences industry, currently relies on a manual system to deliver preclinical regulatory guidance to clients across biotech, pharmaceutical, and medical device sectors. The organization recognized that evolving global regulatory demands and client expectations for faster, more autonomous workflows have outpaced their existing capabilities. The trigger for this project is the need to modernize operations through AI-powered automation and self-service solutions that reduce dependency on manual expert intervention. Discovery Pre-Clinical Guidance — Q QA about 1 month ago" [ref=e863] [cursor=pointer]:
+          - cell "PG Pre-Clinical Guidance Proquint, operating in the Life Sciences industry, currently relies on a manual system to deliver preclinical regulatory guidance to clients across biotech, pharmaceutical, and medical device sectors. The organization recognized that evolving global regulatory demands and client expectations for faster, more autonomous workflows have outpaced their existing capabilities. The trigger for this project is the need to modernize operations through AI-powered automation and self-service solutions that reduce dependency on manual expert intervention." [ref=e864]:
+            - generic [ref=e865]:
+              - generic [ref=e866]: PG
+              - generic [ref=e867]:
+                - generic [ref=e868]: Pre-Clinical Guidance
+                - generic [ref=e869]: Proquint, operating in the Life Sciences industry, currently relies on a manual system to deliver preclinical regulatory guidance to clients across biotech, pharmaceutical, and medical device sectors. The organization recognized that evolving global regulatory demands and client expectations for faster, more autonomous workflows have outpaced their existing capabilities. The trigger for this project is the need to modernize operations through AI-powered automation and self-service solutions that reduce dependency on manual expert intervention.
+          - cell "Discovery" [ref=e870]:
+            - generic [ref=e871]: Discovery
+          - cell "Pre-Clinical Guidance" [ref=e872]:
+            - generic [ref=e873]: Pre-Clinical Guidance
+          - cell "—" [ref=e874]
+          - cell "Q QA" [ref=e875]:
+            - generic [ref=e876]:
+              - generic [ref=e877]: Q
+              - generic [ref=e878]: QA
+          - cell "about 1 month ago" [ref=e879]:
+            - generic [ref=e880]: about 1 month ago
+        - row "AC ABO Certification Renewal Prototype The American Board of Orthodontics currently relies on a clunky, once-a-year online assessment process for certification renewal that lacks flexibility and personalization. The organization wants to explore a more frequent, dynamic, and mobile-first approach to assessments that better serves board-certified orthodontists. A trade show setting provides an opportunity to prototype and validate this new assessment feedback approach while capturing leads for future development. Discovery - — Q QA about 1 month ago" [ref=e881] [cursor=pointer]:
+          - cell "AC ABO Certification Renewal Prototype The American Board of Orthodontics currently relies on a clunky, once-a-year online assessment process for certification renewal that lacks flexibility and personalization. The organization wants to explore a more frequent, dynamic, and mobile-first approach to assessments that better serves board-certified orthodontists. A trade show setting provides an opportunity to prototype and validate this new assessment feedback approach while capturing leads for future development." [ref=e882]:
+            - generic [ref=e883]:
+              - generic [ref=e884]: AC
+              - generic [ref=e885]:
+                - generic [ref=e886]: ABO Certification Renewal Prototype
+                - generic [ref=e887]: The American Board of Orthodontics currently relies on a clunky, once-a-year online assessment process for certification renewal that lacks flexibility and personalization. The organization wants to explore a more frequent, dynamic, and mobile-first approach to assessments that better serves board-certified orthodontists. A trade show setting provides an opportunity to prototype and validate this new assessment feedback approach while capturing leads for future development.
+          - cell "Discovery" [ref=e888]:
+            - generic [ref=e889]: Discovery
+          - cell "-" [ref=e890]:
+            - generic [ref=e891]: "-"
+          - cell "—" [ref=e892]
+          - cell "Q QA" [ref=e893]:
+            - generic [ref=e894]:
+              - generic [ref=e895]: Q
+              - generic [ref=e896]: QA
+          - cell "about 1 month ago" [ref=e897]:
+            - generic [ref=e898]: about 1 month ago
+        - row "P PersonaPulse Content creators in the AI and tech space struggle to consistently produce high-quality social media posts from their daily stream of news, ideas, and insights. The current content creation process is time-consuming and often results in generic, AI-generated content that lacks authenticity and fails to resonate with audiences. There is a clear market need for a tool that learns an individual's voice and continuously optimizes content performance across platforms. Discovery PersonaPulse 42% Q QA about 1 month ago" [ref=e899] [cursor=pointer]:
+          - cell "P PersonaPulse Content creators in the AI and tech space struggle to consistently produce high-quality social media posts from their daily stream of news, ideas, and insights. The current content creation process is time-consuming and often results in generic, AI-generated content that lacks authenticity and fails to resonate with audiences. There is a clear market need for a tool that learns an individual's voice and continuously optimizes content performance across platforms." [ref=e900]:
+            - generic [ref=e901]:
+              - generic [ref=e902]: P
+              - generic [ref=e903]:
+                - generic [ref=e904]: PersonaPulse
+                - generic [ref=e905]: Content creators in the AI and tech space struggle to consistently produce high-quality social media posts from their daily stream of news, ideas, and insights. The current content creation process is time-consuming and often results in generic, AI-generated content that lacks authenticity and fails to resonate with audiences. There is a clear market need for a tool that learns an individual's voice and continuously optimizes content performance across platforms.
+          - cell "Discovery" [ref=e906]:
+            - generic [ref=e907]: Discovery
+          - cell "PersonaPulse" [ref=e908]:
+            - generic [ref=e909]: PersonaPulse
+          - cell "42%" [ref=e910]:
+            - generic [ref=e915]: 42%
+          - cell "Q QA" [ref=e916]:
+            - generic [ref=e917]:
+              - generic [ref=e918]: Q
+              - generic [ref=e919]: QA
+          - cell "about 1 month ago" [ref=e920]:
+            - generic [ref=e921]: about 1 month ago
+        - 'row "PP People Pulse The client is building PersonaPulse because they are frustrated with the inefficiency and inauthenticity of working with marketing agencies and generic AI tools like Gemini and ChatGPT that fail to capture a founder''s unique voice. The trigger is a clear operational pain point: turning raw thoughts or voice notes into cohesive, multi-channel content campaigns is too time-consuming and costly with existing solutions. The business context is dual-use — enabling founders to build their personal brand while also distributing company messaging in an authentic, founder-native voice. Discovery - 39% Q QA about 1 month ago" [ref=e922] [cursor=pointer]':
+          - 'cell "PP People Pulse The client is building PersonaPulse because they are frustrated with the inefficiency and inauthenticity of working with marketing agencies and generic AI tools like Gemini and ChatGPT that fail to capture a founder''s unique voice. The trigger is a clear operational pain point: turning raw thoughts or voice notes into cohesive, multi-channel content campaigns is too time-consuming and costly with existing solutions. The business context is dual-use — enabling founders to build their personal brand while also distributing company messaging in an authentic, founder-native voice." [ref=e923]':
+            - generic [ref=e924]:
+              - generic [ref=e925]: PP
+              - generic [ref=e926]:
+                - generic [ref=e927]: People Pulse
+                - generic [ref=e928]: "The client is building PersonaPulse because they are frustrated with the inefficiency and inauthenticity of working with marketing agencies and generic AI tools like Gemini and ChatGPT that fail to capture a founder's unique voice. The trigger is a clear operational pain point: turning raw thoughts or voice notes into cohesive, multi-channel content campaigns is too time-consuming and costly with existing solutions. The business context is dual-use — enabling founders to build their personal brand while also distributing company messaging in an authentic, founder-native voice."
+          - cell "Discovery" [ref=e929]:
+            - generic [ref=e930]: Discovery
+          - cell "-" [ref=e931]:
+            - generic [ref=e932]: "-"
+          - cell "39%" [ref=e933]:
+            - generic [ref=e938]: 39%
+          - cell "Q QA" [ref=e939]:
+            - generic [ref=e940]:
+              - generic [ref=e941]: Q
+              - generic [ref=e942]: QA
+          - cell "about 1 month ago" [ref=e943]:
+            - generic [ref=e944]: about 1 month ago
+        - row "OA Ortho Assessment v2 The American Board of Orthodontics currently administers its certification process only once per year, limiting engagement with its orthodontist community and reducing the frequency of skills validation. The organization seeks to modernize its credentialing approach by moving to a more frequent and persistent certification and training model. This initiative is driven by a strategic goal to deepen community engagement and provide continuous educational value to practicing orthodontists. Discovery - 34% Q QA about 1 month ago" [ref=e945] [cursor=pointer]:
+          - cell "OA Ortho Assessment v2 The American Board of Orthodontics currently administers its certification process only once per year, limiting engagement with its orthodontist community and reducing the frequency of skills validation. The organization seeks to modernize its credentialing approach by moving to a more frequent and persistent certification and training model. This initiative is driven by a strategic goal to deepen community engagement and provide continuous educational value to practicing orthodontists." [ref=e946]:
+            - generic [ref=e947]:
+              - generic [ref=e948]: OA
+              - generic [ref=e949]:
+                - generic [ref=e950]: Ortho Assessment v2
+                - generic [ref=e951]: The American Board of Orthodontics currently administers its certification process only once per year, limiting engagement with its orthodontist community and reducing the frequency of skills validation. The organization seeks to modernize its credentialing approach by moving to a more frequent and persistent certification and training model. This initiative is driven by a strategic goal to deepen community engagement and provide continuous educational value to practicing orthodontists.
+          - cell "Discovery" [ref=e952]:
+            - generic [ref=e953]: Discovery
+          - cell "-" [ref=e954]:
+            - generic [ref=e955]: "-"
+          - cell "34%" [ref=e956]:
+            - generic [ref=e961]: 34%
+          - cell "Q QA" [ref=e962]:
+            - generic [ref=e963]:
+              - generic [ref=e964]: Q
+              - generic [ref=e965]: QA
+          - cell "about 1 month ago" [ref=e966]:
+            - generic [ref=e967]: about 1 month ago
+        - row "OA Ortho Assessment The American Board of Orthodontics currently relies on a manual, once-yearly certification testing approach that suffers from poor engagement and outdated methodology. With an upcoming Florida trade show as a catalyst, the ABO seeks to modernize how orthodontists get certified and increase the frequency of certification opportunities. This prototype represents a strategic shift toward a digital, interactive, and community-driven assessment model that bridges the gap between traditional board certification and modern professional development expectations. Discovery - 2% Q QA about 1 month ago" [ref=e968] [cursor=pointer]:
+          - cell "OA Ortho Assessment The American Board of Orthodontics currently relies on a manual, once-yearly certification testing approach that suffers from poor engagement and outdated methodology. With an upcoming Florida trade show as a catalyst, the ABO seeks to modernize how orthodontists get certified and increase the frequency of certification opportunities. This prototype represents a strategic shift toward a digital, interactive, and community-driven assessment model that bridges the gap between traditional board certification and modern professional development expectations." [ref=e969]:
+            - generic [ref=e970]:
+              - generic [ref=e971]: OA
+              - generic [ref=e972]:
+                - generic [ref=e973]: Ortho Assessment
+                - generic [ref=e974]: The American Board of Orthodontics currently relies on a manual, once-yearly certification testing approach that suffers from poor engagement and outdated methodology. With an upcoming Florida trade show as a catalyst, the ABO seeks to modernize how orthodontists get certified and increase the frequency of certification opportunities. This prototype represents a strategic shift toward a digital, interactive, and community-driven assessment model that bridges the gap between traditional board certification and modern professional development expectations.
+          - cell "Discovery" [ref=e975]:
+            - generic [ref=e976]: Discovery
+          - cell "-" [ref=e977]:
+            - generic [ref=e978]: "-"
+          - cell "2%" [ref=e979]:
+            - generic [ref=e984]: 2%
+          - cell "Q QA" [ref=e985]:
+            - generic [ref=e986]:
+              - generic [ref=e987]: Q
+              - generic [ref=e988]: QA
+          - cell "about 1 month ago" [ref=e989]:
+            - generic [ref=e990]: about 1 month ago
+        - row [ref=e991] [cursor=pointer]:
+          - cell [ref=e992]:
+            - generic [ref=e993]:
+              - generic [ref=e994]: SM
+              - generic [ref=e995]:
+                - generic [ref=e996]: Stardust MRDS - Pipeline Test
+                - generic [ref=e997]: "The Material Resource Distribution System (MRDS) enhances productivity and efficiency in material donation procurement, is scalable, and reduces duplicative expenses for nonprofits. The system enables: • Acquiring and distributing pallet and truckload level donations from organizations like Good 360 • Providing pallet storage options for organizations with no storage capacity • Enabling donation sharing within the nonprofit sector ensuring materials are in the community, not warehouses • Sorting pallets to improve accessibility and distribution success • Supporting volunteer events for nonprofit partners • Reducing employee and warehouse space needs and costs for nonprofit partners • Providing a financially independent, sustainable model by self-funding through surplus revenue • Improving material demand forecasting and planning using historical data • Decreasing distribution bottlenecks and reducing manual processes The system serves Partner Agencies (who distribute to clients), Distribution Partners (who receive truckloads and distribute to PAs), and Stardust management staff across an initial 30 users scaling to 75 within 2 years."
+          - cell "Discovery" [ref=e998]:
+            - generic [ref=e999]: Discovery
+          - cell "-" [ref=e1000]:
+            - generic [ref=e1001]: "-"
+          - cell "27%" [ref=e1002]:
+            - generic [ref=e1007]: 27%
+          - cell "Q QA" [ref=e1008]:
+            - generic [ref=e1009]:
+              - generic [ref=e1010]: Q
+              - generic [ref=e1011]: QA
+          - cell "about 1 month ago" [ref=e1012]:
+            - generic [ref=e1013]: about 1 month ago
+        - row "SC Seton Communio Church engagement platform transforming parish data into actionable insights Prototype Seton Communio 47% Q QA about 1 month ago" [ref=e1014] [cursor=pointer]:
+          - cell "SC Seton Communio Church engagement platform transforming parish data into actionable insights" [ref=e1015]:
+            - generic [ref=e1016]:
+              - generic [ref=e1017]: SC
+              - generic [ref=e1018]:
+                - generic [ref=e1019]: Seton Communio
+                - generic [ref=e1020]: Church engagement platform transforming parish data into actionable insights
+          - cell "Prototype" [ref=e1021]:
+            - generic [ref=e1022]: Prototype
+          - cell "Seton Communio" [ref=e1023]:
+            - generic [ref=e1024]: Seton Communio
+          - cell "47%" [ref=e1025]:
+            - generic [ref=e1030]: 47%
+          - cell "Q QA" [ref=e1031]:
+            - generic [ref=e1032]:
+              - generic [ref=e1033]: Q
+              - generic [ref=e1034]: QA
+          - cell "about 1 month ago" [ref=e1035]:
+            - generic [ref=e1036]: about 1 month ago
+        - row "U Unmasked Personal transformation app helping users break autopilot patterns through personalized practices, guided reflection, and coach-led support. Focuses on moving from awareness to intentional action. Discovery Unmasked 44% Q QA about 2 months ago" [ref=e1037] [cursor=pointer]:
+          - cell "U Unmasked Personal transformation app helping users break autopilot patterns through personalized practices, guided reflection, and coach-led support. Focuses on moving from awareness to intentional action." [ref=e1038]:
+            - generic [ref=e1039]:
+              - generic [ref=e1040]: U
+              - generic [ref=e1041]:
+                - generic [ref=e1042]: Unmasked
+                - generic [ref=e1043]: Personal transformation app helping users break autopilot patterns through personalized practices, guided reflection, and coach-led support. Focuses on moving from awareness to intentional action.
+          - cell "Discovery" [ref=e1044]:
+            - generic [ref=e1045]: Discovery
+          - cell "Unmasked" [ref=e1046]:
+            - generic [ref=e1047]: Unmasked
+          - cell "44%" [ref=e1048]:
+            - generic [ref=e1053]: 44%
+          - cell "Q QA" [ref=e1054]:
+            - generic [ref=e1055]:
+              - generic [ref=e1056]: Q
+              - generic [ref=e1057]: QA
+          - cell "about 2 months ago" [ref=e1058]:
+            - generic [ref=e1059]: about 2 months ago

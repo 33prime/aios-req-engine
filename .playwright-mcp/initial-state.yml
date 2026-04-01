@@ -1,0 +1,96 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e14]
+  - generic [ref=e19]:
+    - complementary [ref=e20]:
+      - generic [ref=e21]:
+        - link "Readytogo" [ref=e22] [cursor=pointer]:
+          - /url: /projects
+          - img "Readytogo" [ref=e23]
+        - button "New project" [ref=e25] [cursor=pointer]:
+          - img [ref=e26]
+      - navigation [ref=e27]:
+        - link "Home" [ref=e28] [cursor=pointer]:
+          - /url: /home
+          - img [ref=e30]
+        - link "Projects" [ref=e33] [cursor=pointer]:
+          - /url: /projects
+          - img [ref=e35]
+        - link "Tasks" [ref=e37] [cursor=pointer]:
+          - /url: /tasks
+          - img [ref=e39]
+        - link "Clients" [ref=e42] [cursor=pointer]:
+          - /url: /clients
+          - img [ref=e44]
+        - link "People" [ref=e48] [cursor=pointer]:
+          - /url: /people
+          - img [ref=e50]
+        - link "Meetings" [ref=e54] [cursor=pointer]:
+          - /url: /meetings
+          - img [ref=e56]
+        - link "Settings" [ref=e58] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e60]
+      - button "Expand sidebar" [ref=e63] [cursor=pointer]:
+        - img [ref=e64]
+      - link "QA Tester" [ref=e67] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e69]
+    - generic [ref=e72]:
+      - banner [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - heading "Customer Onboarding Portal" [level=1] [ref=e77]
+            - button "Project Health" [ref=e78] [cursor=pointer]
+          - generic [ref=e81]:
+            - generic [ref=e82]
+            - button "Collaborate" [ref=e107] [cursor=pointer]
+      - main [ref=e113]:
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - button "67% Good" [ref=e116] [cursor=pointer]
+            - generic [ref=e124]
+            - button "Open BRD" [ref=e127] [cursor=pointer]
+          - generic [ref=e130]:
+            - generic [ref=e131]
+            - generic [ref=e172]
+            - generic [ref=e228]
+          - generic [ref=e243]:
+            - generic [ref=e244]
+            - generic [ref=e253]
+            - generic [ref=e266]
+      - generic [ref=e280]:
+        - button "Unlocks" [ref=e281] [cursor=pointer]:
+          - img [ref=e282]
+          - generic [ref=e284]: Unlocks
+        - button "Evidence" [ref=e285] [cursor=pointer]:
+          - img [ref=e286]
+          - generic [ref=e290]: Evidence
+        - button "Memory" [ref=e291] [cursor=pointer]:
+          - img [ref=e292]
+          - generic [ref=e295]: Memory
+        - button "Calls" [ref=e296] [cursor=pointer]:
+          - img [ref=e297]
+          - generic [ref=e299]: Calls
+    - button "Open assistant (⌘J)" [ref=e300] [cursor=pointer]:
+      - img [ref=e301]
+    - generic [ref=e303]:
+      - generic [ref=e305]:
+        - generic [ref=e306]:
+          - button "Briefing" [ref=e307] [cursor=pointer]:
+            - img [ref=e308]
+            - text: Briefing
+          - button "Chat" [ref=e310] [cursor=pointer]:
+            - img [ref=e311]
+            - text: Chat
+        - button "Close (Esc)" [ref=e313] [cursor=pointer]:
+          - img [ref=e314]
+      - button "Wed 2:00 AM" [ref=e317] [cursor=pointer]:
+        - generic [ref=e321]: Wed 2:00 AM
+        - img [ref=e322]
+      - generic [ref=e325]:
+        - generic [ref=e326]:
+          - generic [ref=e327]: ...
+          - generic [ref=e328]: 0%
+        - generic [ref=e330]:
+          - img [ref=e331]
+          - text: Preparing briefing...

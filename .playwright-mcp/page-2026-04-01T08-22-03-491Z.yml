@@ -1,0 +1,334 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - link "Readytogo" [ref=e5] [cursor=pointer]:
+        - /url: /projects
+        - img "Readytogo" [ref=e6]
+      - button "New project" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+    - navigation [ref=e10]:
+      - link "Home" [ref=e11] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e13]
+        - generic [ref=e16]: Home
+      - link "Projects" [ref=e17] [cursor=pointer]:
+        - /url: /projects
+        - img [ref=e19]
+        - generic [ref=e21]: Projects
+      - link "Tasks" [ref=e22] [cursor=pointer]:
+        - /url: /tasks
+        - img [ref=e24]
+        - generic [ref=e27]: Tasks
+      - link "Clients" [ref=e28] [cursor=pointer]:
+        - /url: /clients
+        - img [ref=e30]
+        - generic [ref=e34]: Clients
+      - link "People" [ref=e35] [cursor=pointer]:
+        - /url: /people
+        - img [ref=e37]
+        - generic [ref=e41]: People
+      - link "Meetings" [ref=e42] [cursor=pointer]:
+        - /url: /meetings
+        - img [ref=e44]
+        - generic [ref=e46]: Meetings
+      - link "Settings" [ref=e47] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e49]
+        - generic [ref=e52]: Settings
+    - button "Collapse sidebar" [ref=e53] [cursor=pointer]:
+      - img [ref=e54]
+    - link "QA Tester qa-tester@readytogo.ai" [ref=e69] [cursor=pointer]:
+      - /url: /settings
+      - img [ref=e59]
+      - generic [ref=e62]:
+        - paragraph [ref=e63]: QA Tester
+        - paragraph [ref=e64]: qa-tester@readytogo.ai
+  - generic [ref=e66]:
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - button "Filter" [ref=e72] [cursor=pointer]:
+          - img [ref=e73]
+          - generic [ref=e74]: Filter
+        - button "Last Updated" [ref=e75] [cursor=pointer]:
+          - generic [ref=e76]: Last Updated
+          - img [ref=e77]
+        - button "Refresh projects" [ref=e79] [cursor=pointer]:
+          - img [ref=e80]
+      - generic [ref=e85]:
+        - button "Search projects" [ref=e87] [cursor=pointer]:
+          - img [ref=e88]
+        - generic [ref=e91]:
+          - button "Table view" [active] [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+          - button "Cards view" [ref=e94] [cursor=pointer]:
+            - img [ref=e95]
+          - button "Kanban view" [ref=e99] [cursor=pointer]:
+            - img [ref=e100]
+    - table [ref=e434]:
+      - rowgroup [ref=e435]:
+        - row "Project Stage Client Readiness Owner Updated" [ref=e436]:
+          - columnheader "Project" [ref=e437]:
+            - button "Project" [ref=e438] [cursor=pointer]:
+              - text: Project
+              - img [ref=e439]
+          - columnheader "Stage" [ref=e442]
+          - columnheader "Client" [ref=e443]
+          - columnheader "Readiness" [ref=e444]:
+            - button "Readiness" [ref=e445] [cursor=pointer]:
+              - text: Readiness
+              - img [ref=e446]
+          - columnheader "Owner" [ref=e449]
+          - columnheader "Updated" [ref=e450]:
+            - button "Updated" [ref=e451] [cursor=pointer]:
+              - text: Updated
+              - img [ref=e452]
+      - rowgroup [ref=e454]:
+        - row "CO Customer Onboarding Portal Discovery - — Q QA 2 days ago" [ref=e455] [cursor=pointer]:
+          - cell "CO Customer Onboarding Portal" [ref=e456]:
+            - generic [ref=e457]:
+              - generic [ref=e458]: CO
+              - generic [ref=e460]: Customer Onboarding Portal
+          - cell "Discovery" [ref=e461]:
+            - generic [ref=e462]: Discovery
+          - cell "-" [ref=e463]:
+            - generic [ref=e464]: "-"
+          - cell "—" [ref=e465]
+          - cell "Q QA" [ref=e466]:
+            - generic [ref=e467]:
+              - generic [ref=e468]: Q
+              - generic [ref=e469]: QA
+          - cell "2 days ago" [ref=e470]:
+            - generic [ref=e471]: 2 days ago
+        - row "B BenyBox Discovery BenyBox — Q QA 14 days ago" [ref=e472] [cursor=pointer]:
+          - cell "B BenyBox" [ref=e473]:
+            - generic [ref=e474]:
+              - generic [ref=e475]: B
+              - generic [ref=e477]: BenyBox
+          - cell "Discovery" [ref=e478]:
+            - generic [ref=e479]: Discovery
+          - cell "BenyBox" [ref=e480]:
+            - generic [ref=e481]: BenyBox
+          - cell "—" [ref=e482]
+          - cell "Q QA" [ref=e483]:
+            - generic [ref=e484]:
+              - generic [ref=e485]: Q
+              - generic [ref=e486]: QA
+          - cell "14 days ago" [ref=e487]:
+            - generic [ref=e488]: 14 days ago
+        - row "IA Internal Aerospace Inventory Manager Discovery - — Q QA 23 days ago" [ref=e489] [cursor=pointer]:
+          - cell "IA Internal Aerospace Inventory Manager" [ref=e490]:
+            - generic [ref=e491]:
+              - generic [ref=e492]: IA
+              - generic [ref=e494]: Internal Aerospace Inventory Manager
+          - cell "Discovery" [ref=e495]:
+            - generic [ref=e496]: Discovery
+          - cell "-" [ref=e497]:
+            - generic [ref=e498]: "-"
+          - cell "—" [ref=e499]
+          - cell "Q QA" [ref=e500]:
+            - generic [ref=e501]:
+              - generic [ref=e502]: Q
+              - generic [ref=e503]: QA
+          - cell "23 days ago" [ref=e504]:
+            - generic [ref=e505]: 23 days ago
+        - row "BO Business Onboarding & RevOps Platform Discovery Business Onboarding & RevOps Platform 45% Q QA 26 days ago" [ref=e506] [cursor=pointer]:
+          - cell "BO Business Onboarding & RevOps Platform" [ref=e507]:
+            - generic [ref=e508]:
+              - generic [ref=e509]: BO
+              - generic [ref=e511]: Business Onboarding & RevOps Platform
+          - cell "Discovery" [ref=e512]:
+            - generic [ref=e513]: Discovery
+          - cell "Business Onboarding & RevOps Platform" [ref=e514]:
+            - generic [ref=e515]: Business Onboarding & RevOps Platform
+          - cell "45%" [ref=e516]:
+            - generic [ref=e521]: 45%
+          - cell "Q QA" [ref=e522]:
+            - generic [ref=e523]:
+              - generic [ref=e524]: Q
+              - generic [ref=e525]: QA
+          - cell "26 days ago" [ref=e526]:
+            - generic [ref=e527]: 26 days ago
+        - row "DP Dr. Proctor Discovery Dr. Proctor — Q QA about 1 month ago" [ref=e528] [cursor=pointer]:
+          - cell "DP Dr. Proctor" [ref=e529]:
+            - generic [ref=e530]:
+              - generic [ref=e531]: DP
+              - generic [ref=e533]: Dr. Proctor
+          - cell "Discovery" [ref=e534]:
+            - generic [ref=e535]: Discovery
+          - cell "Dr. Proctor" [ref=e536]:
+            - generic [ref=e537]: Dr. Proctor
+          - cell "—" [ref=e538]
+          - cell "Q QA" [ref=e539]:
+            - generic [ref=e540]:
+              - generic [ref=e541]: Q
+              - generic [ref=e542]: QA
+          - cell "about 1 month ago" [ref=e543]:
+            - generic [ref=e544]: about 1 month ago
+        - row "ED Ensure Direct Bill Discovery - — Q QA about 1 month ago" [ref=e545] [cursor=pointer]:
+          - cell "ED Ensure Direct Bill" [ref=e546]:
+            - generic [ref=e547]:
+              - generic [ref=e548]: ED
+              - generic [ref=e550]: Ensure Direct Bill
+          - cell "Discovery" [ref=e551]:
+            - generic [ref=e552]: Discovery
+          - cell "-" [ref=e553]:
+            - generic [ref=e554]: "-"
+          - cell "—" [ref=e555]
+          - cell "Q QA" [ref=e556]:
+            - generic [ref=e557]:
+              - generic [ref=e558]: Q
+              - generic [ref=e559]: QA
+          - cell "about 1 month ago" [ref=e560]:
+            - generic [ref=e561]: about 1 month ago
+        - row "PG Pre-Clinical Guidance Discovery Pre-Clinical Guidance — Q QA about 1 month ago" [ref=e562] [cursor=pointer]:
+          - cell "PG Pre-Clinical Guidance" [ref=e563]:
+            - generic [ref=e564]:
+              - generic [ref=e565]: PG
+              - generic [ref=e567]: Pre-Clinical Guidance
+          - cell "Discovery" [ref=e568]:
+            - generic [ref=e569]: Discovery
+          - cell "Pre-Clinical Guidance" [ref=e570]:
+            - generic [ref=e571]: Pre-Clinical Guidance
+          - cell "—" [ref=e572]
+          - cell "Q QA" [ref=e573]:
+            - generic [ref=e574]:
+              - generic [ref=e575]: Q
+              - generic [ref=e576]: QA
+          - cell "about 1 month ago" [ref=e577]:
+            - generic [ref=e578]: about 1 month ago
+        - row "AC ABO Certification Renewal Prototype Discovery - — Q QA about 1 month ago" [ref=e579] [cursor=pointer]:
+          - cell "AC ABO Certification Renewal Prototype" [ref=e580]:
+            - generic [ref=e581]:
+              - generic [ref=e582]: AC
+              - generic [ref=e584]: ABO Certification Renewal Prototype
+          - cell "Discovery" [ref=e585]:
+            - generic [ref=e586]: Discovery
+          - cell "-" [ref=e587]:
+            - generic [ref=e588]: "-"
+          - cell "—" [ref=e589]
+          - cell "Q QA" [ref=e590]:
+            - generic [ref=e591]:
+              - generic [ref=e592]: Q
+              - generic [ref=e593]: QA
+          - cell "about 1 month ago" [ref=e594]:
+            - generic [ref=e595]: about 1 month ago
+        - row "P PersonaPulse Discovery PersonaPulse 42% Q QA about 1 month ago" [ref=e596] [cursor=pointer]:
+          - cell "P PersonaPulse" [ref=e597]:
+            - generic [ref=e598]:
+              - generic [ref=e599]: P
+              - generic [ref=e601]: PersonaPulse
+          - cell "Discovery" [ref=e602]:
+            - generic [ref=e603]: Discovery
+          - cell "PersonaPulse" [ref=e604]:
+            - generic [ref=e605]: PersonaPulse
+          - cell "42%" [ref=e606]:
+            - generic [ref=e611]: 42%
+          - cell "Q QA" [ref=e612]:
+            - generic [ref=e613]:
+              - generic [ref=e614]: Q
+              - generic [ref=e615]: QA
+          - cell "about 1 month ago" [ref=e616]:
+            - generic [ref=e617]: about 1 month ago
+        - row "PP People Pulse Discovery - 39% Q QA about 1 month ago" [ref=e618] [cursor=pointer]:
+          - cell "PP People Pulse" [ref=e619]:
+            - generic [ref=e620]:
+              - generic [ref=e621]: PP
+              - generic [ref=e623]: People Pulse
+          - cell "Discovery" [ref=e624]:
+            - generic [ref=e625]: Discovery
+          - cell "-" [ref=e626]:
+            - generic [ref=e627]: "-"
+          - cell "39%" [ref=e628]:
+            - generic [ref=e633]: 39%
+          - cell "Q QA" [ref=e634]:
+            - generic [ref=e635]:
+              - generic [ref=e636]: Q
+              - generic [ref=e637]: QA
+          - cell "about 1 month ago" [ref=e638]:
+            - generic [ref=e639]: about 1 month ago
+        - row "OA Ortho Assessment v2 Discovery - 34% Q QA about 1 month ago" [ref=e640] [cursor=pointer]:
+          - cell "OA Ortho Assessment v2" [ref=e641]:
+            - generic [ref=e642]:
+              - generic [ref=e643]: OA
+              - generic [ref=e645]: Ortho Assessment v2
+          - cell "Discovery" [ref=e646]:
+            - generic [ref=e647]: Discovery
+          - cell "-" [ref=e648]:
+            - generic [ref=e649]: "-"
+          - cell "34%" [ref=e650]:
+            - generic [ref=e655]: 34%
+          - cell "Q QA" [ref=e656]:
+            - generic [ref=e657]:
+              - generic [ref=e658]: Q
+              - generic [ref=e659]: QA
+          - cell "about 1 month ago" [ref=e660]:
+            - generic [ref=e661]: about 1 month ago
+        - row "OA Ortho Assessment Discovery - 2% Q QA about 1 month ago" [ref=e662] [cursor=pointer]:
+          - cell "OA Ortho Assessment" [ref=e663]:
+            - generic [ref=e664]:
+              - generic [ref=e665]: OA
+              - generic [ref=e667]: Ortho Assessment
+          - cell "Discovery" [ref=e668]:
+            - generic [ref=e669]: Discovery
+          - cell "-" [ref=e670]:
+            - generic [ref=e671]: "-"
+          - cell "2%" [ref=e672]:
+            - generic [ref=e677]: 2%
+          - cell "Q QA" [ref=e678]:
+            - generic [ref=e679]:
+              - generic [ref=e680]: Q
+              - generic [ref=e681]: QA
+          - cell "about 1 month ago" [ref=e682]:
+            - generic [ref=e683]: about 1 month ago
+        - row "SM Stardust MRDS - Pipeline Test Discovery - 27% Q QA about 1 month ago" [ref=e684] [cursor=pointer]:
+          - cell "SM Stardust MRDS - Pipeline Test" [ref=e685]:
+            - generic [ref=e686]:
+              - generic [ref=e687]: SM
+              - generic [ref=e689]: Stardust MRDS - Pipeline Test
+          - cell "Discovery" [ref=e690]:
+            - generic [ref=e691]: Discovery
+          - cell "-" [ref=e692]:
+            - generic [ref=e693]: "-"
+          - cell "27%" [ref=e694]:
+            - generic [ref=e699]: 27%
+          - cell "Q QA" [ref=e700]:
+            - generic [ref=e701]:
+              - generic [ref=e702]: Q
+              - generic [ref=e703]: QA
+          - cell "about 1 month ago" [ref=e704]:
+            - generic [ref=e705]: about 1 month ago
+        - row "SC Seton Communio Prototype Seton Communio 47% Q QA about 1 month ago" [ref=e706] [cursor=pointer]:
+          - cell "SC Seton Communio" [ref=e707]:
+            - generic [ref=e708]:
+              - generic [ref=e709]: SC
+              - generic [ref=e711]: Seton Communio
+          - cell "Prototype" [ref=e712]:
+            - generic [ref=e713]: Prototype
+          - cell "Seton Communio" [ref=e714]:
+            - generic [ref=e715]: Seton Communio
+          - cell "47%" [ref=e716]:
+            - generic [ref=e721]: 47%
+          - cell "Q QA" [ref=e722]:
+            - generic [ref=e723]:
+              - generic [ref=e724]: Q
+              - generic [ref=e725]: QA
+          - cell "about 1 month ago" [ref=e726]:
+            - generic [ref=e727]: about 1 month ago
+        - row "U Unmasked Discovery Unmasked 44% Q QA about 2 months ago" [ref=e728] [cursor=pointer]:
+          - cell "U Unmasked" [ref=e729]:
+            - generic [ref=e730]:
+              - generic [ref=e731]: U
+              - generic [ref=e733]: Unmasked
+          - cell "Discovery" [ref=e734]:
+            - generic [ref=e735]: Discovery
+          - cell "Unmasked" [ref=e736]:
+            - generic [ref=e737]: Unmasked
+          - cell "44%" [ref=e738]:
+            - generic [ref=e743]: 44%
+          - cell "Q QA" [ref=e744]:
+            - generic [ref=e745]:
+              - generic [ref=e746]: Q
+              - generic [ref=e747]: QA
+          - cell "about 2 months ago" [ref=e748]:
+            - generic [ref=e749]: about 2 months ago

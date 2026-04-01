@@ -1,0 +1,156 @@
+[     390ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38340
+[    5217ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8000/v1/prototypes/by-project/72173057-d025-4e62-ad50-9b5f73c8cc80:0
+[    6531ms] [ERROR] Warning: validateDOMNesting(...): %s cannot appear as a descendant of <%s>.%s <button> button 
+    at button
+    at div
+    at button
+    at div
+    at WorkflowAccordionCard (webpack-internal:///(app-pages-browser)/./components/workspace/brd/sections/WorkflowsSection.tsx:534:11)
+    at div
+    at section
+    at WorkflowsSection (webpack-internal:///(app-pages-browser)/./components/workspace/brd/sections/WorkflowsSection.tsx:785:11)
+    at div
+    at div
+    at div
+    at div
+    at div
+    at BRDCanvas (webpack-internal:///(app-pages-browser)/./components/workspace/brd/BRDCanvas.tsx:61:11)
+    at div
+    at div
+    at main
+    at div
+    at div
+    at AssistantProvider (webpack-internal:///(app-pages-browser)/./lib/assistant/context.tsx:140:11)
+    at WorkspaceLayout (webpack-internal:///(app-pages-browser)/./components/workspace/WorkspaceLayout.tsx:74:11)
+    at ProjectWorkspacePage (webpack-internal:///(app-pages-browser)/./app/projects/[projectId]/page.tsx:26:78)
+    at StaticGenerationSearchParamsBailoutProvider (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/static-generation-searchparams-bailout-provider.js:15:11)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:240:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:72:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:80:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:62:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:315:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:130:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:151:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:226:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:15:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:325:11)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:240:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:72:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:80:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:62:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:315:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:130:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:151:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:226:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:15:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:325:11)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:240:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:72:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:80:11)
+    at NotFoundErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:54:9)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:62:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:315:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:130:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:151:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:226:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:15:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:325:11)
+    at LayoutWrapper (webpack-internal:///(app-pages-browser)/./components/LayoutWrapper.tsx:14:11)
+    at ToastProvider (webpack-internal:///(app-pages-browser)/./components/ui/Toast.tsx:37:11)
+    at PostHogProvider (webpack-internal:///(app-pages-browser)/./components/PostHogProvider.tsx:21:11)
+    at AuthProvider (webpack-internal:///(app-pages-browser)/./components/auth/AuthProvider.tsx:51:11)
+    at body
+    at html
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:72:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:80:11)
+    at NotFoundErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:54:9)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:62:11)
+    at DevRootNotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/dev-root-not-found-boundary.js:32:11)
+    at ReactDevOverlay (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/internal/ReactDevOverlay.js:66:9)
+    at HotReload (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:295:11)
+    at Router (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:159:11)
+    at ErrorBoundaryHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:100:9)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:130:11)
+    at AppRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:436:13)
+    at ServerRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:128:11)
+    at RSCComponent
+    at Root (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:144:11) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33
+[  219396ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1659148ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1659361ms] [ERROR] ./components/workspace/brd/sections/WorkflowsSection.tsx
+Error: 
+  x Unexpected token `div`. Expected jsx identifier
+     ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/WorkflowsSection.tsx:351:1]
+ 351 |     : undefined
+ 352 | 
+ 353 |   return (
+ 354 |     <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
+     :      ^^^
+ 355 |       {/* Header row — clickable */}
+ 356 |       <div
+ 357 |         role="button"
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/WorkflowsSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33
+[ 1659538ms] [ERROR] ./components/workspace/brd/sections/WorkflowsSection.tsx
+Error: 
+  x Unexpected token `div`. Expected jsx identifier
+     ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/WorkflowsSection.tsx:351:1]
+ 351 |     : undefined
+ 352 | 
+ 353 |   return (
+ 354 |     <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
+     :      ^^^
+ 355 |       {/* Header row — clickable */}
+ 356 |       <div
+ 357 |         role="button"
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/WorkflowsSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33
+[ 1676096ms] [ERROR] ./components/workspace/brd/sections/WorkflowsSection.tsx
+Error: 
+  x Unexpected token `div`. Expected jsx identifier
+     ,-[/Users/matt/aios-req-engine/apps/workbench/components/workspace/brd/sections/WorkflowsSection.tsx:351:1]
+ 351 |     : undefined
+ 352 | 
+ 353 |   return (
+ 354 |     <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
+     :      ^^^
+ 355 |       {/* Header row — clickable */}
+ 356 |       <div
+ 357 |         role="button"
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/workspace/brd/sections/WorkflowsSection.tsx
+./components/workspace/brd/BRDCanvas.tsx
+./components/workspace/WorkspaceLayout.tsx
+./components/workspace/index.ts
+./app/projects/[projectId]/page.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:33
+[ 1689224ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1702241ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1707680ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1713526ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1718799ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1723672ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1734221ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
+[ 1869410ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:161
