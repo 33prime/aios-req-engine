@@ -17,6 +17,7 @@ interface ActorsSectionProps {
   onRefreshEntity?: (entityType: string, entityId: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
   onCanvasRoleUpdate?: (personaId: string, role: 'primary' | 'secondary' | null) => void
+  sectionTitle?: string
 }
 
 // ============================================================================
@@ -120,9 +121,12 @@ function ActorAccordionCard({
   return (
     <div className={`bg-white rounded-2xl shadow-md border overflow-hidden ${isPrimary ? 'border-l-[3px] border-l-brand-primary border-t border-r border-b border-border' : 'border-border'}`}>
       {/* Header row */}
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) } }}
+        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-inset"
       >
         <ChevronRight
           className={`w-4 h-4 text-text-placeholder shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
@@ -173,7 +177,7 @@ function ActorAccordionCard({
             <StaleIndicator reason={actor.stale_reason || undefined} onRefresh={onRefreshEntity ? () => onRefreshEntity('persona', actor.id) : undefined} />
           </span>
         )}
-      </button>
+      </div>
 
       {/* Expanded body */}
       {hasBeenExpanded && (
@@ -228,7 +232,7 @@ function ActorAccordionCard({
   )
 }
 
-export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview, onConfirmAll, onRefreshEntity, onStatusClick, onCanvasRoleUpdate }: ActorsSectionProps) {
+export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview, onConfirmAll, onRefreshEntity, onStatusClick, onCanvasRoleUpdate, sectionTitle = 'Actors & Personas' }: ActorsSectionProps) {
   const confirmedCount = actors.filter(
     (a) => a.confirmation_status === 'confirmed_consultant' || a.confirmation_status === 'confirmed_client'
   ).length
@@ -270,7 +274,7 @@ export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview
   return (
     <section id="brd-section-personas">
       <SectionHeader
-        title="Actors & Personas"
+        title={sectionTitle}
         count={actors.length}
         confirmedCount={confirmedCount}
         onConfirmAll={() => onConfirmAll('persona', actors.map((a) => a.id))}

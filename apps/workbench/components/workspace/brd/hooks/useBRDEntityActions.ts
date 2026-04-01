@@ -9,6 +9,7 @@ import {
   updateCanvasRole,
   markEntityNeedsReview,
 } from '@/lib/api'
+import { apiRequest } from '@/lib/api/core'
 import { useToast } from '@/components/ui'
 import type { NextAction } from '@/lib/api'
 import type { BRDWorkspaceData, MoSCoWGroup } from '@/types/workspace'
@@ -161,6 +162,40 @@ export function useBRDEntityActions({
     }
   }, [data, projectId, loadData, setData])
 
+  const handleUpdateMacroOutcome = useCallback(async (macroOutcome: string) => {
+    if (!data) return
+    setData((prev) => {
+      if (!prev) return prev
+      return { ...prev, macro_outcome: macroOutcome }
+    })
+    try {
+      await apiRequest(`/projects/${projectId}/workspace/outcomes/macro`, {
+        method: 'PATCH',
+        body: JSON.stringify({ macro_outcome: macroOutcome }),
+      })
+    } catch (err) {
+      console.error('Failed to update macro outcome:', err)
+      loadData()
+    }
+  }, [data, projectId, loadData, setData])
+
+  const handleUpdateOutcomeThesis = useCallback(async (outcomeThesis: string) => {
+    if (!data) return
+    setData((prev) => {
+      if (!prev) return prev
+      return { ...prev, outcome_thesis: outcomeThesis }
+    })
+    try {
+      await apiRequest(`/projects/${projectId}/workspace/outcomes/macro`, {
+        method: 'PATCH',
+        body: JSON.stringify({ outcome_thesis: outcomeThesis }),
+      })
+    } catch (err) {
+      console.error('Failed to update outcome thesis:', err)
+      loadData()
+    }
+  }, [data, projectId, loadData, setData])
+
   const handleRefreshEntity = useCallback(async (entityType: string, entityId: string) => {
     try {
       await refreshStaleEntity(projectId, entityType, entityId)
@@ -285,6 +320,8 @@ export function useBRDEntityActions({
     handleMovePriority,
     handleUpdateVision,
     handleUpdateBackground,
+    handleUpdateMacroOutcome,
+    handleUpdateOutcomeThesis,
     handleRefreshEntity,
     handleCanvasRoleUpdate,
     handleActionExecute,

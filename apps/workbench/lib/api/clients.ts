@@ -169,7 +169,7 @@ export interface ClientIntelligenceProfile {
 }
 
 export const analyzeClient = (clientId: string) =>
-  apiRequest<{ success: boolean; message: string }>(`/clients/${clientId}/analyze`, {
+  apiRequest<{ success: boolean; message: string }>(`/clients/${clientId}/analyze?deep=true`, {
     method: 'POST',
   })
 
@@ -239,6 +239,17 @@ export const addKnowledgeItem = (
   apiRequest<KnowledgeItem>(
     `/clients/${clientId}/knowledge-base/${category}`,
     { method: 'POST', body: JSON.stringify(data) }
+  )
+
+export const updateKnowledgeItem = (
+  clientId: string,
+  category: 'business_processes' | 'sops' | 'tribal_knowledge',
+  itemId: string,
+  data: { text?: string; confidence?: 'high' | 'medium' | 'low' }
+) =>
+  apiRequest<{ success: boolean }>(
+    `/clients/${clientId}/knowledge-base/${category}/${itemId}`,
+    { method: 'PATCH', body: JSON.stringify(data) }
   )
 
 export const deleteKnowledgeItem = (

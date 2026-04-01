@@ -513,7 +513,6 @@ export function useIntelligenceBriefing(
     () => getIntelligenceBriefing(projectId!, 5),
     {
       dedupingInterval: SHORT_CACHE,
-      refreshInterval: 30_000,
       revalidateOnFocus: false,
       ...config,
     },
@@ -629,7 +628,6 @@ export function useClientPulse(
     () => getClientPulse(projectId!),
     {
       dedupingInterval: MED_CACHE,
-      refreshInterval: 60_000,
       revalidateOnFocus: false,
       ...config,
     },

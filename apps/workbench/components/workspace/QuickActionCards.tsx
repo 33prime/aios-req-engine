@@ -162,6 +162,24 @@ interface DiscoveryProbeData {
   priority: number
 }
 
+interface WorkflowSuggestionStep {
+  label: string
+  actor_persona_name?: string
+  automation_level?: 'manual' | 'semi_automated' | 'fully_automated'
+  benefit_description?: string
+}
+
+interface WorkflowSuggestionData {
+  name: string
+  description: string
+  owner_persona?: string
+  rationale: string
+  steps: WorkflowSuggestionStep[]
+  addresses_features?: string[]
+  addresses_pains?: string[]
+  addresses_goals?: string[]
+}
+
 const NORTH_STAR_CATEGORY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   organizational_impact: { bg: 'rgba(4,65,89,0.08)', text: '#044159', label: 'Org Impact' },
   human_behavioral_goal: { bg: 'rgba(63,175,122,0.1)', text: '#25785A', label: 'Behavior' },
@@ -203,6 +221,8 @@ export function QuickActionCards({ cards, onAction }: QuickActionCardsProps) {
             return <EvidenceCard key={card.id} data={card.data} onAction={onAction} />
           case 'discovery_probe':
             return <DiscoveryProbeCard key={card.id} data={card.data} onAction={onAction} />
+          case 'workflow_suggestion':
+            return <WorkflowSuggestionCard key={card.id} data={card.data} onAction={onAction} />
           default:
             return null
         }
@@ -736,6 +756,113 @@ function DiscoveryProbeCard({ data, onAction }: { data: DiscoveryProbeData; onAc
           className={BTN_SECONDARY}
         >
           Mark Resolved
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// =============================================================================
+// Workflow Suggestion
+// =============================================================================
+
+const AUTO_BADGE: Record<string, { label: string; bg: string; text: string }> = {
+  fully_automated: { label: 'Auto', bg: 'rgba(63,175,122,0.12)', text: '#25785A' },
+  semi_automated: { label: 'Semi', bg: 'rgba(4,65,89,0.08)', text: '#044159' },
+  manual: { label: 'Manual', bg: '#F0F1F3', text: '#666' },
+}
+
+function WorkflowSuggestionCard({ data, onAction }: { data: WorkflowSuggestionData; onAction: (cmd: string) => void }) {
+  const [cardState, setCardState] = useState<CardState>('active')
+
+  if (!data?.name || !data?.steps?.length) return <FallbackCard />
+
+  if (cardState === 'confirmed') return <CardConfirmed label="Workflow added" />
+  if (cardState === 'dismissed') return <CardDismissed label="Skipped" />
+
+  // Build compact step descriptions for the command
+  const stepSummary = data.steps.map((s, i) => `${i + 1}. ${s.label}`).join(', ')
+
+  // Collect context tags (features + goals addressed)
+  const tags = [
+    ...(data.addresses_features || []).slice(0, 2),
+    ...(data.addresses_goals || []).slice(0, 1),
+  ]
+
+  return (
+    <div className="border border-border rounded-2xl bg-[#F7F8FA] overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-2.5 bg-[#F0F1F3] border-b border-border">
+        <span className={CARD_HEADER} style={{ marginBottom: 0 }}>Suggested Workflow</span>
+      </div>
+
+      <div className="px-4 py-3.5">
+        {/* Title + owner */}
+        <p className="text-[13px] font-semibold text-[#333]">{data.name}</p>
+        {data.owner_persona && (
+          <p className="text-[11px] text-text-muted mt-0.5">
+            Owner: {data.owner_persona.split(' — ')[0]}
+          </p>
+        )}
+
+        {/* Rationale */}
+        <p className="text-[11px] text-text-secondary mt-2 border-l-2 border-brand-primary/30 pl-2">
+          <InlineMarkdown text={data.rationale} />
+        </p>
+
+        {/* Steps */}
+        <div className="mt-3 space-y-1">
+          {data.steps.map((step, i) => {
+            const auto = AUTO_BADGE[step.automation_level || 'manual'] || AUTO_BADGE.manual
+            return (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-[10px] text-[#999] w-4 shrink-0 text-right">{i + 1}</span>
+                <span className="text-[12px] text-[#333] flex-1 min-w-0 truncate">{step.label}</span>
+                <span
+                  className="text-[9px] font-medium rounded-full px-1.5 py-0.5 shrink-0"
+                  style={{ backgroundColor: auto.bg, color: auto.text }}
+                >
+                  {auto.label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Context tags */}
+        {tags.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-3">
+            {tags.map((tag, i) => (
+              <span key={i} className="text-[10px] rounded-full px-2 py-0.5 bg-[#E8F5E9] text-[#25785A] max-w-[180px] truncate">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="border-t border-border px-4 py-3 flex items-center gap-2">
+        <button
+          onClick={() => {
+            setCardState('confirmed')
+            onAction(`Create workflow: "${data.name}" with ${data.steps.length} steps: ${stepSummary}`)
+          }}
+          className={BTN_PRIMARY_FILLED}
+        >
+          Add Workflow
+        </button>
+        <button
+          onClick={() => onAction(`Tell me more about the suggested workflow: "${data.name}"`)}
+          className={BTN_SECONDARY}
+        >
+          Details
+        </button>
+        <button
+          onClick={() => setCardState('dismissed')}
+          className={BTN_GHOST}
+        >
+          Skip
         </button>
       </div>
     </div>

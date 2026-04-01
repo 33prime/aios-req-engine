@@ -25,7 +25,7 @@ function truncateMarkdown(md: string, maxLines = 4): { truncated: string; wasTru
 }
 
 interface NarrativeEditorProps {
-  field: 'vision' | 'background'
+  field: 'vision' | 'background' | 'macro_outcome' | 'outcome_thesis'
   label: string
   currentValue: string | null | undefined
   projectId: string

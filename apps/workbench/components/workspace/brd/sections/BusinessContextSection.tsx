@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Building2, AlertTriangle, Target, Eye, BarChart3 } from 'lucide-react'
-import { BusinessDriverDetailDrawer } from '../components/BusinessDriverDetailDrawer'
+// BusinessDriverDetailDrawer removed — detail available via chat assistant
 import { DriverContainer } from '../components/DriverContainer'
 import { DriverItemRow } from '../components/DriverItemRow'
 import { NarrativeEditor } from '../components/NarrativeEditor'
@@ -19,6 +19,9 @@ interface BusinessContextSectionProps {
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
   sectionScore?: SectionScore | null
   stakeholders?: StakeholderBRDSummary[]
+  goalsLabel?: string
+  painPointsLabel?: string
+  hideNarratives?: boolean
 }
 
 const SHOW_MAX_DRIVERS = 6
@@ -39,12 +42,13 @@ export function BusinessContextSection({
   onStatusClick,
   sectionScore,
   stakeholders = [],
+  goalsLabel = 'BUSINESS GOALS',
+  painPointsLabel = 'BUSINESS PAIN POINTS',
+  hideNarratives = false,
 }: BusinessContextSectionProps) {
   const [showAllGoals, setShowAllGoals] = useState(false)
   const [showAllPains, setShowAllPains] = useState(false)
   const [showAllMetrics, setShowAllMetrics] = useState(false)
-  const [selectedDriver, setSelectedDriver] = useState<{ id: string; type: 'pain' | 'goal' | 'kpi'; data: BusinessDriver } | null>(null)
-
   // Which driver row is expanded inline (only one at a time)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -81,47 +85,50 @@ export function BusinessContextSection({
 
   return (
     <section id="brd-section-business-context" className="space-y-8">
-      {/* Background — Problem Provenance */}
-      <div>
-        <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-text-placeholder" />
-          What drove the need for this solution
-        </h2>
-        <div className="bg-white rounded-2xl shadow-md border border-border p-5">
-          <NarrativeEditor
-            field="background"
-            label="Background"
-            currentValue={data.background}
-            projectId={projectId}
-            onSave={onUpdateBackground}
-            placeholder="As signals come in — meeting notes, emails, research — this section will tell the story of what led to this initiative and why now is the right time."
-            companyMeta={companyMeta}
-          />
-        </div>
-      </div>
+      {/* Background + Vision (hidden for new_product — replaced by ProblemSolutionSection) */}
+      {!hideNarratives && (
+        <>
+          <div>
+            <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-text-placeholder" />
+              What drove the need for this solution
+            </h2>
+            <div className="bg-white rounded-2xl shadow-md border border-border p-5">
+              <NarrativeEditor
+                field="background"
+                label="Background"
+                currentValue={data.background}
+                projectId={projectId}
+                onSave={onUpdateBackground}
+                placeholder="As signals come in — meeting notes, emails, research — this section will tell the story of what led to this initiative and why now is the right time."
+                companyMeta={companyMeta}
+              />
+            </div>
+          </div>
 
-      {/* Vision — Future State */}
-      <div>
-        <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
-          <Eye className="w-5 h-5 text-text-placeholder" />
-          Vision
-        </h2>
-        <div className="bg-white rounded-2xl shadow-md border border-border p-5">
-          <NarrativeEditor
-            field="vision"
-            label="Vision"
-            currentValue={data.vision}
-            projectId={projectId}
-            onSave={onUpdateVision}
-            placeholder="As goals and pain points take shape, this section will paint the picture of what success looks like once the solution is in place."
-          />
-        </div>
-      </div>
+          <div>
+            <h2 className="text-lg font-semibold text-text-body mb-3 flex items-center gap-2">
+              <Eye className="w-5 h-5 text-text-placeholder" />
+              Vision
+            </h2>
+            <div className="bg-white rounded-2xl shadow-md border border-border p-5">
+              <NarrativeEditor
+                field="vision"
+                label="Vision"
+                currentValue={data.vision}
+                projectId={projectId}
+                onSave={onUpdateVision}
+                placeholder="As goals and pain points take shape, this section will paint the picture of what success looks like once the solution is in place."
+              />
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Business Goals — Action Queue pattern */}
       <DriverContainer
         icon={Target}
-        title="BUSINESS GOALS"
+        title={goalsLabel}
         count={data.goals.length}
         confirmedCount={confirmedGoals}
         onConfirmAll={() => onConfirmAll('business_driver', data.goals.map(g => g.id))}
@@ -137,7 +144,7 @@ export function BusinessContextSection({
                 driverType="goal"
                 isExpanded={expandedId === goal.id}
                 onToggle={() => setExpandedId(expandedId === goal.id ? null : goal.id)}
-                onDrawerOpen={() => setSelectedDriver({ id: goal.id, type: 'goal', data: goal })}
+                onDrawerOpen={() => {}}
                 onConfirm={() => onConfirm('business_driver', goal.id)}
                 onNeedsReview={() => onNeedsReview('business_driver', goal.id)}
                 onStatusClick={onStatusClick ? () => onStatusClick('business_driver', goal.id, goal.description.slice(0, 60), goal.confirmation_status) : undefined}
@@ -158,7 +165,7 @@ export function BusinessContextSection({
       {/* Business Pain Points — Action Queue pattern */}
       <DriverContainer
         icon={AlertTriangle}
-        title="BUSINESS PAIN POINTS"
+        title={painPointsLabel}
         count={data.pain_points.length}
         confirmedCount={confirmedPains}
         onConfirmAll={() => onConfirmAll('business_driver', data.pain_points.map(p => p.id))}
@@ -174,7 +181,7 @@ export function BusinessContextSection({
                 driverType="pain"
                 isExpanded={expandedId === pain.id}
                 onToggle={() => setExpandedId(expandedId === pain.id ? null : pain.id)}
-                onDrawerOpen={() => setSelectedDriver({ id: pain.id, type: 'pain', data: pain })}
+                onDrawerOpen={() => {}}
                 onConfirm={() => onConfirm('business_driver', pain.id)}
                 onNeedsReview={() => onNeedsReview('business_driver', pain.id)}
                 onStatusClick={onStatusClick ? () => onStatusClick('business_driver', pain.id, pain.description.slice(0, 60), pain.confirmation_status) : undefined}
@@ -211,7 +218,7 @@ export function BusinessContextSection({
                 driverType="kpi"
                 isExpanded={expandedId === metric.id}
                 onToggle={() => setExpandedId(expandedId === metric.id ? null : metric.id)}
-                onDrawerOpen={() => setSelectedDriver({ id: metric.id, type: 'kpi', data: metric })}
+                onDrawerOpen={() => {}}
                 onConfirm={() => onConfirm('business_driver', metric.id)}
                 onNeedsReview={() => onNeedsReview('business_driver', metric.id)}
                 onStatusClick={onStatusClick ? () => onStatusClick('business_driver', metric.id, metric.description.slice(0, 60), metric.confirmation_status) : undefined}
@@ -229,19 +236,6 @@ export function BusinessContextSection({
         )}
       </DriverContainer>
 
-      {/* Detail Drawer */}
-      {selectedDriver && (
-        <BusinessDriverDetailDrawer
-          driverId={selectedDriver.id}
-          driverType={selectedDriver.type}
-          projectId={projectId}
-          initialData={selectedDriver.data}
-          stakeholders={stakeholders}
-          onClose={() => setSelectedDriver(null)}
-          onConfirm={onConfirm}
-          onNeedsReview={onNeedsReview}
-        />
-      )}
     </section>
   )
 }

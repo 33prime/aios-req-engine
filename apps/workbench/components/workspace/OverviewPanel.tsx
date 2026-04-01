@@ -107,7 +107,7 @@ export function OverviewPanel({
   const lastActivityTime = touchpoints[0]?.completed_at || touchpoints[0]?.created_at || null
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-[1400px] mx-auto space-y-4">
       {/* Hero: Welcome back */}
       <HeroDashboard
         projectName={canvasData.project_name}
@@ -120,7 +120,7 @@ export function OverviewPanel({
       />
 
       {/* Row 1: Pulse | Actions | Tasks */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_1fr] gap-5">
         <ProjectPulseCard
           sections={completeness?.sections ?? []}
           isLoading={isBrdLoading && !brdData}
@@ -163,7 +163,7 @@ export function OverviewPanel({
       </div>
 
       {/* Row 2: Activity | Meetings | Portal */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <ActivityCard touchpoints={touchpoints} />
         <UpcomingMeetingsCard meetings={projectMeetings} />
         <ClientPortalCard />

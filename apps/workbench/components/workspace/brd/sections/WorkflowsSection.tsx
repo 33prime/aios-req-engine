@@ -34,6 +34,7 @@ interface WorkflowsSectionProps {
   onViewStepDetail?: (stepId: string) => void
   onViewWorkflowDetail?: (workflowId: string) => void
   sectionScore?: SectionScore | null
+  sectionTitle?: string
 }
 
 // ============================================================================
@@ -352,9 +353,12 @@ function WorkflowAccordionCard({
   return (
     <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
       {/* Header row — clickable */}
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) } }}
+        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-inset"
       >
         <ChevronRight
           className={`w-4 h-4 text-text-placeholder shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
@@ -406,7 +410,7 @@ function WorkflowAccordionCard({
             </button>
           )}
         </div>
-      </button>
+      </div>
 
       {/* Expanded body */}
       {hasBeenExpanded && (
@@ -477,6 +481,7 @@ export function WorkflowsSection({
   onViewStepDetail,
   onViewWorkflowDetail,
   sectionScore,
+  sectionTitle = 'Key Workflows',
 }: WorkflowsSectionProps) {
   const hasWorkflowPairs = workflowPairs.length > 0
 
@@ -492,7 +497,7 @@ export function WorkflowsSection({
     <section id="brd-section-workflows">
       <div className="flex items-center justify-between mb-4">
         <SectionHeader
-          title="Key Workflows"
+          title={sectionTitle}
           count={workflowPairs.length}
           confirmedCount={confirmedCount}
           onConfirmAll={() =>

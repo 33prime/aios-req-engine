@@ -8,9 +8,9 @@ import type { IntelligenceData, SynthesizedAction } from '@/lib/api/workspace'
 import type { BRDWorkspaceData } from '@/types/workspace'
 
 interface IntelligenceSectionProps {
-  data: BRDWorkspaceData
-  health: unknown
-  healthLoading: boolean
+  data?: BRDWorkspaceData
+  health?: unknown
+  healthLoading?: boolean
   onRefreshAll?: () => void
   isRefreshing?: boolean
   projectId?: string

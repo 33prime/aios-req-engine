@@ -62,7 +62,7 @@ export const updateProjectVision = (projectId: string, vision: string) =>
  */
 export const enhanceNarrative = (
   projectId: string,
-  data: { field: 'vision' | 'background'; mode: 'rewrite' | 'notes'; user_notes?: string }
+  data: { field: 'vision' | 'background' | 'macro_outcome' | 'outcome_thesis'; mode: 'rewrite' | 'notes'; user_notes?: string }
 ) =>
   apiRequest<{ suggestion: string }>(
     `/projects/${projectId}/workspace/brd/narrative/enhance`,

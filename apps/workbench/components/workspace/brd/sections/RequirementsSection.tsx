@@ -16,6 +16,7 @@ interface RequirementsSectionProps {
   onRefreshEntity?: (entityType: string, entityId: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
   sectionScore?: SectionScore | null
+  sectionTitle?: string
 }
 
 export function RequirementsSection({
@@ -27,6 +28,7 @@ export function RequirementsSection({
   onRefreshEntity,
   onStatusClick,
   sectionScore,
+  sectionTitle = 'Requirements',
 }: RequirementsSectionProps) {
   const [activeDragFeature, setActiveDragFeature] = useState<FeatureBRDSummary | null>(null)
 
@@ -74,7 +76,7 @@ export function RequirementsSection({
   return (
     <section id="brd-section-features">
       <SectionHeader
-        title="Requirements"
+        title={sectionTitle}
         count={allFeatures.length}
         confirmedCount={allConfirmed}
         onConfirmAll={() => onConfirmAll('feature', confirmableFeatures.map((f) => f.id))}

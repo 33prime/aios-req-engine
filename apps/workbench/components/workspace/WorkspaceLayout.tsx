@@ -15,6 +15,7 @@ import { PhaseSwitcher, WorkspacePhase } from './PhaseSwitcher'
 // CollaborationPanel deprecated — unified into ReviewBubble
 import { CanvasView } from './canvas/CanvasView'
 import { BRDCanvas } from './brd/BRDCanvas'
+import { OutcomesCanvas } from './outcomes/OutcomesCanvas'
 import { FlowBlueprintView } from './flow/FlowBlueprintView'
 import { IntelligenceWorkbench } from './ai/IntelligenceWorkbench'
 import { BuildPhaseView } from './BuildPhaseView'
@@ -88,13 +89,13 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | 'calls' | null>(null)
-  const [discoveryViewMode, setDiscoveryViewMode] = useState<'brd' | 'canvas' | 'flow' | 'ai'>(() => {
+  const [discoveryViewMode, setDiscoveryViewMode] = useState<'outcomes' | 'brd' | 'canvas' | 'flow' | 'ai'>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('discovery-view-mode') as 'brd' | 'canvas' | 'flow' | 'ai'
-      // Canvas tab hidden — fallback to brd if stored
-      return stored === 'canvas' ? 'brd' : (stored || 'brd')
+      const stored = localStorage.getItem('discovery-view-mode') as 'outcomes' | 'brd' | 'canvas' | 'flow' | 'ai'
+      // Canvas tab hidden — fallback to outcomes if stored
+      return stored === 'canvas' ? 'outcomes' : (stored || 'outcomes')
     }
-    return 'brd'
+    return 'outcomes'
   })
 
 
@@ -109,6 +110,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     if (phase === 'collaborate') return 'collaborate'
     if (phase === 'build') return 'prototype'
     if (phase === 'discovery') {
+      if (discoveryViewMode === 'outcomes') return 'outcomes'
       if (discoveryViewMode === 'canvas') return 'canvas'
       if (discoveryViewMode === 'flow') return 'brd:solution-flow'
       if (discoveryViewMode === 'ai') return 'brd:ai-agent'
@@ -771,8 +773,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 {/* View mode toggle */}
                 <div className="flex items-center justify-end mb-2 flex-shrink-0">
                   <div className="inline-flex items-center bg-gray-100 rounded-md p-0.5 text-[12px]">
-                    {(['brd', 'flow', 'ai'] as const).map((mode) => {
-                      const labels = { brd: 'BRD View', canvas: 'Canvas', flow: 'Solution Flow', ai: 'Data & AI' }
+                    {(['outcomes', 'brd', 'flow', 'ai'] as const).map((mode) => {
+                      const labels = { outcomes: 'Outcomes', brd: 'BRD', canvas: 'Canvas', flow: 'Solution Flow', ai: 'Data & AI' }
                       return (
                         <button
                           key={mode}
@@ -789,6 +791,15 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                     })}
                   </div>
                 </div>
+
+                {discoveryViewMode === 'outcomes' && (
+                  <div className="flex-1 min-h-0 rounded-2xl border border-border bg-white shadow-md overflow-y-auto">
+                    <OutcomesCanvas
+                      projectId={projectId}
+                      onActionClick={handleIntelligenceAction}
+                    />
+                  </div>
+                )}
 
                 {discoveryViewMode === 'brd' && (
                   <div className="flex-1 min-h-0 rounded-2xl border border-border bg-white shadow-md overflow-hidden">

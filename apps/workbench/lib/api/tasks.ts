@@ -336,3 +336,13 @@ export const deleteTaskComment = (taskId: string, commentId: string) =>
   apiRequest<{ deleted: boolean }>(`/tasks/${taskId}/comments/${commentId}`, {
     method: 'DELETE',
   })
+
+export const deleteTask = (projectId: string, taskId: string) =>
+  apiRequest<{ deleted: boolean }>(`/projects/${projectId}/tasks/${taskId}`, {
+    method: 'DELETE',
+  })
+
+export const reopenTask = (projectId: string, taskId: string) =>
+  apiRequest<Task>(`/projects/${projectId}/tasks/${taskId}/reopen`, {
+    method: 'POST',
+  })

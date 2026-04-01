@@ -1,7 +1,6 @@
 'use client'
 
 import { FileText } from 'lucide-react'
-import { Markdown } from '@/components/ui/Markdown'
 import type { BRDEvidence } from '@/types/workspace'
 
 interface EvidenceBlockProps {
@@ -13,6 +12,37 @@ const SOURCE_LABELS: Record<string, string> = {
   signal: 'Signal',
   research: 'Research',
   inferred: 'Inferred',
+}
+
+/**
+ * Single evidence quote with green left border, italic excerpt, and source attribution.
+ */
+export function EvidenceQuote({ item }: { item: BRDEvidence }) {
+  const hasExcerpt = item.excerpt && item.excerpt.trim().length > 0
+
+  return (
+    <div
+      className="rounded-md bg-[#F7FAFC] px-3 py-2.5"
+      style={{ borderLeft: '3px solid #3FAF7A' }}
+    >
+      {hasExcerpt ? (
+        <>
+          <p className="text-[13px] italic text-[#4A5568] leading-relaxed">
+            &ldquo;{item.excerpt}&rdquo;
+          </p>
+          {item.rationale && (
+            <p className="text-[11px] text-[#718096] mt-1">
+              &mdash; {item.rationale}
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="text-[13px] text-[#4A5568] leading-relaxed">
+          {item.rationale || 'Source evidence'}
+        </p>
+      )}
+    </div>
+  )
 }
 
 export function EvidenceBlock({ evidence, maxItems = 3 }: EvidenceBlockProps) {
@@ -28,20 +58,7 @@ export function EvidenceBlock({ evidence, maxItems = 3 }: EvidenceBlockProps) {
         Evidence ({evidence.length})
       </div>
       {displayed.map((item, idx) => (
-        <div
-          key={item.chunk_id || idx}
-          className="pl-3 border-l-2 border-gray-200"
-        >
-          <div className="text-[13px] text-gray-600 italic leading-relaxed [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_ol]:my-1 [&_li]:ml-2 [&_strong]:font-semibold [&_strong]:not-italic">
-            <Markdown content={`\u201C${item.excerpt}\u201D`} />
-          </div>
-          <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-400">
-            <span className="px-1.5 py-0.5 bg-gray-50 rounded text-gray-500">
-              {SOURCE_LABELS[item.source_type] || item.source_type}
-            </span>
-            {item.rationale && <span>{item.rationale}</span>}
-          </div>
-        </div>
+        <EvidenceQuote key={item.chunk_id || idx} item={item} />
       ))}
       {remaining > 0 && (
         <p className="text-[11px] text-gray-400 pl-3">

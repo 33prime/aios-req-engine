@@ -82,6 +82,13 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Mobile: zero out sidebar content margin so pages fill the viewport */
+@media (max-width: 767px) {
+  [style*="margin-left"] {
+    margin-left: 0 !important;
+  }
+}
+
 /* Hide scrollbar but allow scrolling */
 .scrollbar-hide {
   -ms-overflow-style: none;

@@ -199,6 +199,10 @@ export interface FeatureBRDSummary {
   stale_reason?: string | null
   created_at?: string | null
   version?: number | null
+  // Provenance: reverse outcome links (which outcomes this capability serves)
+  outcome_links?: { outcome_id: string; outcome_title: string; link_type: string; how_served?: string }[]
+  workflows_enabled?: string[]
+  constraints_addressed?: string[]
 }
 
 export interface LinkedEntityPill {
@@ -847,6 +851,9 @@ export interface BRDWorkspaceData {
   data_entities: DataEntityBRDSummary[]
   stakeholders: StakeholderBRDSummary[]
   competitors: CompetitorBRDSummary[]
+  project_type?: string
+  macro_outcome?: string | null
+  outcome_thesis?: string | null
   readiness_score: number
   pending_count: number
   workflow_pairs: WorkflowPair[]

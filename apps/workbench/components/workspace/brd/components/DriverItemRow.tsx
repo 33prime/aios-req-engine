@@ -5,6 +5,7 @@ import { ChevronRight, FileText } from 'lucide-react'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 import { ImportanceDots } from './ImportanceDots'
+import { EvidenceQuote } from './EvidenceBlock'
 import type { BusinessDriver } from '@/types/workspace'
 
 type DriverType = 'pain' | 'goal' | 'kpi'
@@ -14,7 +15,7 @@ interface DriverItemRowProps {
   driverType: DriverType
   isExpanded: boolean
   onToggle: () => void
-  onDrawerOpen: () => void
+  onDrawerOpen?: () => void
   onConfirm: () => void
   onNeedsReview: () => void
   onStatusClick?: () => void
@@ -92,6 +93,20 @@ export function DriverItemRow({
               {/* Key fields (type-specific) */}
               <KeyFields driver={driver} driverType={driverType} />
 
+              {/* Evidence quotes */}
+              {driver.evidence && driver.evidence.length > 0 && (
+                <div className="space-y-2 mb-2">
+                  {driver.evidence.slice(0, 3).map((ev, i) => (
+                    <EvidenceQuote key={ev.chunk_id || i} item={ev} />
+                  ))}
+                  {driver.evidence.length > 3 && (
+                    <p className="text-[11px] text-gray-400 pl-3">
+                      +{driver.evidence.length - 3} more source{driver.evidence.length - 3 > 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Actions row */}
               <div className="flex items-center justify-between pt-2 mt-2 border-t border-border">
                 <ConfirmActions
@@ -99,12 +114,6 @@ export function DriverItemRow({
                   onConfirm={onConfirm}
                   onNeedsReview={onNeedsReview}
                 />
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDrawerOpen() }}
-                  className="text-[11px] text-text-placeholder hover:text-brand-primary transition-colors"
-                >
-                  Open detail →
-                </button>
               </div>
             </div>
           </div>

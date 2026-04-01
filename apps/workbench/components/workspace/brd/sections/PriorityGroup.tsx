@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { useDroppable, useDraggable } from '@dnd-kit/core'
-import { GripVertical, ChevronRight, Package } from 'lucide-react'
+import { GripVertical, ChevronRight, Package, Target } from 'lucide-react'
 import { BRDStatusBadge } from '../components/StatusBadge'
 import { ConfirmActions } from '../components/ConfirmActions'
 import { StaleIndicator } from '../components/StaleIndicator'
+import { EvidenceQuote } from '../components/EvidenceBlock'
 import type { FeatureBRDSummary, MoSCoWGroup } from '@/types/workspace'
 
 // Brand-appropriate priority colors — green intensity scale + neutrals
@@ -134,25 +135,42 @@ function FeatureAccordionCard({
                 <p className="text-[13px] text-[#666666] leading-relaxed mb-4">{feature.description}</p>
               )}
 
+              {/* Outcome provenance */}
+              {feature.outcome_links && feature.outcome_links.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex flex-wrap gap-1.5">
+                    {feature.outcome_links.map((link) => (
+                      <span
+                        key={link.outcome_id}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md bg-[#E8F5E9] text-[#25785A] border border-[#25785A]/10"
+                      >
+                        <Target className="w-2.5 h-2.5" />
+                        {link.outcome_title || 'Outcome'}
+                        {link.how_served && (
+                          <span className="text-[#25785A]/60 ml-0.5">· {link.how_served}</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Evidence */}
               {feature.evidence && feature.evidence.length > 0 && (
                 <div className="mb-4">
                   <div className="px-3 py-1.5 rounded-lg mb-3 bg-[#F0F0F0] text-[#666666]">
                     <span className="text-[11px] font-semibold uppercase tracking-wider">Evidence</span>
                   </div>
-                  <ul className="space-y-2">
+                  <div className="space-y-2">
                     {feature.evidence.slice(0, 3).map((ev, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                        <span className="text-text-placeholder mt-0.5 shrink-0">&#8226;</span>
-                        <span className="line-clamp-2">{ev.rationale || ev.excerpt || 'Source evidence'}</span>
-                      </li>
+                      <EvidenceQuote key={ev.chunk_id || i} item={ev} />
                     ))}
                     {feature.evidence.length > 3 && (
-                      <li className="text-[12px] text-text-placeholder ml-4">
-                        +{feature.evidence.length - 3} more
-                      </li>
+                      <p className="text-[11px] text-text-placeholder pl-3">
+                        +{feature.evidence.length - 3} more source{feature.evidence.length - 3 > 1 ? 's' : ''}
+                      </p>
                     )}
-                  </ul>
+                  </div>
                 </div>
               )}
 

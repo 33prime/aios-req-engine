@@ -6,27 +6,23 @@ import { ActorsSection } from './sections/ActorsSection'
 import { WorkflowsSection } from './sections/WorkflowsSection'
 import { RequirementsSection } from './sections/RequirementsSection'
 import { ConstraintsSection } from './sections/ConstraintsSection'
-// DataEntitiesSection and StakeholdersSection removed from BRD view (data still in DB)
+import { CompetitorsSection } from './sections/CompetitorsSection'
+import { DataEntitiesSection } from './sections/DataEntitiesSection'
+import { IntelligenceRequirementsSection } from './sections/IntelligenceRequirementsSection'
+import { ProblemSolutionSection } from './sections/ProblemSolutionSection'
 import { IntelligenceSection } from './sections/IntelligenceSection'
 import { SolutionFlowSection } from './sections/SolutionFlowSection'
 import { SolutionFlowModal } from './components/SolutionFlowModal'
 import { WorkflowCreateModal } from './components/WorkflowCreateModal'
 import { WorkflowStepEditor } from './components/WorkflowStepEditor'
 import { DataEntityCreateModal } from './components/DataEntityCreateModal'
-import { StakeholderDetailDrawer } from './components/StakeholderDetailDrawer'
-import { WorkflowStepDetailDrawer } from './components/WorkflowStepDetailDrawer'
-import { WorkflowDetailDrawer } from './components/WorkflowDetailDrawer'
-import { ClientIntelligenceDrawer } from './components/ClientIntelligenceDrawer'
-import { DataEntityDetailDrawer } from './components/DataEntityDetailDrawer'
-import { PersonaDrawer } from './components/PersonaDrawer'
-import { ConstraintDrawer } from './components/ConstraintDrawer'
-import { FeatureDrawer } from './components/FeatureDrawer'
-import { BusinessDriverDetailDrawer } from './components/BusinessDriverDetailDrawer'
-import { ConfidenceDrawer } from './components/ConfidenceDrawer'
+// Drawer components removed — entity detail is now inline on cards,
+// deep-dive available via chat assistant.
 import { OpenQuestionsPanel } from './components/OpenQuestionsPanel'
 import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import { ConfirmationClusters } from './components/ConfirmationClusters'
 import { inferConstraints } from '@/lib/api'
+import { getProjectLabels } from '@/lib/project-type-labels'
 import type { NextAction } from '@/lib/api'
 import type { BRDWorkspaceData, SectionScore } from '@/types/workspace'
 
@@ -112,44 +108,30 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     }
   }
 
+  const labels = getProjectLabels(data.project_type)
+
   return (
     <div className="flex h-full">
       {/* BRD Content — full width */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto py-8 px-6">
+        <div className="max-w-5xl mx-auto py-8 px-6">
           {/* Document header */}
           <div className="mb-8">
             <div className="flex items-center gap-3">
               <FileText className="w-6 h-6 text-text-placeholder" />
-              <h1 className="text-[28px] font-bold text-[#37352f]">Business Requirements Document</h1>
+              <h1 className="text-[28px] font-bold text-[#37352f]">
+                {data.project_type === 'internal' ? 'Business Requirements Document' : 'Product Requirements Document'}
+              </h1>
             </div>
             <p className="mt-2 text-[13px] text-[#666666] leading-relaxed">
               The living foundation of your project — every requirement, decision, and insight traced back to its source.
             </p>
           </div>
 
-          {/* 1. Deal Pulse — score ring, stage, narrative, next actions */}
-          <IntelligenceSection
-            data={data}
-            health={dataState.health}
-            healthLoading={dataState.healthLoading}
-            onRefreshAll={dataState.handleRefreshHealth}
-            isRefreshing={dataState.isRefreshingHealth}
-            projectId={projectId}
-            onActionClick={onActionClick}
-          />
+          {/* Intelligence header moved to Outcomes tab */}
+          {/* Solution Flow removed — has its own tab */}
 
-          {/* 2. Solution Flow */}
-          <div id="brd-section-solution-flow" className="mb-8">
-            <SolutionFlowSection
-              flow={data.solution_flow}
-              onOpen={() => workflows.setShowSolutionFlowModal(true)}
-              onGenerate={workflows.handleGenerateSolutionFlow}
-              isGenerating={workflows.isGeneratingSolutionFlow}
-            />
-          </div>
-
-          {/* 3. Confirmation Clusters */}
+          {/* 1. Confirmation Clusters */}
           {dataState.clusters.length > 0 && (
             <div className="mb-6">
               <ConfirmationClusters
@@ -170,6 +152,18 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
             />
           </div>
 
+          {/* Problem / Solution — only for new_product (replaces Background/Vision) */}
+          {data.project_type !== 'internal' && (
+            <ProblemSolutionSection
+              macroOutcome={data.macro_outcome}
+              outcomeThesis={data.outcome_thesis}
+              projectId={projectId}
+              projectType={data.project_type}
+              onUpdateMacroOutcome={actions.handleUpdateMacroOutcome}
+              onUpdateOutcomeThesis={actions.handleUpdateOutcomeThesis}
+            />
+          )}
+
           {/* BRD Sections */}
           <div className="space-y-10">
 
@@ -186,6 +180,9 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           onStatusClick={drawers.handleOpenConfidence}
           sectionScore={sectionScoreMap['vision'] || null}
           stakeholders={data.stakeholders}
+          goalsLabel={labels.goals.toUpperCase()}
+          painPointsLabel={labels.painPoints.toUpperCase()}
+          hideNarratives={data.project_type !== 'internal'}
         />
         </div>
 
@@ -196,6 +193,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
         <ActorsSection
           actors={data.actors}
           workflows={data.workflows}
+          sectionTitle={labels.actors}
           onConfirm={actions.handleConfirm}
           onNeedsReview={actions.handleNeedsReview}
           onConfirmAll={actions.handleConfirmAll}
@@ -213,6 +211,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           workflows={data.workflows}
           workflowPairs={data.workflow_pairs}
           roiSummary={data.roi_summary}
+          sectionTitle={labels.workflows}
           onConfirm={actions.handleConfirm}
           onNeedsReview={actions.handleNeedsReview}
           onConfirmAll={actions.handleConfirmAll}
@@ -227,18 +226,36 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           onDeleteStep={workflows.handleDeleteStep}
           onRefreshEntity={actions.handleRefreshEntity}
           onStatusClick={drawers.handleOpenConfidence}
-          onViewStepDetail={drawers.handleViewStepDetail}
-          onViewWorkflowDetail={drawers.handleViewWorkflowDetail}
           sectionScore={sectionScoreMap['workflows'] || null}
         />
         </div>
 
         <div className="border-t border-[#e9e9e7]" />
 
+        {/* 8b. Competitive Landscape */}
+        {data.competitors && data.competitors.length > 0 && (
+          <>
+            <div id="brd-section-competitors">
+              <CompetitorsSection
+                competitors={data.competitors}
+                onConfirm={actions.handleConfirm}
+                onNeedsReview={actions.handleNeedsReview}
+                onConfirmAll={actions.handleConfirmAll}
+                onOpenDetail={() => {}}
+                onOpenSynthesis={() => {}}
+                onStatusClick={drawers.handleOpenConfidence}
+                sectionScore={sectionScoreMap['competitors'] || null}
+              />
+            </div>
+            <div className="border-t border-[#e9e9e7]" />
+          </>
+        )}
+
         {/* 9. Requirements (max 20, MoSCoW) */}
         <div id="brd-section-features">
         <RequirementsSection
           requirements={data.requirements}
+          sectionTitle={labels.requirements}
           onConfirm={actions.handleConfirm}
           onNeedsReview={actions.handleNeedsReview}
           onConfirmAll={actions.handleConfirmAll}
@@ -251,10 +268,16 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
         <div className="border-t border-[#e9e9e7]" />
 
+        {/* 9b. Intelligence Requirements */}
+        <IntelligenceRequirementsSection projectId={projectId} />
+
+        <div className="border-t border-[#e9e9e7]" />
+
         {/* 10. Constraints */}
         <div id="brd-section-constraints">
         <ConstraintsSection
           constraints={data.constraints}
+          sectionTitle={labels.constraints}
           onConfirm={actions.handleConfirm}
           onNeedsReview={actions.handleNeedsReview}
           onConfirmAll={actions.handleConfirmAll}
@@ -271,7 +294,27 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
         />
         </div>
 
-        {/* Gap clusters removed — low value without drill-down */}
+        {/* 11. Data Entities — What the System Must Know */}
+        {data.data_entities && data.data_entities.length > 0 && (
+          <>
+            <div className="border-t border-[#e9e9e7]" />
+            <div id="brd-section-data-entities">
+              <DataEntitiesSection
+                projectId={projectId}
+                dataEntities={data.data_entities}
+                onConfirm={actions.handleConfirm}
+                onNeedsReview={actions.handleNeedsReview}
+                onConfirmAll={actions.handleConfirmAll}
+                onCreateEntity={() => workflows.setShowCreateDataEntity(true)}
+                onDeleteEntity={workflows.handleDeleteDataEntityWithPreview}
+                onRefreshEntity={actions.handleRefreshEntity}
+                onStatusClick={drawers.handleOpenConfidence}
+                sectionScore={sectionScoreMap['data_entities'] || null}
+              />
+            </div>
+          </>
+        )}
+
       </div>
         </div>{/* end max-w-4xl */}
       </div>{/* end flex-1 overflow-y-auto (BRD content) */}
@@ -327,137 +370,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
         entityLookup={workflows.entityLookup}
       />
 
-      {/* Stakeholder Detail Drawer */}
-      {drawers.stakeholderDrawer.open && drawers.stakeholderDrawer.stakeholder && (
-        <StakeholderDetailDrawer
-          stakeholderId={drawers.stakeholderDrawer.stakeholder.id}
-          projectId={projectId}
-          initialData={drawers.stakeholderDrawer.stakeholder}
-          onClose={() => drawers.setStakeholderDrawer({ open: false, stakeholder: null })}
-          onConfirm={actions.handleConfirm}
-          onNeedsReview={actions.handleNeedsReview}
-        />
-      )}
-
-      {/* Workflow Step Detail Drawer */}
-      {drawers.stepDetailDrawer.open && drawers.stepDetailDrawer.stepId && (
-        <WorkflowStepDetailDrawer
-          stepId={drawers.stepDetailDrawer.stepId}
-          projectId={projectId}
-          onClose={() => drawers.setStepDetailDrawer({ open: false, stepId: '' })}
-          onConfirm={actions.handleConfirm}
-          onNeedsReview={actions.handleNeedsReview}
-        />
-      )}
-
-      {/* Workflow Detail Drawer */}
-      {drawers.workflowDetailDrawer.open && drawers.workflowDetailDrawer.workflowId && (
-        <WorkflowDetailDrawer
-          workflowId={drawers.workflowDetailDrawer.workflowId}
-          projectId={projectId}
-          stakeholders={data?.stakeholders}
-          onClose={() => drawers.setWorkflowDetailDrawer({ open: false, workflowId: '' })}
-          onConfirm={actions.handleConfirm}
-          onNeedsReview={actions.handleNeedsReview}
-          onViewStepDetail={(stepId) => {
-            drawers.setWorkflowDetailDrawer({ open: false, workflowId: '' })
-            drawers.setStepDetailDrawer({ open: true, stepId })
-          }}
-        />
-      )}
-
-      {/* Client Intelligence Drawer */}
-      {drawers.clientIntelDrawer && (
-        <ClientIntelligenceDrawer
-          projectId={projectId}
-          onClose={() => drawers.setClientIntelDrawer(false)}
-        />
-      )}
-
-      {/* Data Entity Detail Drawer */}
-      {drawers.dataEntityDrawer.open && drawers.dataEntityDrawer.entityId && (
-        <DataEntityDetailDrawer
-          entityId={drawers.dataEntityDrawer.entityId}
-          projectId={projectId}
-          onClose={() => drawers.setDataEntityDrawer({ open: false, entityId: '' })}
-          onConfirm={actions.handleConfirm}
-          onNeedsReview={actions.handleNeedsReview}
-        />
-      )}
-
-      {/* Confidence Drawer (fallback) */}
-      {drawers.confidenceDrawer.open && (
-        <ConfidenceDrawer
-          entityType={drawers.confidenceDrawer.entityType}
-          entityId={drawers.confidenceDrawer.entityId}
-          entityName={drawers.confidenceDrawer.entityName}
-          projectId={projectId}
-          initialStatus={drawers.confidenceDrawer.initialStatus}
-          onClose={() => drawers.setConfidenceDrawer((prev) => ({ ...prev, open: false }))}
-          onConfirm={(entityType, entityId) => actions.handleConfirm(entityType, entityId)}
-          onNeedsReview={(entityType, entityId) => actions.handleNeedsReview(entityType, entityId)}
-        />
-      )}
-
-      {/* Persona Drawer */}
-      {drawers.personaDrawer.open && drawers.personaDrawer.persona && (
-        <PersonaDrawer
-          persona={drawers.personaDrawer.persona}
-          projectId={projectId}
-          stakeholders={data?.stakeholders}
-          features={data ? [
-            ...data.requirements.must_have,
-            ...data.requirements.should_have,
-            ...data.requirements.could_have,
-            ...data.requirements.out_of_scope,
-          ] : []}
-          onClose={() => drawers.setPersonaDrawer({ open: false, persona: null })}
-          onConfirm={actions.handleConfirm}
-          onNeedsReview={actions.handleNeedsReview}
-        />
-      )}
-
-      {/* Constraint Drawer */}
-      {drawers.constraintDrawer.open && drawers.constraintDrawer.constraint && (
-        <ConstraintDrawer
-          constraint={drawers.constraintDrawer.constraint}
-          projectId={projectId}
-          features={data ? [
-            ...data.requirements.must_have,
-            ...data.requirements.should_have,
-            ...data.requirements.could_have,
-            ...data.requirements.out_of_scope,
-          ] : []}
-          onClose={() => drawers.setConstraintDrawer({ open: false, constraint: null })}
-          onConfirm={actions.handleConfirm}
-          onNeedsReview={actions.handleNeedsReview}
-        />
-      )}
-
-      {/* Feature Drawer */}
-      {drawers.featureDrawer.open && drawers.featureDrawer.feature && (
-        <FeatureDrawer
-          feature={drawers.featureDrawer.feature}
-          projectId={projectId}
-          onClose={() => drawers.setFeatureDrawer({ open: false, feature: null })}
-          onConfirm={actions.handleConfirm}
-          onNeedsReview={actions.handleNeedsReview}
-        />
-      )}
-
-      {/* Business Driver Detail Drawer */}
-      {drawers.driverDrawer.open && drawers.driverDrawer.initialData && (
-        <BusinessDriverDetailDrawer
-          driverId={drawers.driverDrawer.driverId}
-          driverType={drawers.driverDrawer.driverType}
-          projectId={projectId}
-          initialData={drawers.driverDrawer.initialData}
-          stakeholders={data?.stakeholders}
-          onClose={() => drawers.setDriverDrawer({ open: false, driverId: '', driverType: 'pain', initialData: null })}
-          onConfirm={actions.handleConfirm}
-          onNeedsReview={actions.handleNeedsReview}
-        />
-      )}
+      {/* All entity drawers removed — detail available via chat assistant */}
     </div>
   )
 }

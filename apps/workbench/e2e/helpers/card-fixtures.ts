@@ -117,7 +117,28 @@ export const EVIDENCE_CARD = {
   },
 }
 
-/** All 8 card fixtures as an array for batch tests. */
+export const WORKFLOW_SUGGESTION_CARD = {
+  card_type: 'workflow_suggestion' as const,
+  id: 'wf-suggest-1',
+  data: {
+    name: 'Emergency Document Access and Card Retrieval',
+    description: 'Adult child caregiver retrieves critical documents during a parent\'s medical or legal emergency.',
+    owner_persona: 'Adult Child Caregiver — Authorized Family Member',
+    rationale: 'A medical emergency is the highest-stakes moment the platform is designed for, yet no workflow validates that documents can actually be retrieved under pressure.',
+    steps: [
+      { label: 'Locate Emergency Access Card', actor_persona_name: 'Adult Child Caregiver', automation_level: 'fully_automated' },
+      { label: 'Authenticate and open shared vault', actor_persona_name: 'Adult Child Caregiver', automation_level: 'semi_automated' },
+      { label: 'Navigate to critical document', actor_persona_name: 'Adult Child Caregiver', automation_level: 'semi_automated' },
+      { label: 'System flags stale documents', actor_persona_name: 'Adult Child Caregiver', automation_level: 'fully_automated' },
+      { label: 'Download or present to third party', actor_persona_name: 'Adult Child Caregiver', automation_level: 'semi_automated' },
+    ],
+    addresses_features: ['Emergency Access Card', 'Stale Document Detection'],
+    addresses_pains: ['Critical documents locked in safes without shared access'],
+    addresses_goals: ['Secure document sharing with designated family members'],
+  },
+}
+
+/** All 9 card fixtures as an array for batch tests. */
 export const ALL_CARDS = [
   GAP_CLOSER_CARD,
   ACTION_BUTTONS_CARD,
@@ -127,4 +148,5 @@ export const ALL_CARDS = [
   MEETING_CARD,
   SMART_SUMMARY_CARD,
   EVIDENCE_CARD,
+  WORKFLOW_SUGGESTION_CARD,
 ]

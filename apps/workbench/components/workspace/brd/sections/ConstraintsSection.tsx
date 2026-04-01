@@ -28,6 +28,7 @@ interface ConstraintsSectionProps {
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
   onInferConstraints?: () => Promise<void>
   sectionScore?: SectionScore | null
+  sectionTitle?: string
 }
 
 // 6-category type config with icons
@@ -147,6 +148,7 @@ export function ConstraintsSection({
   onStatusClick,
   onInferConstraints,
   sectionScore,
+  sectionTitle = 'Constraints',
 }: ConstraintsSectionProps) {
   const [inferring, setInferring] = useState(false)
 
@@ -185,7 +187,7 @@ export function ConstraintsSection({
     <section id="brd-section-constraints">
       <div className="flex items-center justify-between mb-4">
         <SectionHeader
-          title="Constraints"
+          title={sectionTitle}
           count={constraints.length}
           confirmedCount={confirmedCount}
           onConfirmAll={() => onConfirmAll('constraint', constraints.map((c) => c.id))}

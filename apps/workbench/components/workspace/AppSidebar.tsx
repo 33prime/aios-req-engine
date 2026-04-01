@@ -10,7 +10,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
@@ -27,6 +27,8 @@ import {
   User,
   Plus,
   ListTodo,
+  Menu,
+  X,
 } from 'lucide-react'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { useProfile } from '@/lib/hooks/use-api'
@@ -51,7 +53,7 @@ function NavItem({ href, icon, label, isActive, isCollapsed }: NavItemProps) {
       className={`
         flex items-center gap-2.5 px-3 py-2 transition-all duration-200
         ${isActive
-          ? 'bg-[#E8F5E9] text-brand-primary font-medium border-l-[3px] border-l-brand-primary -ml-px'
+          ? 'bg-brand-primary-light text-brand-primary font-medium border-l-[3px] border-l-brand-primary -ml-px'
           : 'text-text-body hover:bg-[#F4F4F4] hover:text-text-body'
         }
         ${isCollapsed ? 'justify-center' : ''}
@@ -82,6 +84,12 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
   const { data: profile } = useProfile()
   const [internalCollapsed, setInternalCollapsed] = useState(false)
   const [showCreateProject, setShowCreateProject] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Auto-close mobile sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
 
   // Use controlled state if provided, otherwise internal
   const isCollapsed = controlledCollapsed ?? internalCollapsed
@@ -120,13 +128,41 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
 
   return (
     <>
+      {/* Mobile hamburger — visible below md */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed top-3 left-3 z-50 p-2 rounded-lg bg-white border border-border shadow-sm md:hidden"
+        aria-label="Open navigation"
+      >
+        <Menu className="w-5 h-5 text-[#666]" />
+      </button>
+
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       <aside
         className={`
           fixed left-0 top-0 h-screen bg-[#F8F9FB] border-r border-border
           flex flex-col z-40 transition-all duration-300
           ${isCollapsed ? 'w-16' : 'w-56'}
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+          md:translate-x-0
         `}
       >
+        {/* Mobile close button */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="absolute top-3 right-3 p-1.5 rounded-lg text-[#999] hover:bg-[#F4F4F4] md:hidden"
+          aria-label="Close navigation"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
         {/* Logo + Actions */}
         <div className={`flex items-center ${isCollapsed ? 'flex-col gap-2 px-2 pt-3 pb-2' : 'justify-between px-3 py-3'}`}>
           {/* Logo */}
@@ -156,7 +192,7 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
             {/* Green "+" button */}
             <button
               onClick={() => setShowCreateProject(true)}
-              className="p-1 rounded-full bg-brand-primary text-white hover:bg-[#25785A] transition-colors"
+              className="p-1 rounded-full bg-brand-primary text-white hover:bg-brand-primary-hover transition-colors"
               title="New project"
             >
               <Plus className="w-3 h-3" />
