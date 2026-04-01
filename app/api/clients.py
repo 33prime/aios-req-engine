@@ -132,43 +132,62 @@ def delete_client(client_id: UUID):
 
 
 @router.post("/{client_id}/enrich")
-async def enrich_client(client_id: UUID, background_tasks: BackgroundTasks):
-    """Trigger AI enrichment for a client."""
+async def enrich_client_endpoint(client_id: UUID, background_tasks: BackgroundTasks):
+    """Trigger AI firmographic enrichment for a client."""
     existing = clients_db.get_client(client_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    from app.chains.enrich_client import enrich_client as run_enrichment
+    from app.chains.client_enrichment.firmographics import enrich_firmographics
 
-    background_tasks.add_task(run_enrichment, client_id)
+    background_tasks.add_task(enrich_firmographics, client_id)
 
     return {"success": True, "message": "Enrichment started", "client_id": str(client_id)}
 
 
 @router.post("/{client_id}/analyze")
-async def analyze_client(client_id: UUID, background_tasks: BackgroundTasks):
-    """Trigger full Client Intelligence Agent analysis."""
+async def analyze_client_endpoint(
+    client_id: UUID,
+    background_tasks: BackgroundTasks,
+    deep: bool = False,
+):
+    """Analyze client — enriches the thinnest profile section.
+
+    When deep=True, loops up to 5 times until profile_completeness >= 85%
+    or no further improvement is detected.
+    """
     existing = clients_db.get_client(client_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    from app.agents.client_intelligence_agent import invoke_client_intelligence_agent
+    from app.chains.client_enrichment import analyze_client as run_analysis
 
-    async def _run_analysis():
+    async def _run():
         try:
-            await invoke_client_intelligence_agent(
-                client_id=client_id,
-                trigger="user_request",
-                specific_request="Full client analysis",
-            )
+            if deep:
+                last_score = 0
+                analyzed_sections: set[str] = set()
+                for _ in range(5):
+                    result = await run_analysis(client_id, recently_analyzed=analyzed_sections)
+                    if not result.success:
+                        break
+                    if result.section_analyzed and result.section_analyzed != "unknown":
+                        analyzed_sections.add(result.section_analyzed)
+                    if result.profile_completeness_after >= 85:
+                        break
+                    if result.profile_completeness_after <= last_score:
+                        break
+                    last_score = result.profile_completeness_after
+            else:
+                await run_analysis(client_id)
         except Exception as e:
             logger.error(f"Client analysis failed for {client_id}: {e}")
 
-    background_tasks.add_task(_run_analysis)
+    background_tasks.add_task(_run)
 
     return {
         "success": True,
-        "message": "Client intelligence analysis started",
+        "message": "Deep client analysis started" if deep else "Client analysis started",
         "client_id": str(client_id),
     }
 
@@ -253,23 +272,6 @@ def get_client_signals(
     return {"signals": signals, "total": total}
 
 
-@router.get("/{client_id}/intelligence-logs")
-def get_client_intelligence_logs(
-    client_id: UUID,
-    limit: int = Query(20, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-):
-    """Get intelligence analysis history for a client."""
-    existing = clients_db.get_client(client_id)
-    if not existing:
-        raise HTTPException(status_code=404, detail="Client not found")
-
-    logs, total = clients_db.get_client_intelligence_logs(
-        client_id, limit=limit, offset=offset
-    )
-    return {"logs": logs, "total": total}
-
-
 @router.post("/{client_id}/projects/{project_id}/link")
 def link_project(client_id: UUID, project_id: UUID):
     """Link a project to a client."""
@@ -347,7 +349,9 @@ def get_knowledge_base(client_id: UUID):
 def add_knowledge_item(client_id: UUID, kb_category: str, body: KnowledgeItemCreate):
     """Add an item to a knowledge base category."""
     if kb_category not in _KB_CATEGORIES:
-        raise HTTPException(status_code=400, detail=f"Invalid category. Must be one of: {', '.join(_KB_CATEGORIES)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid category. Must be one of: {', '.join(_KB_CATEGORIES)}"
+        )
 
     existing = clients_db.get_client(client_id)
     if not existing:
@@ -383,10 +387,14 @@ def add_knowledge_item(client_id: UUID, kb_category: str, body: KnowledgeItemCre
 
 
 @router.patch("/{client_id}/knowledge-base/{kb_category}/{item_id}")
-def update_knowledge_item(client_id: UUID, kb_category: str, item_id: str, body: KnowledgeItemUpdate):
+def update_knowledge_item(
+    client_id: UUID, kb_category: str, item_id: str, body: KnowledgeItemUpdate
+):
     """Update a knowledge base item."""
     if kb_category not in _KB_CATEGORIES:
-        raise HTTPException(status_code=400, detail=f"Invalid category. Must be one of: {', '.join(_KB_CATEGORIES)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid category. Must be one of: {', '.join(_KB_CATEGORIES)}"
+        )
 
     existing = clients_db.get_client(client_id)
     if not existing:
@@ -418,7 +426,9 @@ def update_knowledge_item(client_id: UUID, kb_category: str, item_id: str, body:
 def delete_knowledge_item(client_id: UUID, kb_category: str, item_id: str):
     """Delete a knowledge base item."""
     if kb_category not in _KB_CATEGORIES:
-        raise HTTPException(status_code=400, detail=f"Invalid category. Must be one of: {', '.join(_KB_CATEGORIES)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid category. Must be one of: {', '.join(_KB_CATEGORIES)}"
+        )
 
     existing = clients_db.get_client(client_id)
     if not existing:
@@ -432,7 +442,9 @@ def delete_knowledge_item(client_id: UUID, kb_category: str, item_id: str):
             current = []
 
     original_len = len(current)
-    current = [item for item in current if not (isinstance(item, dict) and item.get("id") == item_id)]
+    current = [
+        item for item in current if not (isinstance(item, dict) and item.get("id") == item_id)
+    ]
 
     if len(current) == original_len:
         raise HTTPException(status_code=404, detail="Knowledge item not found")

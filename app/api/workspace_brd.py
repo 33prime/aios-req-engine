@@ -409,6 +409,40 @@ async def get_brd_workspace_data(
             else:
                 requirements.should_have.append(summary)
 
+        # Enrich features with outcome provenance (reverse outcome links)
+        try:
+            from app.db.outcomes import get_outcome_entity_links
+            all_feature_ids = [f.id for group in [requirements.must_have, requirements.should_have, requirements.could_have, requirements.out_of_scope] for f in group]
+            if all_feature_ids:
+                # Batch: get all outcome_entity_links for features in this project
+                oel_resp = client.table("outcome_entity_links").select(
+                    "entity_id, outcome_id, link_type, how_served"
+                ).in_("entity_id", all_feature_ids).execute()
+
+                # Get outcome titles for display
+                outcome_ids_needed = list({l["outcome_id"] for l in (oel_resp.data or [])})
+                outcome_titles = {}
+                if outcome_ids_needed:
+                    ot_resp = client.table("outcomes").select("id, title").in_("id", outcome_ids_needed).execute()
+                    outcome_titles = {o["id"]: o["title"] for o in (ot_resp.data or [])}
+
+                # Group by feature
+                links_by_feature: dict[str, list] = {}
+                for l in (oel_resp.data or []):
+                    links_by_feature.setdefault(l["entity_id"], []).append({
+                        "outcome_id": l["outcome_id"],
+                        "outcome_title": outcome_titles.get(l["outcome_id"], ""),
+                        "link_type": l["link_type"],
+                        "how_served": l.get("how_served"),
+                    })
+
+                # Apply to feature summaries
+                for group in [requirements.must_have, requirements.should_have, requirements.could_have, requirements.out_of_scope]:
+                    for f in group:
+                        f.outcome_links = links_by_feature.get(f.id, [])
+        except Exception as e:
+            logger.debug(f"Feature outcome enrichment skipped: {e}")
+
         vp_step_feature_map: dict[str, list[tuple[str, str]]] = {}
         for f in (features_result.data or []):
             sid = f.get("vp_step_id")
@@ -717,6 +751,9 @@ async def get_brd_workspace_data(
             data_entities=data_entities_list,
             stakeholders=stakeholders_list,
             competitors=competitors_list,
+            project_type=project.get("project_type", "new_product") or "new_product",
+            macro_outcome=project.get("macro_outcome"),
+            outcome_thesis=project.get("outcome_thesis"),
             readiness_score=readiness_score,
             pending_count=pending_count,
             workflow_pairs=workflow_pairs_out,

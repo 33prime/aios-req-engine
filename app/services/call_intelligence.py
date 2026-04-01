@@ -543,7 +543,7 @@ class CallIntelligenceService:
             # Features
             features = (
                 supabase.table("features")
-                .select("name, description")
+                .select("name, category")
                 .eq("project_id", project_id)
                 .limit(30)
                 .execute()
@@ -551,7 +551,8 @@ class CallIntelligenceService:
 
             if features:
                 feature_text = "\n".join(
-                    f"- {f['name']}: {f.get('description', '')[:100]}" for f in features
+                    f"- {f['name']}" + (f" ({f['category']})" if f.get('category') else "")
+                    for f in features
                 )
                 blocks.append(
                     {

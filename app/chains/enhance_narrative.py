@@ -51,6 +51,35 @@ Format rules:
 Be specific. Reference actual stakeholders, pain points from the evidence.
 Return ONLY the markdown — no preamble."""
 
+_SYSTEM_MACRO_OUTCOME = """\
+You are a requirements engineering consultant writing a concise market/process problem statement.
+This describes the CORE PROBLEM — the pain, gap, or opportunity that justifies the project.
+
+Format rules:
+- 1-2 sentence opening paragraph (the core problem)
+- 2-3 bullet points, each ONE sentence max, bold the key issue:
+  "- **Manual onboarding** — new customers wait 2-3 weeks for account setup"
+- No blank lines between bullets — keep them as a tight list
+- Total length: under 120 words
+
+Be specific. Reference actual pain points, stakeholders, and business impact from the evidence.
+Return ONLY the markdown — no preamble."""
+
+_SYSTEM_OUTCOME_THESIS = """\
+You are a requirements engineering consultant writing a concise solution thesis.
+This describes the PROPOSED SOLUTION — how the product or initiative will address the problem.
+
+Format rules:
+- 1-2 sentence opening paragraph (the solution approach)
+- 2-3 bullet points, each ONE sentence max, bold the key capability:
+  "- **Self-service portal** — customers configure their own accounts in under 30 minutes"
+- No blank lines between bullets — keep them as a tight list
+- Optional: one closing *italic* sentence on expected impact
+- Total length: under 120 words
+
+Be specific. Reference actual features, capabilities, and goals from the evidence.
+Return ONLY the markdown — no preamble."""
+
 
 def enhance_narrative(
     project_id: str,
@@ -69,15 +98,15 @@ def enhance_narrative(
     Returns:
         The AI-generated suggestion text.
     """
-    if field not in ("vision", "background"):
-        raise ValueError(f"field must be 'vision' or 'background', got '{field}'")
+    if field not in ("vision", "background", "macro_outcome", "outcome_thesis"):
+        raise ValueError(f"field must be 'vision', 'background', 'macro_outcome', or 'outcome_thesis', got '{field}'")
 
     client = get_supabase()
 
     # Load project + company info
     project = (
         client.table("projects")
-        .select("name, vision, vision_updated_at")
+        .select("name, vision, vision_updated_at, macro_outcome, outcome_thesis")
         .eq("id", project_id)
         .single()
         .execute()
@@ -87,6 +116,8 @@ def enhance_narrative(
 
     project_name = project.data.get("name", "the project")
     current_vision = project.data.get("vision") or ""
+    current_macro_outcome = project.data.get("macro_outcome") or ""
+    current_outcome_thesis = project.data.get("outcome_thesis") or ""
 
     # Load background from company_info
     company_info = (
@@ -105,7 +136,13 @@ def enhance_narrative(
         company_name = company_info.data.get("name") or ""
         industry = company_info.data.get("industry") or ""
 
-    current_value = current_vision if field == "vision" else current_background
+    field_value_map = {
+        "vision": current_vision,
+        "background": current_background,
+        "macro_outcome": current_macro_outcome,
+        "outcome_thesis": current_outcome_thesis,
+    }
+    current_value = field_value_map.get(field, "")
 
     # ── Build rich context from BRD data ──
     context_parts = [f"Project: {project_name}"]
@@ -114,11 +151,21 @@ def enhance_narrative(
     if industry:
         context_parts.append(f"Industry: {industry}")
 
-    # Include the other field as context
+    # Include related fields as context
     if field == "vision" and current_background:
         context_parts.append(f"\nProject Background (problem provenance):\n{current_background}")
     elif field == "background" and current_vision:
         context_parts.append(f"\nProject Vision (future state):\n{current_vision}")
+    elif field == "macro_outcome" and current_outcome_thesis:
+        context_parts.append(f"\nProposed Solution:\n{current_outcome_thesis}")
+    elif field == "outcome_thesis" and current_macro_outcome:
+        context_parts.append(f"\nMarket Problem:\n{current_macro_outcome}")
+    # Also include vision/background as extra context for problem/solution fields
+    if field in ("macro_outcome", "outcome_thesis"):
+        if current_vision:
+            context_parts.append(f"\nProject Vision:\n{current_vision}")
+        if current_background:
+            context_parts.append(f"\nProject Background:\n{current_background}")
 
     # Load pain points
     pains = (
@@ -207,7 +254,13 @@ def enhance_narrative(
     context_block = "\n".join(context_parts)
 
     # Build user prompt
-    system = _SYSTEM_VISION if field == "vision" else _SYSTEM_BACKGROUND
+    system_map = {
+        "vision": _SYSTEM_VISION,
+        "background": _SYSTEM_BACKGROUND,
+        "macro_outcome": _SYSTEM_MACRO_OUTCOME,
+        "outcome_thesis": _SYSTEM_OUTCOME_THESIS,
+    }
+    system = system_map[field]
 
     if mode == "notes" and user_notes:
         user_prompt = (

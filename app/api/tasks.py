@@ -253,6 +253,14 @@ async def complete_task(
     if not completed:
         raise HTTPException(status_code=500, detail="Failed to complete task")
 
+    # Bidirectional sync: if signal_review task, confirm its entities
+    if task.task_type == TaskType.SIGNAL_REVIEW and task.signal_id:
+        try:
+            from app.api.workspace_confirm import _complete_signal_review_confirm
+            _complete_signal_review_confirm(str(task.signal_id))
+        except Exception as e:
+            logger.debug(f"Signal review sync failed: {e}")
+
     logger.info(
         f"Task completed: {task_id}",
         extra={

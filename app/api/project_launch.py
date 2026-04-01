@@ -61,6 +61,11 @@ STEP_DEFINITIONS = [
         "label": "Verifying output quality",
         "depends_on": ["entity_linking"],
     },
+    {
+        "key": "deep_enrichment",
+        "label": "Deep enrichment",
+        "depends_on": ["quality_check"],
+    },
 ]
 
 
@@ -90,6 +95,8 @@ def _should_run_step(step_key: str, context: dict) -> tuple[bool, str]:
         return True, ""
     elif step_key == "quality_check":
         return True, ""
+    elif step_key == "deep_enrichment":
+        return True, ""
     return True, ""
 
 
@@ -106,7 +113,12 @@ def _execute_company_research(context: dict) -> str:
     if not client_id:
         return "Skipped — no client record"
 
-    result = asyncio.run(enrich_client(UUID(client_id)))
+    try:
+        result = asyncio.run(enrich_client(UUID(client_id)))
+    except Exception as e:
+        logger.warning(f"Company research failed for client {client_id}: {e}")
+        result = None
+
     fields_enriched = result.get("fields_enriched", []) if isinstance(result, dict) else []
     field_count = len(fields_enriched) if isinstance(fields_enriched, list) else 0
 
@@ -129,6 +141,8 @@ def _execute_company_research(context: dict) -> str:
             "description": "",
         }
 
+    if result is None:
+        return "Skipped — company research failed (website unreachable)"
     return f"Enriched {field_count} fields from website"
 
 
@@ -475,28 +489,34 @@ def _execute_entity_generation(context: dict) -> str:
 
 
 def _execute_stakeholder_enrichment(context: dict) -> str:
-    """Run stakeholder intelligence for stakeholders with LinkedIn."""
-    from app.agents.stakeholder_intelligence_agent import invoke_stakeholder_intelligence_agent
+    """Run stakeholder intelligence for stakeholders with LinkedIn (parallel)."""
+    from app.chains.stakeholder_enrichment import analyze_stakeholder
 
     stakeholders = context.get("stakeholders", [])
     linkedin_stakeholders = [s for s in stakeholders if s.get("linkedin_url")]
     project_id = UUID(context["project_id_str"])
-    enriched = 0
-    errors = 0
 
-    for s in linkedin_stakeholders:
-        try:
-            asyncio.run(
-                invoke_stakeholder_intelligence_agent(
-                    stakeholder_id=UUID(s["id"]),
-                    project_id=project_id,
-                    trigger="user_request",
-                )
+    if not linkedin_stakeholders:
+        return "Skipped — no stakeholders with LinkedIn"
+
+    async def _enrich_all():
+        tasks = [
+            analyze_stakeholder(
+                stakeholder_id=UUID(s["id"]),
+                project_id=project_id,
+                trigger="user_request",
             )
-            enriched += 1
-        except Exception as e:
-            logger.warning(f"Stakeholder enrichment failed for {s['id']}: {e}")
-            errors += 1
+            for s in linkedin_stakeholders
+        ]
+        return await asyncio.gather(*tasks, return_exceptions=True)
+
+    results = asyncio.run(_enrich_all())
+    enriched = sum(1 for r in results if not isinstance(r, Exception))
+    errors = sum(1 for r in results if isinstance(r, Exception))
+    for i, r in enumerate(results):
+        if isinstance(r, Exception):
+            sid = linkedin_stakeholders[i]["id"]
+            logger.warning(f"Stakeholder enrichment failed for {sid}: {r}")
 
     parts = [f"{enriched} enriched"]
     if errors:
@@ -554,12 +574,71 @@ def _execute_entity_linking(context: dict) -> str:
     return "; ".join(parts)
 
 
+def _execute_deep_enrichment(context: dict) -> str:
+    """Run deep enrichment — loops analyze_client + analyze_stakeholder until 85% completeness."""
+    from app.chains.client_enrichment import analyze_client as run_client_analysis
+    from app.chains.stakeholder_enrichment import analyze_stakeholder
+
+    parts = []
+
+    # Deep client enrichment — loop until 85% or no improvement
+    client_id = context.get("client_id")
+    if client_id:
+        last_score = 0
+        iterations = 0
+        analyzed_sections: set[str] = set()
+        for _ in range(3):
+            try:
+                result = asyncio.run(
+                    run_client_analysis(UUID(client_id), recently_analyzed=analyzed_sections)
+                )
+                iterations += 1
+                if result.section_analyzed and result.section_analyzed != "unknown":
+                    analyzed_sections.add(result.section_analyzed)
+                current_score = result.profile_completeness_after
+                if current_score >= 85 or current_score <= last_score:
+                    break
+                last_score = current_score
+            except Exception as e:
+                logger.warning(f"Deep client enrichment iteration failed: {e}")
+                break
+        parts.append(f"Client: {iterations} iterations, {last_score}% completeness")
+
+    # Deep stakeholder enrichment — parallel
+    stakeholder_ids = context.get("stakeholder_ids", [])
+    project_id_str = context.get("project_id_str")
+    if stakeholder_ids and project_id_str:
+        project_id = UUID(project_id_str)
+
+        async def _enrich_stakeholders():
+            tasks = [
+                analyze_stakeholder(
+                    stakeholder_id=UUID(sid),
+                    project_id=project_id,
+                    trigger="post_launch",
+                )
+                for sid in stakeholder_ids
+            ]
+            return await asyncio.gather(*tasks, return_exceptions=True)
+
+        try:
+            results = asyncio.run(_enrich_stakeholders())
+            enriched = sum(1 for r in results if not isinstance(r, Exception))
+            parts.append(f"Stakeholders: {enriched}/{len(stakeholder_ids)} enriched")
+        except Exception as e:
+            logger.warning(f"Deep stakeholder enrichment failed: {e}")
+            parts.append(f"Stakeholders: failed ({e})")
+
+    return "; ".join(parts) or "No entities to enrich"
+
+
 STEP_EXECUTORS = {
     "company_research": _execute_company_research,
     "entity_generation": _execute_entity_generation,
     "stakeholder_enrichment": _execute_stakeholder_enrichment,
     "entity_linking": _execute_entity_linking,
     "quality_check": _execute_quality_check,
+    "deep_enrichment": _execute_deep_enrichment,
 }
 
 
@@ -847,6 +926,10 @@ async def launch_project(
             context["stakeholders"].append(s_context)
         except Exception as e:
             logger.error(f"Stakeholder creation failed for {s_input.first_name} {s_input.last_name}: {e}")
+
+    # Pass stakeholder IDs into context for deep enrichment stage
+    if stakeholder_ids:
+        context["stakeholder_ids"] = stakeholder_ids
 
     # 4. Signal ingestion — ingest chat transcript or problem description
     signal_id = None

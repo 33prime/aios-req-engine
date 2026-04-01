@@ -344,53 +344,39 @@ async def create_stakeholder(
                 append=False,
             )
 
-        # Trigger SI Agent enrichment in background
+        # Trigger enrichment in background (tiered by type)
         stakeholder_id = UUID(stakeholder["id"])
 
         async def run_enrichment():
-            from app.agents.stakeholder_intelligence_agent import (
-                invoke_stakeholder_intelligence_agent,
-            )
+            from app.chains.stakeholder_enrichment import analyze_stakeholder
+            from app.chains.stakeholder_enrichment.scoring import get_max_iterations
 
-            MAX_ITERATIONS = 6
+            sh_type = body.stakeholder_type or "end_user"
+            max_iter = get_max_iterations(sh_type)
             prev_score: int | None = None
 
-            for iteration in range(MAX_ITERATIONS):
+            for iteration in range(max_iter):
                 try:
-                    result = await invoke_stakeholder_intelligence_agent(
+                    result = await analyze_stakeholder(
                         stakeholder_id=stakeholder_id,
                         project_id=project_id,
                         trigger="user_request",
-                        trigger_context=f"Stakeholder created manually — auto-enrichment iteration {iteration + 1}/{MAX_ITERATIONS}",
-                        specific_request="Enrich this newly created stakeholder profile" if iteration == 0 else "Continue enriching the weakest profile section",
+                        trigger_context=f"Stakeholder created — iteration {iteration + 1}/{max_iter}",
                     )
 
                     if result.action_type in ("stop", "guidance"):
-                        logger.info(
-                            f"SI Agent stopped at iteration {iteration + 1}: {result.action_type}",
-                            extra={"stakeholder_id": str(stakeholder_id)},
-                        )
                         break
 
                     current_score = result.profile_completeness_after
                     if current_score is not None and current_score == prev_score:
-                        logger.info(
-                            f"SI Agent plateaued at {current_score}% after {iteration + 1} iterations",
-                            extra={"stakeholder_id": str(stakeholder_id)},
-                        )
                         break
-
                     prev_score = current_score
 
                     if current_score is not None and current_score >= 85:
-                        logger.info(
-                            f"SI Agent reached {current_score}% — good enough",
-                            extra={"stakeholder_id": str(stakeholder_id)},
-                        )
                         break
 
                 except Exception as e:
-                    logger.error(f"SI Agent enrichment iteration {iteration + 1} failed: {e}", exc_info=True)
+                    logger.error(f"Enrichment iteration {iteration + 1} failed: {e}", exc_info=True)
                     break
 
         background_tasks.add_task(run_enrichment)
@@ -641,34 +627,32 @@ async def update_stakeholder(
 
         stakeholder = stakeholders_db.update_stakeholder(stakeholder_id, updates)
 
-        # Auto-trigger SI Agent re-enrichment on meaningful field changes
+        # Auto-trigger re-enrichment on meaningful field changes
         enrichment_relevant_fields = {
-            "role", "email", "organization", "influence_level", "stakeholder_type",
-            "priorities", "concerns", "notes", "linkedin_profile",
+            "role", "email", "organization", "influence_level",
+            "stakeholder_type", "priorities", "concerns", "notes",
+            "linkedin_profile",
         }
         changed_fields = set(updates.keys()) & enrichment_relevant_fields
         if changed_fields:
             async def run_re_enrichment():
-                from app.agents.stakeholder_intelligence_agent import (
-                    invoke_stakeholder_intelligence_agent,
-                )
+                from app.chains.stakeholder_enrichment import analyze_stakeholder
+                from app.chains.stakeholder_enrichment.scoring import get_max_iterations
 
-                MAX_ITERATIONS = 4
+                sh_type = stakeholder.get("stakeholder_type", "end_user")
+                max_iter = get_max_iterations(sh_type)
                 prev_score: int | None = None
 
-                for iteration in range(MAX_ITERATIONS):
+                for iteration in range(max_iter):
                     try:
-                        result = await invoke_stakeholder_intelligence_agent(
+                        result = await analyze_stakeholder(
                             stakeholder_id=stakeholder_id,
                             project_id=project_id,
                             trigger="user_request",
-                            trigger_context=f"Stakeholder updated — fields changed: {', '.join(changed_fields)}",
-                            specific_request="Re-enrich based on updated stakeholder data" if iteration == 0 else "Continue enriching the weakest profile section",
+                            trigger_context=f"Updated: {', '.join(changed_fields)}",
                         )
-
                         if result.action_type in ("stop", "guidance"):
                             break
-
                         current_score = result.profile_completeness_after
                         if current_score is not None and current_score == prev_score:
                             break
@@ -676,7 +660,7 @@ async def update_stakeholder(
                         if current_score is not None and current_score >= 85:
                             break
                     except Exception as e:
-                        logger.error(f"SI Agent re-enrichment iteration {iteration + 1} failed: {e}", exc_info=True)
+                        logger.error(f"Re-enrichment failed: {e}", exc_info=True)
                         break
 
             background_tasks.add_task(run_re_enrichment)
@@ -846,53 +830,31 @@ async def analyze_stakeholder(
             raise HTTPException(status_code=404, detail="Stakeholder not found in this project")
 
         async def run_analysis():
-            from app.agents.stakeholder_intelligence_agent import (
-                invoke_stakeholder_intelligence_agent,
-            )
+            from app.chains.stakeholder_enrichment import analyze_stakeholder
+            from app.chains.stakeholder_enrichment.scoring import get_max_iterations
 
-            MAX_ITERATIONS = 6
+            sh_type = existing.get("stakeholder_type", "end_user")
+            max_iter = get_max_iterations(sh_type)
             prev_score: int | None = None
 
-            for iteration in range(MAX_ITERATIONS):
+            for iteration in range(max_iter):
                 try:
-                    result = await invoke_stakeholder_intelligence_agent(
+                    result = await analyze_stakeholder(
                         stakeholder_id=stakeholder_id,
                         project_id=project_id,
                         trigger=body.trigger if iteration == 0 else "user_request",
-                        trigger_context=body.context if iteration == 0 else f"Auto-iteration {iteration + 1}/{MAX_ITERATIONS}",
-                        specific_request=body.specific_request if iteration == 0 else "Continue enriching the weakest profile section",
-                        focus_areas=body.focus_areas,
+                        trigger_context=body.context if iteration == 0 else None,
                     )
-
-                    # Stop if agent chose to stop or returned guidance-only
                     if result.action_type in ("stop", "guidance"):
-                        logger.info(
-                            f"SI Agent stopped at iteration {iteration + 1}: {result.action_type}",
-                            extra={"stakeholder_id": str(stakeholder_id)},
-                        )
                         break
-
-                    # Stop if completeness plateaued (no improvement)
                     current_score = result.profile_completeness_after
                     if current_score is not None and current_score == prev_score:
-                        logger.info(
-                            f"SI Agent plateaued at {current_score}% after {iteration + 1} iterations",
-                            extra={"stakeholder_id": str(stakeholder_id)},
-                        )
                         break
-
                     prev_score = current_score
-
-                    # Stop if we've reached high completeness
                     if current_score is not None and current_score >= 85:
-                        logger.info(
-                            f"SI Agent reached {current_score}% — good enough",
-                            extra={"stakeholder_id": str(stakeholder_id)},
-                        )
                         break
-
                 except Exception as e:
-                    logger.error(f"SI Agent iteration {iteration + 1} failed: {e}", exc_info=True)
+                    logger.error(f"Analysis iteration {iteration + 1} failed: {e}", exc_info=True)
                     break
 
         background_tasks.add_task(run_analysis)
@@ -924,26 +886,25 @@ async def get_stakeholder_intelligence(
             raise HTTPException(status_code=404, detail="Stakeholder not found in this project")
 
         # Compute live completeness
+        from app.chains.stakeholder_enrichment.scoring import (
+            SECTION_MAX_SCORES,
+            compute_section_scores,
+            compute_total_score,
+            update_completeness,
+        )
 
-        from app.agents.stakeholder_intelligence_tools import _execute_update_profile_completeness
-        completeness_result = await _execute_update_profile_completeness(stakeholder_id, project_id)
-        completeness = completeness_result.get("data", {})
+        section_scores = compute_section_scores(stakeholder_id)
+        total, label = compute_total_score(section_scores)
+        update_completeness(stakeholder_id)
+
+        completeness = {"score": total, "label": label, "sections": section_scores}
 
         sections = []
-        max_scores = {
-            "core_identity": 10,
-            "engagement_profile": 20,
-            "decision_authority": 20,
-            "relationships": 20,
-            "communication": 10,
-            "win_conditions_concerns": 15,
-            "evidence_depth": 5,
-        }
-        for section_name, section_score in completeness.get("sections", {}).items():
+        for section_name, section_score in section_scores.items():
             sections.append(IntelligenceSectionScore(
                 section=section_name,
                 score=section_score,
-                max_score=max_scores.get(section_name, 10),
+                max_score=SECTION_MAX_SCORES.get(section_name, 10),
             ))
 
         enrichment_fields = {

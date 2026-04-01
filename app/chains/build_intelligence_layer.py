@@ -624,6 +624,9 @@ async def build_intelligence_layer(
         except Exception as e:
             logger.warning(f"Failed to save architecture: {e}")
 
+        # Also write individual rows to outcome_capabilities (Phase 3 upgrade)
+        _persist_architecture_as_capabilities(project_id, architecture_data)
+
     elapsed = time.monotonic() - t_start
     logger.info(
         f"Intelligence layer built: {len(hierarchy)} orchestrators, "
@@ -941,3 +944,116 @@ def _wire_sub_dependencies(
                 update_agent(real_id, update_data)
             except Exception as e:
                 logger.warning(f"Failed to wire deps for {plan['name']}: {e}")
+
+
+# ═══════════════════════════════════════════════
+# Phase 3: Persist architecture as outcome_capabilities
+# ═══════════════════════════════════════════════
+
+
+def _persist_architecture_as_capabilities(
+    project_id: UUID,
+    architecture_data: dict,
+) -> None:
+    """Write intelligence architecture items as individual outcome_capability rows.
+
+    Maps quadrant names from architecture JSONB to outcome_capabilities table.
+    Links to outcomes via title similarity if possible.
+    Preserves intelligence_architecture JSONB as backward-compatible read cache.
+    """
+    try:
+        from app.db.outcomes import (
+            create_outcome_capability,
+            list_outcome_capabilities,
+            list_outcomes,
+        )
+
+        outcomes = list_outcomes(project_id)
+        existing_caps = list_outcome_capabilities(project_id=project_id)
+        existing_names = {c["name"].lower() for c in existing_caps}
+
+        # Map architecture quadrant keys to our quadrant names
+        quadrant_map = {
+            "knowledge_systems": "knowledge",
+            "scoring_models": "scoring",
+            "decision_logic": "decision",
+            "ai_capabilities": "ai",
+        }
+
+        created = 0
+        for arch_key, quadrant_name in quadrant_map.items():
+            quadrant_data = architecture_data.get(arch_key, {})
+            items = quadrant_data.get("items", [])
+
+            for item in items:
+                name = item.get("name", "").strip()
+                if not name or name.lower() in existing_names:
+                    continue
+
+                # Try to find a matching outcome by the "powers" field
+                outcome_id = _find_best_outcome_for_capability(
+                    item, outcomes
+                )
+
+                if not outcome_id and outcomes:
+                    # Default to first outcome if no match found
+                    outcome_id = UUID(outcomes[0]["id"])
+
+                if outcome_id:
+                    try:
+                        status = item.get("status", "defined")
+                        badge = "created" if status == "defined" else "suggested"
+
+                        create_outcome_capability(
+                            project_id=project_id,
+                            outcome_id=outcome_id,
+                            name=name,
+                            quadrant=quadrant_name,
+                            description=item.get("description", ""),
+                            badge=badge,
+                        )
+                        existing_names.add(name.lower())
+                        created += 1
+                    except Exception as e:
+                        logger.debug(f"Failed to create capability '{name}': {e}")
+
+        if created:
+            logger.info(f"Persisted {created} intelligence items as outcome_capabilities")
+
+    except ImportError:
+        pass  # Outcomes module not yet available
+    except Exception as e:
+        logger.debug(f"Architecture→capabilities migration failed: {e}")
+
+
+def _find_best_outcome_for_capability(
+    item: dict,
+    outcomes: list[dict],
+) -> UUID | None:
+    """Find the best matching outcome for an intelligence capability.
+
+    Uses the "powers" field from architecture items to match against outcome titles.
+    Falls back to simple word overlap.
+    """
+    powers = item.get("powers", "").lower()
+    if not powers or not outcomes:
+        return None
+
+    best_score = 0.0
+    best_id = None
+
+    for outcome in outcomes:
+        title = outcome.get("title", "").lower()
+        desc = outcome.get("description", "").lower()
+
+        # Simple word overlap scoring
+        power_words = set(powers.split())
+        title_words = set(title.split()) | set(desc.split())
+        common = power_words & title_words
+        score = len(common) / max(len(power_words), 1)
+
+        if score > best_score and score > 0.2:
+            best_score = score
+            best_id = outcome["id"]
+
+    return UUID(best_id) if best_id else None

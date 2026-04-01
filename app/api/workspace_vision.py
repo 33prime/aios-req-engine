@@ -106,8 +106,8 @@ async def enhance_narrative_endpoint(
     """
     from app.chains.enhance_narrative import enhance_narrative
 
-    if body.field not in ("vision", "background"):
-        raise HTTPException(status_code=400, detail="field must be 'vision' or 'background'")
+    if body.field not in ("vision", "background", "macro_outcome", "outcome_thesis"):
+        raise HTTPException(status_code=400, detail="field must be 'vision', 'background', 'macro_outcome', or 'outcome_thesis'")
     if body.mode not in ("rewrite", "notes"):
         raise HTTPException(status_code=400, detail="mode must be 'rewrite' or 'notes'")
 

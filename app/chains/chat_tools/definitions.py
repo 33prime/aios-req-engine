@@ -28,7 +28,9 @@ def get_tool_definitions() -> list[dict[str, Any]]:
                 "'knowledge' — beliefs, facts, and insights about a topic, "
                 "'status' — project overview with entity counts, "
                 "'documents' — recent uploads and processing status, "
-                "'pending' — items needing confirmation or attention."
+                "'pending' — items needing confirmation or attention, "
+                "'workflow_gaps' — analyze BRD coverage gaps in "
+                "workflows and suggest new workflows to fill them."
             ),
             "input_schema": {
                 "type": "object",
@@ -43,6 +45,7 @@ def get_tool_definitions() -> list[dict[str, Any]]:
                             "status",
                             "documents",
                             "pending",
+                            "workflow_gaps",
                         ],
                         "description": "What kind of search to perform",
                     },
@@ -90,20 +93,21 @@ def get_tool_definitions() -> list[dict[str, Any]]:
         {
             "name": "write",
             "description": (
-                "Create, update, or delete project entities. "
+                "Create, update, delete, or pair project entities. "
                 "Supports: feature, persona, workflow, vp_step, stakeholder, "
                 "constraint, data_entity, business_driver, task, company_reference, meeting. "
                 "For create: provide entity_type + data. "
                 "For update: provide entity_type + entity_id + data. "
-                "For delete: provide entity_type + entity_id."
+                "For delete: provide entity_type + entity_id. "
+                "For pair: action='pair' + entity_type='workflow' to link current/future."
             ),
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
-                        "enum": ["create", "update", "delete"],
-                        "description": "Whether to create, update, or delete",
+                        "enum": ["create", "update", "delete", "pair"],
+                        "description": "Whether to create, update, delete, or pair (workflow only)",
                     },
                     "entity_type": {
                         "type": "string",
@@ -134,15 +138,24 @@ def get_tool_definitions() -> list[dict[str, Any]]:
                             "Entity fields. "
                             "features: {name, description, category, is_mvp}. "
                             "personas: {name, role, goals, pain_points}. "
-                            "business_driver: {description}. "
+                            "workflows: {name, description, state_type: current|future, "
+                            "owner, frequency_per_week, hourly_rate}. "
+                            "vp_steps: {label, description, step_index, actor_persona_id, "
+                            "time_minutes, pain_description, benefit_description, "
+                            "automation_level: manual|semi_automated|fully_automated, "
+                            "operation_type: create|read|update|delete|validate|notify|transfer}. "
+                            "business_driver: {description, baseline_value, target_value, "
+                            "measurement_method, tracking_frequency, "
+                            "data_source, responsible_team, "
+                            "linked_vp_step_ids, linked_feature_ids, "
+                            "linked_persona_ids}. "
                             "task: {title, description, "
                             "task_type: reminder|action_item|"
                             "review_request|book_meeting|deliverable}. "
-                            "company_reference: {name, url, "
-                            "reference_type, notes}. "
+                            "company_reference: {name, url, reference_type, notes}. "
                             "meeting: {topic, attendees, agenda}. "
-                            "confirmation: {entity_type, entity_id, "
-                            "question, context}."
+                            "confirmation: {entity_type, entity_id, question, context}. "
+                            "pair (workflow only): {current_workflow_id, future_workflow_id}."
                         ),
                     },
                 },
@@ -342,6 +355,7 @@ def get_tool_definitions() -> list[dict[str, Any]]:
                                         "smart_summary",
                                         "evidence",
                                         "discovery_probe",
+                                        "workflow_suggestion",
                                     ],
                                 },
                                 "data": {"type": "object"},
@@ -352,6 +366,79 @@ def get_tool_definitions() -> list[dict[str, Any]]:
                     },
                 },
                 "required": ["cards"],
+            },
+        },
+        {
+            "name": "outcome",
+            "description": (
+                "Manage outcomes — the state changes that organize everything. "
+                "Actions: "
+                "'create' — create a new core outcome with actor outcomes, "
+                "'link' — link an entity to an outcome, "
+                "'coverage' — check intelligence coverage gaps across outcomes, "
+                "'sharpen' — get strength score and sharpen prompt for a weak outcome, "
+                "'list' — list all outcomes for the project."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["create", "link", "coverage", "sharpen", "list"],
+                        "description": "What outcome operation to perform",
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "For create: the state change statement",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "For create: fuller context",
+                    },
+                    "horizon": {
+                        "type": "string",
+                        "enum": ["h1", "h2", "h3"],
+                        "description": "For create: which horizon",
+                    },
+                    "what_helps": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "For create: 3-5 bullets of what helps this outcome",
+                    },
+                    "actor_outcomes": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "persona_name": {"type": "string"},
+                                "title": {"type": "string"},
+                                "before_state": {"type": "string"},
+                                "after_state": {"type": "string"},
+                                "metric": {"type": "string"},
+                            },
+                            "required": ["persona_name", "title"],
+                        },
+                        "description": "For create: per-persona state changes (2+ required)",
+                    },
+                    "outcome_id": {
+                        "type": "string",
+                        "description": "For link/sharpen: outcome UUID",
+                    },
+                    "entity_id": {
+                        "type": "string",
+                        "description": "For link: entity UUID to link",
+                    },
+                    "entity_type": {
+                        "type": "string",
+                        "description": "For link: entity type",
+                    },
+                    "link_type": {
+                        "type": "string",
+                        "enum": ["serves", "blocks", "enables", "measures", "evidence_for", "surface_of"],
+                        "description": "For link: relationship type",
+                    },
+                },
+                "required": ["action"],
             },
         },
     ]

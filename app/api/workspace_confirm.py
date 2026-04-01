@@ -142,10 +142,64 @@ async def batch_confirm_entities(
         except Exception:
             pass
 
+    # Bidirectional sync: complete any signal_review tasks for this signal
+    if confirmed_ids:
+        try:
+            _complete_signal_review_tasks(sid)
+        except Exception as e:
+            logger.debug(f"Failed to complete signal review tasks: {e}")
+
     return BatchConfirmResponse(
         confirmed_count=len(confirmed_ids),
         entity_ids=confirmed_ids,
     )
+
+
+def _complete_signal_review_confirm(signal_id: str) -> None:
+    """Confirm all entities from a signal when its review task is completed (reverse sync)."""
+    client = get_client()
+
+    revisions_resp = (
+        client.table("enrichment_revisions")
+        .select("entity_type, entity_id")
+        .eq("source_signal_id", signal_id)
+        .execute()
+    )
+
+    for rev in revisions_resp.data or []:
+        table = _ENTITY_TABLE_MAP.get(rev["entity_type"])
+        if not table:
+            continue
+        try:
+            client.table(table).update(
+                {"confirmation_status": "confirmed_consultant"}
+            ).eq("id", rev["entity_id"]).execute()
+        except Exception:
+            pass
+
+
+def _complete_signal_review_tasks(signal_id: str) -> None:
+    """Complete any signal_review tasks linked to this signal (bidirectional sync)."""
+    from datetime import UTC, datetime
+
+    client = get_client()
+    # Find open signal_review tasks for this signal
+    tasks_resp = (
+        client.table("tasks")
+        .select("id, status")
+        .eq("signal_id", signal_id)
+        .eq("task_type", "signal_review")
+        .neq("status", "completed")
+        .neq("status", "dismissed")
+        .execute()
+    )
+    for task in tasks_resp.data or []:
+        client.table("tasks").update({
+            "status": "completed",
+            "completion_method": "auto",
+            "completed_at": datetime.now(UTC).isoformat(),
+        }).eq("id", task["id"]).execute()
+        logger.info(f"Auto-completed signal_review task {task['id']} via batch confirm")
 
 
 async def _create_signal_review_tasks(

@@ -27,6 +27,7 @@ _MUTATING_TOOLS = {
     "process",
     "solution_flow",
     "client_portal",
+    "outcome",
 }
 
 

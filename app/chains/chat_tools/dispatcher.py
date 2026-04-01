@@ -78,6 +78,13 @@ async def _search_dispatch(project_id: UUID, params: dict[str, Any]) -> dict[str
 
         return await _list_pending_confirmations(project_id, params)
 
+    elif action == "workflow_gaps":
+        from app.chains.analyze_workflow_gaps import (
+            analyze_workflow_gaps,
+        )
+
+        return await analyze_workflow_gaps(project_id)
+
     else:
         return {"error": f"Unknown search action: {action}"}
 
@@ -108,6 +115,12 @@ async def _write_dispatch(project_id: UUID, params: dict[str, Any]) -> dict[str,
         from .tools_communication import _create_confirmation
 
         return await _create_confirmation(project_id, data)
+
+    # Workflow pairing (special action)
+    if action == "pair" and entity_type == "workflow":
+        from .tools_entity_crud import _pair_workflows
+
+        return await _pair_workflows(project_id, data)
 
     # Standard entity CRUD
     if action == "create":
@@ -285,12 +298,20 @@ async def _client_portal_dispatch(project_id: UUID, params: dict[str, Any]) -> d
 
 # ── Dispatch Map ───────────────────────────────────────────────────
 
+async def _outcome_dispatch(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
+    """Dispatch outcome tool actions."""
+    from app.chains.chat_tools.tools_outcomes import dispatch_outcome
+
+    return await dispatch_outcome(project_id, params)
+
+
 _DISPATCH_MAP: dict[str, Callable] = {
     "search": _search_dispatch,
     "write": _write_dispatch,
     "process": _process_dispatch,
     "solution_flow": _solution_flow_dispatch,
     "client_portal": _client_portal_dispatch,
+    "outcome": _outcome_dispatch,
 }
 
 

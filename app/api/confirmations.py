@@ -303,10 +303,25 @@ async def batch_confirm_entities(request: BatchConfirmRequest) -> BatchConfirmRe
         supabase = get_supabase()
         updated_count = 0
 
+        from datetime import datetime, timezone
+
         for entity_id in request.entity_ids:
             try:
+                # Fetch current history to append
+                current = supabase.table(table_name).select(
+                    "confirmation_history"
+                ).eq("id", entity_id).maybe_single().execute()
+
+                history = (current.data or {}).get("confirmation_history") or []
+                history.append({
+                    "status": request.confirmation_status,
+                    "confirmed_by": request.confirmation_status.split("_")[-1],  # "consultant" or "client"
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+
                 result = supabase.table(table_name).update({
                     "confirmation_status": request.confirmation_status,
+                    "confirmation_history": history,
                     "updated_at": "now()",
                 }).eq("id", entity_id).eq("project_id", str(request.project_id)).execute()
 

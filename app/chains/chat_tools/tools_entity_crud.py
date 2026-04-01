@@ -75,7 +75,10 @@ async def _update_entity(project_id: UUID, params: dict[str, Any]) -> dict[str, 
     """
     entity_type = params.get("entity_type")
     entity_id = params.get("entity_id")
-    fields = params.get("fields", {})
+    # "fields" may be explicit or the dispatcher may spread data flat into params
+    fields = params.get("fields") or {
+        k: v for k, v in params.items() if k not in ("entity_type", "entity_id", "name")
+    }
 
     if not entity_type or not entity_id:
         return {
@@ -340,9 +343,10 @@ async def _create_vp_step_entity(project_id: UUID, name: str, fields: dict) -> d
         return {"success": False, "error": "workflow_id is required for vp_step creation"}
 
     step_data = {
-        "name": name,
-        "step_number": fields.get("step_number", 99),
-        "actor": fields.get("actor"),
+        "label": name,
+        "step_index": fields.get("step_number", fields.get("step_index", 99)),
+        "actor_persona_id": fields.get("actor_persona_id") or fields.get("actor"),
+        "description": fields.get("description", name),
         "pain_description": fields.get("pain_description"),
         "benefit_description": fields.get("benefit_description"),
         "time_minutes": fields.get("time_minutes"),
@@ -372,21 +376,33 @@ async def _update_vp_step_entity(entity_id: UUID, fields: dict) -> dict[str, Any
     from app.db.workflows import update_workflow_step
 
     ALLOWED = {
-        "name", "step_number", "actor", "pain_description",
-        "benefit_description", "time_minutes", "automation_level", "operation_type",
+        "label", "description", "step_index", "actor_persona_id",
+        "pain_description", "benefit_description", "time_minutes",
+        "automation_level", "operation_type",
     }
-    updates = {k: v for k, v in fields.items() if k in ALLOWED}
+    # Map friendly names to DB column names
+    FIELD_MAP = {
+        "name": "label",
+        "step_number": "step_index",
+        "actor": "actor_persona_id",
+    }
+    mapped = {}
+    for k, v in fields.items():
+        db_key = FIELD_MAP.get(k, k)
+        if db_key in ALLOWED:
+            mapped[db_key] = v
 
-    if not updates:
-        return {"success": False, "error": f"No valid fields. Allowed: {', '.join(ALLOWED)}"}
+    if not mapped:
+        allowed = ", ".join(sorted(ALLOWED))
+        return {"success": False, "error": f"No valid fields. Allowed: {allowed}"}
 
-    step = update_workflow_step(step_id=entity_id, data=updates)
+    step = update_workflow_step(step_id=entity_id, data=mapped)
     return {
         "success": True,
         "entity_type": "vp_step",
         "entity_id": str(entity_id),
-        "name": step.get("name", ""),
-        "updated_fields": list(updates.keys()),
+        "name": step.get("label", ""),
+        "updated_fields": list(mapped.keys()),
     }
 
 
@@ -493,10 +509,15 @@ async def _create_workflow_entity(project_id: UUID, name: str, fields: dict) -> 
     """Create a workflow."""
     from app.db.workflows import create_workflow
 
+    state_type = fields.get("state_type") or fields.get("workflow_type", "future")
     data = {
         "name": name,
-        "workflow_type": fields.get("workflow_type", "current"),
-        "description": fields.get("description"),
+        "state_type": state_type,
+        "description": fields.get("description", ""),
+        "owner": fields.get("owner"),
+        "frequency_per_week": fields.get("frequency_per_week", 0),
+        "hourly_rate": fields.get("hourly_rate", 0),
+        "confirmation_status": "confirmed_consultant",
     }
 
     workflow = create_workflow(project_id=project_id, data=data)
@@ -506,7 +527,7 @@ async def _create_workflow_entity(project_id: UUID, name: str, fields: dict) -> 
         "entity_type": "workflow",
         "entity_id": workflow["id"],
         "name": name,
-        "workflow_type": data["workflow_type"],
+        "state_type": state_type,
     }
 
 
@@ -514,7 +535,7 @@ async def _update_workflow_entity(entity_id: UUID, fields: dict) -> dict[str, An
     """Update a workflow."""
     from app.db.workflows import update_workflow
 
-    ALLOWED = {"name", "description", "workflow_type"}
+    ALLOWED = {"name", "description", "workflow_type", "owner", "frequency_per_week", "hourly_rate"}
     updates = {k: v for k, v in fields.items() if k in ALLOWED}
 
     if not updates:
@@ -528,6 +549,37 @@ async def _update_workflow_entity(entity_id: UUID, fields: dict) -> dict[str, An
         "name": workflow.get("name", ""),
         "updated_fields": list(updates.keys()),
     }
+
+
+async def _pair_workflows(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
+    """Pair a current-state and future-state workflow."""
+    from app.db.workflows import get_workflow, pair_workflows
+
+    current_id = params.get("current_workflow_id")
+    future_id = params.get("future_workflow_id")
+
+    if not current_id or not future_id:
+        return {
+            "success": False,
+            "error": "current_workflow_id and future_workflow_id are required",
+        }
+
+    try:
+        current_wf = get_workflow(UUID(current_id))
+        future_wf = get_workflow(UUID(future_id))
+        if not current_wf:
+            return {"success": False, "error": f"Current workflow not found: {current_id}"}
+        if not future_wf:
+            return {"success": False, "error": f"Future workflow not found: {future_id}"}
+
+        pair_workflows(UUID(current_id), UUID(future_id))
+        return {
+            "success": True,
+            "current_workflow": current_wf.get("name", ""),
+            "future_workflow": future_wf.get("name", ""),
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 # --- Business Driver ---
@@ -568,7 +620,8 @@ async def _update_business_driver_entity(entity_id: UUID, project_id: UUID, fiel
                "severity", "frequency", "affected_users", "business_impact", "current_workaround",
                "goal_timeframe", "success_criteria", "dependencies", "owner",
                "baseline_value", "target_value", "measurement_method", "tracking_frequency",
-               "data_source", "responsible_team"}
+               "data_source", "responsible_team",
+               "linked_vp_step_ids", "linked_feature_ids", "linked_persona_ids"}
     updates = {k: v for k, v in fields.items() if k in ALLOWED}
 
     if not updates:

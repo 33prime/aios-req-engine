@@ -562,10 +562,11 @@ def _validate_patches(
         try:
             # Normalize evidence chunk_ids if not provided by LLM
             evidence = item.get("evidence", [])
-            if evidence and chunk_ids:
+            if evidence:
+                default_chunk = chunk_ids[0] if chunk_ids else str(__import__('uuid').uuid4())
                 for ev in evidence:
                     if not ev.get("chunk_id") or ev["chunk_id"] == "...":
-                        ev["chunk_id"] = chunk_ids[0] if chunk_ids else "unknown"
+                        ev["chunk_id"] = default_chunk
 
             # Default source_authority
             if not item.get("source_authority"):
@@ -608,6 +609,7 @@ async def _extract_single_chunk(
     context_snapshot: Any,
     source_authority: str,
     client: Any,  # AsyncAnthropic
+    chunk_metadata: dict | None = None,
 ) -> list[dict]:
     """Extract patches from a single chunk using Haiku.
 
@@ -707,11 +709,21 @@ Extract all EntityPatch objects from this chunk. Use the submit_entity_patches t
                         except json.JSONDecodeError:
                             logger.error(f"Chunk {chunk_index}: failed to parse patches string")
                             patches_raw = []
-                    # Inject chunk_id into evidence refs
+                    # Inject chunk_id and speaker provenance into evidence refs
                     for patch in patches_raw:
                         for ev in patch.get("evidence", []):
                             if not ev.get("chunk_id") or ev["chunk_id"] == "...":
                                 ev["chunk_id"] = chunk_id
+                            # Carry speaker data from chunk metadata if available
+                            if chunk_metadata:
+                                meta_tags = chunk_metadata.get("meta_tags") or {}
+                                speaker_roles = meta_tags.get("speaker_roles") or {}
+                                if speaker_roles and not ev.get("speaker"):
+                                    # Use first speaker from chunk as default
+                                    for name, role in speaker_roles.items():
+                                        ev.setdefault("speaker", name)
+                                        ev.setdefault("speaker_role", role)
+                                        break
                     return patches_raw
 
             logger.warning(f"Chunk {chunk_index}: no tool_use block in response")
@@ -880,6 +892,7 @@ async def extract_patches_parallel(
             context_snapshot=context_snapshot,
             source_authority=source_authority,
             client=client,
+            chunk_metadata=chunk.get("metadata"),
         )
         for i, chunk in enumerate(chunks)
     ]

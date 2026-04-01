@@ -87,6 +87,28 @@ async def list_all_projects(
         def fetch_company_names() -> dict:
             return batch_get_company_names(project_ids) if project_ids else {}
 
+        def fetch_client_names() -> dict:
+            """Fallback: resolve client names from clients table via client_id FK."""
+            client_ids = list(set(
+                p["client_id"] for p in raw_projects
+                if p.get("client_id") and not p.get("client_name")
+            ))
+            if not client_ids:
+                return {}
+            try:
+                supabase = get_supabase()
+                resp = supabase.table("clients").select("id, name").in_("id", client_ids).execute()
+                client_map = {row["id"]: row["name"] for row in (resp.data or [])}
+                # Map back to project_id
+                return {
+                    p["id"]: client_map[p["client_id"]]
+                    for p in raw_projects
+                    if p.get("client_id") and p["client_id"] in client_map
+                }
+            except Exception as e:
+                logger.warning(f"Client name fallback failed: {e}")
+                return {}
+
         def fetch_owner_profiles() -> dict:
             if not owner_ids:
                 return {}
@@ -104,9 +126,10 @@ async def list_all_projects(
                 for row in (resp.data or [])
             }
 
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        with ThreadPoolExecutor(max_workers=3) as executor:
             company_future = executor.submit(fetch_company_names)
             profiles_future = executor.submit(fetch_owner_profiles)
+            client_names_future = executor.submit(fetch_client_names)
 
         company_names = {}
         try:
@@ -120,7 +143,17 @@ async def list_all_projects(
         except Exception as e:
             logger.warning(f"Batch owner profile fetch failed: {e}")
 
-        projects = [_to_project_response(p, company_name=company_names.get(p["id"])) for p in raw_projects]
+        client_names_from_fk = {}
+        try:
+            client_names_from_fk = client_names_future.result()
+        except Exception as e:
+            logger.warning(f"Client names from FK failed: {e}")
+
+        # Merge: company_info > client_name column > clients table FK
+        def resolve_company_name(p: dict) -> str | None:
+            return company_names.get(p["id"]) or p.get("client_name") or client_names_from_fk.get(p["id"])
+
+        projects = [_to_project_response(p, company_name=resolve_company_name(p)) for p in raw_projects]
 
         return ProjectListResponse(projects=projects, total=result["total"], owner_profiles=owner_profiles)
 
