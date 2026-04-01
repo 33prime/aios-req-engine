@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
 import { Loader2 } from 'lucide-react'
-import { getIntelligence } from '@/lib/api'
+import { useIntelligence } from '@/lib/hooks/use-api'
 import { Markdown } from '@/components/ui/Markdown'
-import type { IntelligenceData, SynthesizedAction } from '@/lib/api/workspace'
+import type { SynthesizedAction } from '@/lib/api/workspace'
 import type { BRDWorkspaceData } from '@/types/workspace'
 
 interface IntelligenceSectionProps {
@@ -147,23 +146,7 @@ export function IntelligenceSection({
 }: IntelligenceSectionProps) {
   const projectId = projectIdProp || ''
 
-  const [intelligence, setIntelligence] = useState<IntelligenceData | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  const loadData = useCallback(async () => {
-    if (!projectId) return
-    setLoading(true)
-    try {
-      const result = await getIntelligence(projectId)
-      setIntelligence(result)
-    } catch {
-      // Silent fail
-    } finally {
-      setLoading(false)
-    }
-  }, [projectId])
-
-  useEffect(() => { loadData() }, [loadData])
+  const { data: intelligence, isLoading: loading } = useIntelligence(projectId || undefined)
 
   // Compute health score from unified response
   const avgHealth = intelligence?.pulse?.health_score ?? 0

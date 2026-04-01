@@ -554,6 +554,14 @@ export const getIntelligence = (projectId: string) =>
     `/projects/${projectId}/workspace/intelligence`
   )
 
+/**
+ * Outcomes tab — macro outcome, rollup, outcomes, actors, workflows.
+ */
+export const getOutcomesTab = (projectId: string) =>
+  apiRequest<Record<string, unknown>>(
+    `/projects/${projectId}/workspace/outcomes/tab`
+  )
+
 // ============================================
 // Actions / Context Frame APIs
 // ============================================

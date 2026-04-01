@@ -52,7 +52,7 @@ import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
 import { ReviewBubble, SIDE_PANEL_WIDTH } from '@/components/prototype/ReviewBubble'
 import { ProjectHealthOverlay } from './ProjectHealthOverlay'
-import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft, Users } from 'lucide-react'
+import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft, Users, Target, FileText, GitBranch, Brain } from 'lucide-react'
 import { CollaborateView } from './collaborate/CollaborateView'
 import { useClientPulse } from '@/lib/hooks/use-api'
 import { getProjectDetails, getLaunchProgress } from '@/lib/api'
@@ -774,18 +774,26 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 <div className="flex items-center justify-end mb-2 flex-shrink-0">
                   <div className="inline-flex items-center bg-gray-100 rounded-md p-0.5 text-[12px]">
                     {(['outcomes', 'brd', 'flow', 'ai'] as const).map((mode) => {
-                      const labels = { outcomes: 'Outcomes', brd: 'BRD', canvas: 'Canvas', flow: 'Solution Flow', ai: 'Data & AI' }
+                      const tabs = {
+                        outcomes: { label: 'Outcomes', icon: Target },
+                        brd: { label: 'Requirements', icon: FileText },
+                        flow: { label: 'Solution Flow', icon: GitBranch },
+                        ai: { label: 'Intelligence', icon: Brain },
+                      } as const
+                      const tab = tabs[mode]
+                      const Icon = tab.icon
                       return (
                         <button
                           key={mode}
                           onClick={() => { setDiscoveryViewMode(mode); localStorage.setItem('discovery-view-mode', mode) }}
-                          className={`px-3 py-1 rounded-[5px] font-medium transition-colors ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[5px] font-medium transition-colors ${
                             discoveryViewMode === mode
                               ? 'bg-white text-[#37352f] shadow-sm'
                               : 'text-gray-500 hover:text-gray-700'
                           }`}
                         >
-                          {labels[mode]}
+                          <Icon className="w-3.5 h-3.5" />
+                          {tab.label}
                         </button>
                       )
                     })}

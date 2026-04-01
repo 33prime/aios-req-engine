@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import { Target, Users, GitBranch, ChevronDown, ChevronUp, Loader2, AlertTriangle, MessageCircle, Sparkles } from 'lucide-react'
-import { API_V1 } from '@/lib/config'
+import { useOutcomesTab } from '@/lib/hooks/use-api'
 import { IntelligenceSection } from '../brd/sections/IntelligenceSection'
 import { WorkflowsSection } from '../brd/sections/WorkflowsSection'
 import type { WorkflowPair, ROISummary } from '@/types/workspace'
@@ -165,28 +165,11 @@ interface OutcomesCanvasProps {
 // ============================================================================
 
 export function OutcomesCanvas({ projectId, onSendToChat, onActionClick }: OutcomesCanvasProps) {
-  const [data, setData] = useState<OutcomesTabData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: rawData, error: swrError, isLoading, mutate } = useOutcomesTab(projectId)
+  const data = rawData as OutcomesTabData | undefined
+  const loading = isLoading && !data
+  const error = swrError ? (swrError as Error).message : null
   const [openOutcomes, setOpenOutcomes] = useState<Set<string>>(new Set())
-
-  // ── Data Loading ──
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true)
-      const res = await fetch(`${API_V1}/projects/${projectId}/workspace/outcomes/tab`)
-      if (!res.ok) throw new Error(`Failed to load outcomes: ${res.status}`)
-      const json = await res.json()
-      setData(json)
-      setError(null)
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [projectId])
-
-  useEffect(() => { loadData() }, [loadData])
 
   const toggleOutcome = useCallback((id: string) => {
     setOpenOutcomes(prev => {
@@ -252,7 +235,7 @@ export function OutcomesCanvas({ projectId, onSendToChat, onActionClick }: Outco
           {error}
         </div>
         <button
-          onClick={() => { setError(null); loadData() }}
+          onClick={() => mutate()}
           className="px-4 py-2 text-sm text-white bg-[#3FAF7A] rounded-lg hover:bg-[#25785A] transition-colors"
         >
           Retry
@@ -263,10 +246,21 @@ export function OutcomesCanvas({ projectId, onSendToChat, onActionClick }: Outco
 
   if (!data) return null
 
-  const { outcomes, actors, workflows, rollup } = data
+  const { outcomes, actors, workflows, rollup } = data as OutcomesTabData
 
   return (
     <div className="max-w-5xl mx-auto px-7 py-6 pb-24">
+      {/* Document header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3">
+          <Target className="w-6 h-6 text-text-placeholder" />
+          <h1 className="text-[28px] font-bold text-[#37352f]">Outcomes</h1>
+        </div>
+        <p className="mt-2 text-[13px] text-[#666666] leading-relaxed">
+          The measurable changes this project must deliver — each outcome traced to actors, workflows, and evidence.
+        </p>
+      </div>
+
       {/* ── Intelligence (BRD-style) ── */}
       <IntelligenceSection
         projectId={projectId}

@@ -48,6 +48,7 @@ import {
   listCallRecordings,
   listAllStakeholders,
   getIntelligence,
+  getOutcomesTab,
 } from '@/lib/api'
 import type {
   NextAction,
@@ -99,6 +100,7 @@ export const SWR_KEYS = {
   unifiedMemory: (pid: string) => `unified-memory:${pid}`,
   callRecordings: (pid: string) => `call-recordings:${pid}`,
   intelligence: (pid: string) => `intelligence:${pid}`,
+  outcomesTab: (pid: string) => `outcomes-tab:${pid}`,
 } as const
 
 // --- Cache TTL presets (in milliseconds) ---
@@ -379,6 +381,22 @@ export function useIntelligence(
   return useSWR<IntelligenceData>(
     projectId ? SWR_KEYS.intelligence(projectId) : null,
     () => getIntelligence(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Outcomes tab (cached across tab switches) ---
+export function useOutcomesTab(
+  projectId: string | undefined,
+  config?: SWRConfiguration,
+) {
+  return useSWR(
+    projectId ? SWR_KEYS.outcomesTab(projectId) : null,
+    () => getOutcomesTab(projectId!),
     {
       dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,
