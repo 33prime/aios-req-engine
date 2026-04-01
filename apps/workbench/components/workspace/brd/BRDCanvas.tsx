@@ -7,7 +7,6 @@ import { WorkflowsSection } from './sections/WorkflowsSection'
 import { RequirementsSection } from './sections/RequirementsSection'
 import { ConstraintsSection } from './sections/ConstraintsSection'
 import { CompetitorsSection } from './sections/CompetitorsSection'
-import { DataEntitiesSection } from './sections/DataEntitiesSection'
 import { IntelligenceRequirementsSection } from './sections/IntelligenceRequirementsSection'
 import { ProblemSolutionSection } from './sections/ProblemSolutionSection'
 import { IntelligenceSection } from './sections/IntelligenceSection'
@@ -294,26 +293,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
         />
         </div>
 
-        {/* 11. Data Entities — What the System Must Know */}
-        {data.data_entities && data.data_entities.length > 0 && (
-          <>
-            <div className="border-t border-[#e9e9e7]" />
-            <div id="brd-section-data-entities">
-              <DataEntitiesSection
-                projectId={projectId}
-                dataEntities={data.data_entities}
-                onConfirm={actions.handleConfirm}
-                onNeedsReview={actions.handleNeedsReview}
-                onConfirmAll={actions.handleConfirmAll}
-                onCreateEntity={() => workflows.setShowCreateDataEntity(true)}
-                onDeleteEntity={workflows.handleDeleteDataEntityWithPreview}
-                onRefreshEntity={actions.handleRefreshEntity}
-                onStatusClick={drawers.handleOpenConfidence}
-                sectionScore={sectionScoreMap['data_entities'] || null}
-              />
-            </div>
-          </>
-        )}
 
       </div>
         </div>{/* end max-w-4xl */}
