@@ -265,6 +265,10 @@ router.include_router(workspace_horizons.router, tags=["horizons"])
 # Include Outcomes routes (core outcomes, actors, capabilities, coverage)
 router.include_router(workspace_outcomes.router, tags=["outcomes"])
 
+# Include Solution Surfaces routes (convergence map entities)
+from app.api import surfaces as surfaces_api
+router.include_router(surfaces_api.router, tags=["surfaces"])
+
 # Include Debug Graph routes (dev-only — Tier 2.5 diagnostics)
 if os.environ.get("REQ_ENGINE_ENV", "dev") == "dev":
     from app.api import debug_graph

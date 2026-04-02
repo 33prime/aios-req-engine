@@ -10,9 +10,9 @@ logger = get_logger(__name__)
 
 
 # Valid entity types
-SOURCE_ENTITY_TYPES = {"persona", "feature", "vp_step", "strategic_context", "stakeholder", "data_entity", "business_driver", "unlock", "workflow", "constraint", "competitor"}
-TARGET_ENTITY_TYPES = {"persona", "feature", "vp_step", "signal", "research_chunk", "data_entity", "business_driver", "unlock", "workflow", "constraint", "competitor"}
-DEPENDENCY_TYPES = {"uses", "targets", "derived_from", "informed_by", "actor_of", "spawns", "enables", "constrains", "co_occurrence", "addresses"}
+SOURCE_ENTITY_TYPES = {"persona", "feature", "vp_step", "strategic_context", "stakeholder", "data_entity", "business_driver", "unlock", "workflow", "constraint", "competitor", "solution_surface", "outcome"}
+TARGET_ENTITY_TYPES = {"persona", "feature", "vp_step", "signal", "research_chunk", "data_entity", "business_driver", "unlock", "workflow", "constraint", "competitor", "solution_surface", "outcome"}
+DEPENDENCY_TYPES = {"uses", "targets", "derived_from", "informed_by", "actor_of", "spawns", "enables", "constrains", "co_occurrence", "addresses", "serves"}
 
 
 def register_dependency(
