@@ -839,7 +839,9 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   <CanvasView projectId={projectId} onRefresh={loadData} />
                 )}
                 {discoveryViewMode === 'flow' && (
-                  <ConvergenceMap projectId={projectId} />
+                  <div className="flex-1 min-h-0 rounded-2xl border border-border bg-white shadow-md overflow-hidden flex flex-col">
+                    <ConvergenceMap projectId={projectId} />
+                  </div>
                 )}
                 {discoveryViewMode === 'ai' && (
                   <IntelligenceWorkbench

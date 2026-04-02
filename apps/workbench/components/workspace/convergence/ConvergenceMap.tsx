@@ -197,16 +197,27 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
   }
 
   // ── Drag handling ──
+  // Screen → canvas coordinate conversion: canvasXY = (screenXY - wrapOffset - pan) / scale
+  const screenToCanvas = useCallback((clientX: number, clientY: number) => {
+    const rect = wrapRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    return {
+      x: (clientX - rect.left - pan.x) / scale,
+      y: (clientY - rect.top - pan.y) / scale,
+    }
+  }, [pan, scale])
+
   const onCardMouseDown = useCallback((e: React.MouseEvent, id: string) => {
     e.stopPropagation()
     const p = pos(id)
+    const canvas = screenToCanvas(e.clientX, e.clientY)
     dragState.current = {
       id,
-      offsetX: e.clientX / scale - p.x + pan.x / scale,
-      offsetY: e.clientY / scale - p.y + pan.y / scale,
+      offsetX: canvas.x - p.x,
+      offsetY: canvas.y - p.y,
     }
     didDrag.current = false
-  }, [pos, scale, pan])
+  }, [pos, screenToCanvas])
 
   // ── Pan / Zoom ──
   useEffect(() => {
@@ -241,8 +252,9 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
     const onMove = (e: MouseEvent) => {
       if (dragState.current) {
         didDrag.current = true
-        const newX = e.clientX / scale - dragState.current.offsetX + pan.x / scale
-        const newY = e.clientY / scale - dragState.current.offsetY + pan.y / scale
+        const canvas = screenToCanvas(e.clientX, e.clientY)
+        const newX = canvas.x - dragState.current.offsetX
+        const newY = canvas.y - dragState.current.offsetY
         setPositions(prev => ({ ...prev, [dragState.current!.id]: { x: newX, y: newY } }))
         return
       }
@@ -254,7 +266,7 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-  }, [scale, pan])
+  }, [screenToCanvas])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -277,13 +289,19 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
     nodes.forEach(n => { mx = Math.min(mx, n.x); my = Math.min(my, n.y); Mx = Math.max(Mx, n.x + n.w); My = Math.max(My, n.y + n.h) })
     const w = Mx - mx + pad * 2, h = My - my + pad * 2
     const cw = wrapRef.current.clientWidth - (selectedSurface ? 430 : 0), ch = wrapRef.current.clientHeight
-    const s = Math.min(cw / w, ch / h, 0.95)
+    if (cw <= 0 || ch <= 0) return // wrapper not sized yet
+    const s = Math.max(0.15, Math.min(cw / w, ch / h, 0.95))
     setPan({ x: (cw - (Mx - mx) * s) / 2 - mx * s, y: Math.max(15, (ch - (My - my) * s) / 2 - my * s) })
     setScale(s)
   }, [layout, selectedSurface, pos])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setTimeout(fitView, 50) }, [timeMode, surfaces.length])
+  useEffect(() => {
+    // Delay to let flex layout settle and wrapper get height
+    const t1 = setTimeout(fitView, 100)
+    const t2 = setTimeout(fitView, 300) // retry in case first was too early
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [timeMode, surfaces.length])
 
   // ── Generate ──
   const handleGenerate = useCallback(async () => {
@@ -354,7 +372,8 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
   }, [layout, viewMode, timeMode, selectedOutcome, selectedSurface, evoChain, chainOcIds, pos, outcomes])
 
   // ── Empty / loading states ──
-  if (surfacesLoading && !surfaces.length) {
+  const isLoading = (surfacesLoading && !surfaces.length) || (!outcomesData && surfaces.length > 0)
+  if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="flex items-center gap-2 text-[13px] text-text-placeholder">
