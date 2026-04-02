@@ -49,6 +49,7 @@ import {
   listAllStakeholders,
   getIntelligence,
   getOutcomesTab,
+  getSurfaces,
 } from '@/lib/api'
 import type {
   NextAction,
@@ -101,6 +102,7 @@ export const SWR_KEYS = {
   callRecordings: (pid: string) => `call-recordings:${pid}`,
   intelligence: (pid: string) => `intelligence:${pid}`,
   outcomesTab: (pid: string) => `outcomes-tab:${pid}`,
+  surfaces: (pid: string) => `surfaces:${pid}`,
 } as const
 
 // --- Cache TTL presets (in milliseconds) ---
@@ -397,6 +399,22 @@ export function useOutcomesTab(
   return useSWR(
     projectId ? SWR_KEYS.outcomesTab(projectId) : null,
     () => getOutcomesTab(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Solution Surfaces (convergence map, cached across tab switches) ---
+export function useSurfaces(
+  projectId: string | undefined,
+  config?: SWRConfiguration,
+) {
+  return useSWR(
+    projectId ? SWR_KEYS.surfaces(projectId) : null,
+    () => getSurfaces(projectId!),
     {
       dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,

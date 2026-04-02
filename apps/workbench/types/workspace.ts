@@ -2315,3 +2315,44 @@ export interface FlowHorizon {
   vision: string
 }
 
+// ══════════════════════════════════════════════════════════
+// Solution Surfaces (Convergence Map)
+// ══════════════════════════════════════════════════════════
+
+export interface SurfaceExperience {
+  narr: string
+  layout: string
+  elements: string[]
+  interaction: string
+  tone: string
+  reference: string
+}
+
+export interface SolutionSurface {
+  id: string
+  project_id: string
+  title: string
+  description: string | null
+  route: string | null
+  horizon: 'h1' | 'h2' | 'h3'
+  position_x: number
+  position_y: number
+  evolves_from_id: string | null
+  convergence_score: number
+  is_cross_persona: boolean
+  convergence_insight: string | null
+  experience: SurfaceExperience | Record<string, never>
+  roadmap_insight: string | null
+  how_served: Record<string, string>
+  linked_outcome_ids: string[]
+  linked_feature_ids: string[]
+  linked_workflow_ids: string[]
+  is_stale: boolean
+  stale_reason: string | null
+  stale_since: string | null
+  confirmation_status: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+

@@ -563,6 +563,29 @@ export const getOutcomesTab = (projectId: string) =>
   )
 
 // ============================================
+// Solution Surfaces (Convergence Map)
+// ============================================
+
+export const getSurfaces = (projectId: string) =>
+  apiRequest<{ surfaces: import('@/types/workspace').SolutionSurface[]; count: number }>(
+    `/projects/${projectId}/surfaces`
+  )
+
+export const getSurface = (projectId: string, surfaceId: string) =>
+  apiRequest<import('@/types/workspace').SolutionSurface & {
+    linked_outcomes_detail: Array<{ id: string; title: string; strength_score: number; horizon: string }>
+    evolution_chain: { ancestors: import('@/types/workspace').SolutionSurface[]; descendants: import('@/types/workspace').SolutionSurface[] }
+  }>(
+    `/projects/${projectId}/surfaces/${surfaceId}`
+  )
+
+export const generateSurfaces = (projectId: string, force = false) =>
+  apiRequest<{ surfaces_created: number; surfaces: import('@/types/workspace').SolutionSurface[]; duration_ms: number }>(
+    `/projects/${projectId}/surfaces/generate${force ? '?force=true' : ''}`,
+    { method: 'POST' }
+  )
+
+// ============================================
 // Actions / Context Frame APIs
 // ============================================
 

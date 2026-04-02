@@ -17,6 +17,7 @@ import { CanvasView } from './canvas/CanvasView'
 import { BRDCanvas } from './brd/BRDCanvas'
 import { OutcomesCanvas } from './outcomes/OutcomesCanvas'
 import { FlowBlueprintView } from './flow/FlowBlueprintView'
+import { ConvergenceMap } from './convergence/ConvergenceMap'
 import { IntelligenceWorkbench } from './ai/IntelligenceWorkbench'
 import { BuildPhaseView } from './BuildPhaseView'
 import { OverviewPanel } from './OverviewPanel'
@@ -838,20 +839,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   <CanvasView projectId={projectId} onRefresh={loadData} />
                 )}
                 {discoveryViewMode === 'flow' && (
-                  <FlowBlueprintView
-                    projectId={projectId}
-                    flow={brdData?.solution_flow ?? null}
-                    personas={canvasData.personas}
-                    onGenerateFlow={loadData}
-                    projectName={brdData?.business_context?.company_name ?? undefined}
-                    brdFeatures={brdData ? [
-                      ...(brdData.requirements?.must_have || []),
-                      ...(brdData.requirements?.should_have || []),
-                      ...(brdData.requirements?.could_have || []),
-                    ] : undefined}
-                    brdWorkflows={brdData?.workflows}
-                    brdDataEntities={brdData?.data_entities}
-                  />
+                  <ConvergenceMap projectId={projectId} />
                 )}
                 {discoveryViewMode === 'ai' && (
                   <IntelligenceWorkbench
