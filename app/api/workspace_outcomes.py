@@ -739,3 +739,22 @@ async def generate_outcomes_endpoint(project_id: UUID, force: bool = False):
         "generation_model": result.get("generation_model"),
         "duration_ms": result.get("duration_ms"),
     }
+
+
+@router.post("/generate-future-state")
+async def generate_future_state_endpoint(
+    project_id: UUID,
+    workflow_ids: list[str] | None = None,
+):
+    """Generate future-state workflow steps for current-state workflows.
+
+    For new products, current state = manual/painful today process (from discovery).
+    Future state = how the platform transforms those workflows.
+    """
+    from app.chains.generate_future_state import generate_future_state_steps
+
+    result = await generate_future_state_steps(
+        project_id=project_id,
+        workflow_ids=workflow_ids,
+    )
+    return result
