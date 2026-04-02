@@ -79,8 +79,6 @@ export function IntelligenceRequirementsSection({ projectId }: IntelligenceRequi
 
   if (loading) return null
 
-  if (items.length === 0) return null
-
   const grouped: Record<string, IntelligenceItem[]> = {}
   for (const item of items) {
     if (!grouped[item.quadrant]) grouped[item.quadrant] = []
