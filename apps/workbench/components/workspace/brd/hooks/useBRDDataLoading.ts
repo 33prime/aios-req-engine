@@ -9,6 +9,19 @@ import {
 import type { NextAction } from '@/lib/api'
 import type { BRDWorkspaceData, BRDHealthData, OpenQuestion, ConfirmationCluster } from '@/types/workspace'
 
+// In-component cache TTL for supplementary BRD data (health, questions, clusters).
+// Avoids re-fetching on every tab switch — these only change after signal processing.
+const CACHE_TTL = 60_000 // 60 seconds
+
+interface CacheEntry<T> {
+  data: T
+  fetchedAt: number
+}
+
+function isCacheFresh<T>(cache: CacheEntry<T> | null): cache is CacheEntry<T> {
+  return cache !== null && Date.now() - cache.fetchedAt < CACHE_TTL
+}
+
 export function useBRDDataLoading(
   projectId: string,
   initialData?: BRDWorkspaceData | null,
@@ -76,6 +89,11 @@ export function useBRDDataLoading(
   const [healthLoading, setHealthLoading] = useState(true)
   const [isRefreshingHealth, setIsRefreshingHealth] = useState(false)
 
+  // In-component caches — survive tab switches without re-fetching
+  const healthCacheRef = useRef<CacheEntry<BRDHealthData> | null>(null)
+  const questionsCacheRef = useRef<CacheEntry<OpenQuestion[]> | null>(null)
+  const clustersCacheRef = useRef<CacheEntry<ConfirmationCluster[]> | null>(null)
+
   // Next Best Actions — now handled by BrainPanel (separate API call)
   // Legacy: keep for pendingAction backward compat from OverviewPanel
   const nextActions: NextAction[] = data?.next_actions ?? initialNextActions ?? []
@@ -85,10 +103,16 @@ export function useBRDDataLoading(
   const [questionsLoading, setQuestionsLoading] = useState(true)
 
   const loadOpenQuestions = useCallback(async () => {
+    if (isCacheFresh(questionsCacheRef.current)) {
+      setOpenQuestions(questionsCacheRef.current.data)
+      setQuestionsLoading(false)
+      return
+    }
     try {
       setQuestionsLoading(true)
       const result = await listOpenQuestions(projectId, { status: 'open', limit: 20 })
       setOpenQuestions(result)
+      questionsCacheRef.current = { data: result, fetchedAt: Date.now() }
     } catch (err) {
       console.error('Failed to load open questions:', err)
     } finally {
@@ -100,19 +124,30 @@ export function useBRDDataLoading(
   const [clusters, setClusters] = useState<ConfirmationCluster[]>([])
 
   const loadClusters = useCallback(async () => {
+    if (isCacheFresh(clustersCacheRef.current)) {
+      setClusters(clustersCacheRef.current.data)
+      return
+    }
     try {
       const result = await getConfirmationClusters(projectId)
       setClusters(result.clusters)
+      clustersCacheRef.current = { data: result.clusters, fetchedAt: Date.now() }
     } catch {
       // Silent — clusters are supplementary
     }
   }, [projectId])
 
   const loadHealth = useCallback(async () => {
+    if (isCacheFresh(healthCacheRef.current)) {
+      setHealth(healthCacheRef.current.data)
+      setHealthLoading(false)
+      return
+    }
     try {
       setHealthLoading(true)
       const result = await getBRDHealth(projectId)
       setHealth(result)
+      healthCacheRef.current = { data: result, fetchedAt: Date.now() }
     } catch (err) {
       console.error('Failed to load BRD health:', err)
     } finally {
@@ -122,6 +157,8 @@ export function useBRDDataLoading(
 
   const handleRefreshHealth = useCallback(async () => {
     setIsRefreshingHealth(true)
+    // Invalidate cache — user explicitly requested a refresh
+    healthCacheRef.current = null
     try {
       await processCascades(projectId)
       await loadHealth()

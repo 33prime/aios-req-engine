@@ -163,29 +163,54 @@ export function IntelligenceSection({
       ]
     : []
 
+  // Show skeleton immediately while intelligence data loads
+  const showSkeleton = loading && !intelligence
+
   return (
     <section className="mb-8">
       <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
         {/* Header: Score ring + stage journey + sub-metrics */}
         <div className="px-5 pt-5 pb-3 flex items-center gap-4">
-          <ScoreRing score={avgHealth} />
-          <div className="flex flex-col gap-1.5">
-            <StageJourney currentStage={stage} />
-            {subMetrics.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {subMetrics.map((m) => (
-                  <span key={m.label} className="bg-[#F5F5F5] text-[#7B7B7B] text-[10px] px-2 py-0.5 rounded-full">
-                    {m.label} {m.value}%
-                  </span>
-                ))}
+          {showSkeleton ? (
+            <>
+              <div className="w-[60px] h-[60px] rounded-full bg-[#F5F5F5] animate-pulse flex-shrink-0" />
+              <div className="flex flex-col gap-2">
+                <div className="h-4 w-40 bg-[#F5F5F5] rounded animate-pulse" />
+                <div className="flex gap-1.5">
+                  <div className="h-3 w-16 bg-[#F5F5F5] rounded-full animate-pulse" />
+                  <div className="h-3 w-16 bg-[#F5F5F5] rounded-full animate-pulse" />
+                  <div className="h-3 w-16 bg-[#F5F5F5] rounded-full animate-pulse" />
+                </div>
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <>
+              <ScoreRing score={avgHealth} />
+              <div className="flex flex-col gap-1.5">
+                <StageJourney currentStage={stage} />
+                {subMetrics.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {subMetrics.map((m) => (
+                      <span key={m.label} className="bg-[#F5F5F5] text-[#7B7B7B] text-[10px] px-2 py-0.5 rounded-full">
+                        {m.label} {m.value}%
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Pulse narrative */}
         <div className="px-5 pb-4">
-          {loading && !pulseText ? (
+          {showSkeleton ? (
+            <div className="space-y-2 py-1">
+              <div className="h-3 w-full bg-[#F5F5F5] rounded animate-pulse" />
+              <div className="h-3 w-4/5 bg-[#F5F5F5] rounded animate-pulse" />
+              <div className="h-3 w-3/5 bg-[#F5F5F5] rounded animate-pulse" />
+            </div>
+          ) : loading && !pulseText ? (
             <div className="flex items-center gap-2 text-[12px] text-text-placeholder py-2">
               <Loader2 className="w-3 h-3 animate-spin" />
               Generating project summary...

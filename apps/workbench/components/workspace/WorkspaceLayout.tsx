@@ -72,20 +72,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   })
   const [error, setError] = useState<string | null>(null)
 
-  // SWR hooks — all fire on mount in parallel, cached across navigations
-  const { data: canvasData, isLoading: isWorkspaceLoading, mutate: mutateWorkspace } = useWorkspaceData(projectId)
-  const { data: brdSwr, isLoading: isBrdLoading, mutate: mutateBrd } = useBRDData(projectId)
-  const brdData = brdSwr ?? null
-  const nextActions = brdSwr?.next_actions ?? null
-  const { data: contextFrame, isLoading: isContextFrameLoading, mutate: mutateContextFrame } = useContextFrame(projectId)
-  const { data: intelligenceData, isLoading: isIntelligenceLoading, mutate: mutateIntelligence } = useIntelligence(projectId)
-  useRealtimeBRD(projectId)
-  // Persist phase to localStorage so refresh restores the current view
-  useEffect(() => {
-    localStorage.setItem(`workspace-phase-${projectId}`, phase)
-  }, [phase, projectId])
-
-  // Single panel open state — controls content compression
+  // State declarations needed before SWR hooks (for conditional fetching)
   const [panelOpen, setPanelOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | 'calls' | null>(null)
@@ -97,6 +84,26 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     }
     return 'outcomes'
   })
+
+  // SWR hooks — all fire on mount in parallel, cached across navigations
+  const { data: canvasData, isLoading: isWorkspaceLoading, mutate: mutateWorkspace } = useWorkspaceData(projectId)
+  // Lazy-load BRD data: only fetch when a phase/view actually needs it.
+  // overview, discovery (brd/flow/ai), build, and health overlay all consume brdData.
+  // Skip for discovery+outcomes, collaborate, and live phases to speed up initial load.
+  const shouldLoadBRD =
+    phase === 'overview' ||
+    phase === 'build' ||
+    (phase === 'discovery' && discoveryViewMode !== 'outcomes')
+  const { data: brdSwr, isLoading: isBrdLoading, mutate: mutateBrd } = useBRDData(shouldLoadBRD ? projectId : undefined)
+  const brdData = brdSwr ?? null
+  const nextActions = brdSwr?.next_actions ?? null
+  const { data: contextFrame, isLoading: isContextFrameLoading, mutate: mutateContextFrame } = useContextFrame(projectId)
+  const { data: intelligenceData, isLoading: isIntelligenceLoading, mutate: mutateIntelligence } = useIntelligence(projectId)
+  useRealtimeBRD(projectId)
+  // Persist phase to localStorage so refresh restores the current view
+  useEffect(() => {
+    localStorage.setItem(`workspace-phase-${projectId}`, phase)
+  }, [phase, projectId])
 
 
   // BRD scroll tracking — active section for page_context
@@ -263,11 +270,13 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   // Resolved prototype URL — survives SWR revalidation (which may return null from projects table).
   // Prototype deploy_url lives in the prototypes table; projects.prototype_url may be empty.
+  // Deferred: only fetch when build phase is active to avoid blocking initial page load.
   const [resolvedProtoUrl, setResolvedProtoUrl] = useState<string | null>(null)
   const protoSyncedRef = useRef(false)
   useEffect(() => {
-    if (protoSyncedRef.current) return
+    if (protoSyncedRef.current || phase !== 'build') return
     protoSyncedRef.current = true
+    // Fire and forget — don't block page load. 404s silently ignored.
     getPrototypeForProject(projectId)
       .then((proto) => {
         if (proto?.deploy_url) {
@@ -276,7 +285,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
         }
       })
       .catch(() => {})
-  }, [projectId])
+  }, [projectId, phase])
 
   // Auto-restore active review session on mount (survives navigation & refresh)
   const sessionRestoredRef = useRef(false)
