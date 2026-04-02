@@ -317,19 +317,41 @@ export function OutcomesCanvas({ projectId, onSendToChat, onActionClick }: Outco
       </div>
 
       {/* ── Workflows (BRD-style) ── */}
-      {(data.workflow_pairs?.length ?? 0) > 0 && (
-        <div className="mt-6">
-          <WorkflowsSection
-            workflows={[]}
-            workflowPairs={data.workflow_pairs}
-            roiSummary={data.roi_summary}
-            sectionTitle="Workflows"
-            onConfirm={() => {}}
-            onNeedsReview={() => {}}
-            onConfirmAll={() => {}}
-          />
-        </div>
-      )}
+      {(() => {
+        // Build workflow_pairs from raw workflows when backend doesn't provide them
+        const pairs = (data.workflow_pairs?.length ?? 0) > 0
+          ? data.workflow_pairs!
+          : (data.workflows ?? [])
+              .filter(wf => wf.steps.length > 0) // skip empty workflows
+              .map(wf => ({
+                id: wf.id,
+                name: wf.name,
+                description: wf.description,
+                owner: null as string | null,
+                confirmation_status: wf.confirmation_status,
+                current_workflow_id: wf.id,
+                future_workflow_id: null as string | null,
+                current_steps: wf.steps,
+                future_steps: [] as typeof wf.steps,
+                roi: wf.roi ?? null,
+                is_stale: false,
+                stale_reason: null as string | null,
+              }))
+        if (pairs.length === 0) return null
+        return (
+          <div className="mt-6">
+            <WorkflowsSection
+              workflows={[]}
+              workflowPairs={pairs}
+              roiSummary={data.roi_summary}
+              sectionTitle="Workflows"
+              onConfirm={() => {}}
+              onNeedsReview={() => {}}
+              onConfirmAll={() => {}}
+            />
+          </div>
+        )
+      })()}
     </div>
   )
 }

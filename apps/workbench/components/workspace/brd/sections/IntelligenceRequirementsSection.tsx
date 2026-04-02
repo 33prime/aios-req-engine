@@ -79,19 +79,7 @@ export function IntelligenceRequirementsSection({ projectId }: IntelligenceRequi
 
   if (loading) return null
 
-  if (items.length === 0) {
-    return (
-      <section>
-        <SectionHeader title="Intelligence Requirements" count={0} />
-        <div className="border border-dashed border-[#D4D4D4] rounded-xl p-6 text-center">
-          <Brain className="w-5 h-5 text-[#A0AEC0] mx-auto mb-2" />
-          <p className="text-[12px] text-[#718096]">
-            Intelligence requirements will appear as outcomes are defined and refined.
-          </p>
-        </div>
-      </section>
-    )
-  }
+  if (items.length === 0) return null
 
   const grouped: Record<string, IntelligenceItem[]> = {}
   for (const item of items) {

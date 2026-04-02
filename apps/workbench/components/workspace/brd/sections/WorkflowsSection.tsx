@@ -436,15 +436,17 @@ function WorkflowAccordionCard({
                     onViewStepDetail={onViewStepDetail}
                   />
                 )}
-                <StepColumn
-                  steps={pair.future_steps}
-                  stateType="future"
-                  workflowId={pair.future_workflow_id}
-                  onCreateStep={createStepHandler}
-                  onEditStep={editStepHandler}
-                  onDeleteStep={deleteStepHandler}
-                  onViewStepDetail={onViewStepDetail}
-                />
+                {pair.future_steps.length > 0 && (
+                  <StepColumn
+                    steps={pair.future_steps}
+                    stateType="future"
+                    workflowId={pair.future_workflow_id}
+                    onCreateStep={createStepHandler}
+                    onEditStep={editStepHandler}
+                    onDeleteStep={deleteStepHandler}
+                    onViewStepDetail={onViewStepDetail}
+                  />
+                )}
               </div>
             ) : (
               <p className="text-[12px] text-text-placeholder italic py-2">No steps added yet</p>

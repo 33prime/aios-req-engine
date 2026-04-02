@@ -153,6 +153,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
           {/* Problem / Solution — only for new_product (replaces Background/Vision) */}
           {data.project_type !== 'internal' && (
+            <div className="mb-10">
             <ProblemSolutionSection
               macroOutcome={data.macro_outcome}
               outcomeThesis={data.outcome_thesis}
@@ -161,6 +162,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
               onUpdateMacroOutcome={actions.handleUpdateMacroOutcome}
               onUpdateOutcomeThesis={actions.handleUpdateOutcomeThesis}
             />
+            </div>
           )}
 
           {/* BRD Sections */}
