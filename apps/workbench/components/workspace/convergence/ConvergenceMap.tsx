@@ -40,25 +40,36 @@ type ViewMode = 'outcomes' | 'actors'
 type TimeMode = 'now' | 'evolution'
 
 // Card dimensions
-const OC_W = 200, OC_H = 130
-const SF_WIDTHS: Record<string, number> = {} // computed per surface
+const OC_W = 200, OC_H = 130, AC_W = 190, AC_H = 100
 function sfWidth(sf: SolutionSurface) { return sf.linked_outcome_ids.length >= 3 ? 300 : sf.linked_outcome_ids.length >= 2 ? 260 : 220 }
 const SF_H = 160
+
+interface Actor { name: string; initials: string; color: string; outcomeIds: string[] }
 
 // ══════════════════════════════════════════════════════════
 // Layout
 // ══════════════════════════════════════════════════════════
 
-function computeLayout(surfaces: SolutionSurface[], outcomes: Outcome[], timeMode: TimeMode) {
+function computeLayout(surfaces: SolutionSurface[], outcomes: Outcome[], actors: Actor[], timeMode: TimeMode, viewMode: ViewMode) {
   const visOc = timeMode === 'now' ? outcomes.filter(o => o.horizon === 'h1') : outcomes
   const visSf = timeMode === 'now' ? surfaces.filter(s => s.horizon === 'h1') : [...surfaces]
+  const visActors = actors.slice(0, 3)
 
   const ocPositions: Record<string, { x: number; y: number }> = {}
-  // Vertically center outcomes relative to surfaces
+  const acPositions: Record<string, { x: number; y: number }> = {}
+
+  // Vertically center left-side nodes relative to surfaces
   const totalSfHeight = Math.max(visSf.filter(s => s.horizon === 'h1').length, 1) * 180
-  const totalOcHeight = visOc.length * (OC_H + 25)
-  const ocStartY = Math.max(20, (totalSfHeight - totalOcHeight) / 2 + 20)
-  visOc.forEach((o, i) => { ocPositions[o.id] = { x: 30, y: ocStartY + i * (OC_H + 25) } })
+
+  if (viewMode === 'outcomes') {
+    const totalOcHeight = visOc.length * (OC_H + 25)
+    const ocStartY = Math.max(20, (totalSfHeight - totalOcHeight) / 2 + 20)
+    visOc.forEach((o, i) => { ocPositions[o.id] = { x: 30, y: ocStartY + i * (OC_H + 25) } })
+  } else {
+    const totalAcHeight = visActors.length * (AC_H + 25)
+    const acStartY = Math.max(20, (totalSfHeight - totalAcHeight) / 2 + 20)
+    visActors.forEach((a, i) => { acPositions[a.name] = { x: 30, y: acStartY + i * (AC_H + 25) } })
+  }
 
   const sfPositions: Record<string, { x: number; y: number }> = {}
   const h1 = visSf.filter(s => s.horizon === 'h1')
@@ -80,7 +91,7 @@ function computeLayout(surfaces: SolutionSurface[], outcomes: Outcome[], timeMod
     }
   })
 
-  return { ocPositions, sfPositions, visOc, visSf }
+  return { ocPositions, acPositions, sfPositions, visOc, visSf, visActors }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -140,15 +151,35 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
     return (Array.isArray(raw) ? raw : []).slice(0, 6) as Outcome[]
   }, [outcomesData])
 
+  // Extract unique actors from outcomes
+  const actors: Actor[] = useMemo(() => {
+    const map = new Map<string, { outcomeIds: Set<string> }>()
+    outcomes.forEach(oc => {
+      oc.actors?.forEach(a => {
+        if (!map.has(a.persona_name)) map.set(a.persona_name, { outcomeIds: new Set() })
+        map.get(a.persona_name)!.outcomeIds.add(oc.id)
+      })
+    })
+    return [...map.entries()]
+      .sort((a, b) => b[1].outcomeIds.size - a[1].outcomeIds.size) // most outcomes first
+      .slice(0, 3)
+      .map(([name, data]) => ({
+        name,
+        initials: name.split(' ').map(w => w[0]).join('').slice(0, 2),
+        color: getPersonaColor(name),
+        outcomeIds: [...data.outcomeIds],
+      }))
+  }, [outcomes])
+
   const layout = useMemo(
-    () => computeLayout(surfaces, outcomes, timeMode),
-    [surfaces, outcomes, timeMode],
+    () => computeLayout(surfaces, outcomes, actors, timeMode, viewMode),
+    [surfaces, outcomes, actors, timeMode, viewMode],
   )
 
   // Get effective position (drag override or layout default)
   const pos = useCallback((id: string): { x: number; y: number } => {
     if (positions[id]) return positions[id]
-    return layout.ocPositions[id] || layout.sfPositions[id] || { x: 0, y: 0 }
+    return layout.ocPositions[id] || layout.acPositions[id] || layout.sfPositions[id] || { x: 0, y: 0 }
   }, [positions, layout])
 
   const getOcColor = (idx: number) => OC_COLORS[idx % OC_COLORS.length]
@@ -226,18 +257,23 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
     }
   }, [pan, scale])
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const d = e.deltaY > 0 ? -0.05 : 0.05
-    setScale(prev => {
-      const next = Math.max(0.25, Math.min(2, prev + d))
-      const rect = wrapRef.current?.getBoundingClientRect()
-      if (rect) {
+  // Wheel handler — must be non-passive to preventDefault
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const handler = (e: WheelEvent) => {
+      e.preventDefault()
+      const d = e.deltaY > 0 ? -0.05 : 0.05
+      setScale(prev => {
+        const next = Math.max(0.25, Math.min(2, prev + d))
+        const rect = el.getBoundingClientRect()
         const mx = e.clientX - rect.left, my = e.clientY - rect.top
         setPan(p => ({ x: mx - (mx - p.x) * (next / prev), y: my - (my - p.y) * (next / prev) }))
-      }
-      return next
-    })
+        return next
+      })
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
   }, [])
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
@@ -280,7 +316,7 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
   const fitView = useCallback(() => {
     if (!wrapRef.current) return
     const nodes = [
-      ...layout.visOc.map(o => ({ ...pos(o.id), w: OC_W, h: OC_H })),
+      ...(viewMode === 'outcomes' ? layout.visOc.map(o => ({ ...pos(o.id), w: OC_W, h: OC_H })) : layout.visActors.map(a => ({ ...pos(a.name), w: AC_W, h: AC_H }))),
       ...layout.visSf.map(s => ({ ...pos(s.id), w: sfWidth(s), h: SF_H })),
     ]
     if (!nodes.length) return
@@ -297,11 +333,10 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    // Delay to let flex layout settle and wrapper get height
     const t1 = setTimeout(fitView, 100)
-    const t2 = setTimeout(fitView, 300) // retry in case first was too early
+    const t2 = setTimeout(fitView, 300)
     return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [timeMode, surfaces.length])
+  }, [timeMode, viewMode, surfaces.length])
 
   // ── Generate ──
   const handleGenerate = useCallback(async () => {
@@ -312,39 +347,57 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
   // ── SVG Connections ──
   const connections = useMemo(() => {
     const paths: JSX.Element[] = []
-    if (viewMode !== 'outcomes') return paths
-
     const hasSelection = !!(selectedOutcome || selectedSurface)
 
-    layout.visOc.forEach((oc, oi) => {
-      const op = pos(oc.id)
-      const color = getOcColor(oi)
+    if (viewMode === 'outcomes') {
+      layout.visOc.forEach((oc, oi) => {
+        const op = pos(oc.id)
+        const color = getOcColor(oi)
 
-      layout.visSf.forEach(sf => {
-        if (!sf.linked_outcome_ids.includes(oc.id)) return
-        const sp = pos(sf.id)
+        layout.visSf.forEach(sf => {
+          if (!sf.linked_outcome_ids.includes(oc.id)) return
+          const sp = pos(sf.id)
 
-        // Connection: right-center of outcome → left-center of surface
-        const ox = op.x + OC_W, oy = op.y + OC_H / 2
-        const px = sp.x, py = sp.y + SF_H / 2
-        let opacity = 0.14, sw = 1.5
+          const ox = op.x + OC_W, oy = op.y + OC_H / 2
+          const px = sp.x, py = sp.y + SF_H / 2
+          let opacity = 0.14, sw = 1.5
 
-        if (hasSelection) {
-          const ocActive = selectedOutcome === oc.id
-          const sfActive = selectedSurface === sf.id
-          const inEvo = evoChain?.has(sf.id) && chainOcIds?.has(oc.id)
+          if (hasSelection) {
+            const ocActive = selectedOutcome === oc.id
+            const sfActive = selectedSurface === sf.id
+            const inEvo = evoChain?.has(sf.id) && chainOcIds?.has(oc.id)
+            if (ocActive || sfActive || inEvo) { opacity = 0.5; sw = 2.5 }
+            else { opacity = 0.02; sw = 0.5 }
+          }
 
-          if (ocActive || sfActive || inEvo) { opacity = 0.5; sw = 2.5 }
-          else { opacity = 0.02; sw = 0.5 }
-        }
-
-        const dx = px - ox
-        const cpx = Math.max(50, Math.abs(dx) * 0.4)
-        const d = `M${ox},${oy} C${ox + cpx},${oy} ${px - cpx},${py} ${px},${py}`
-
-        paths.push(<path key={`c-${oc.id}-${sf.id}`} d={d} fill="none" stroke={color.fill} strokeWidth={sw} opacity={opacity} />)
+          const cpx = Math.max(50, Math.abs(px - ox) * 0.4)
+          const d = `M${ox},${oy} C${ox + cpx},${oy} ${px - cpx},${py} ${px},${py}`
+          paths.push(<path key={`c-${oc.id}-${sf.id}`} d={d} fill="none" stroke={color.fill} strokeWidth={sw} opacity={opacity} />)
+        })
       })
-    })
+    } else {
+      // Actor → surface connections
+      layout.visActors.forEach(actor => {
+        const ap = pos(actor.name)
+        layout.visSf.forEach(sf => {
+          if (!sf.linked_outcome_ids.some(oid => actor.outcomeIds.includes(oid))) return
+          const sp = pos(sf.id)
+
+          const ax = ap.x + AC_W, ay = ap.y + AC_H / 2
+          const px = sp.x, py = sp.y + SF_H / 2
+          let opacity = 0.14, sw = 1.5
+
+          if (selectedSurface) {
+            if (selectedSurface === sf.id) { opacity = 0.45; sw = 2.5 }
+            else { opacity = 0.02; sw = 0.5 }
+          }
+
+          const cpx = Math.max(50, Math.abs(px - ax) * 0.4)
+          const d = `M${ax},${ay} C${ax + cpx},${ay} ${px - cpx},${py} ${px},${py}`
+          paths.push(<path key={`a-${actor.name}-${sf.id}`} d={d} fill="none" stroke={actor.color} strokeWidth={sw} opacity={opacity} />)
+        })
+      })
+    }
 
     // Evolution lines
     if (timeMode === 'evolution') {
@@ -443,7 +496,7 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
       {/* ── Canvas + Drawer ── */}
       <div className="flex-1 flex overflow-hidden">
         <div ref={wrapRef} className="flex-1 overflow-hidden relative cursor-grab active:cursor-grabbing bg-[#FAFBFC]"
-          onWheel={handleWheel} onMouseDown={handleCanvasMouseDown}>
+          onMouseDown={handleCanvasMouseDown}>
 
           {/* Timeline (evo mode) */}
           {timeMode === 'evolution' && (
@@ -502,6 +555,38 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
                   <div className="flex items-center gap-[3px] mt-1">
                     <span className="text-[6.5px] font-bold uppercase tracking-[0.4px]" style={{ color: c.fill }}>Strength</span>
                     <div className="flex gap-[1.5px]">{strDots}</div>
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Actor nodes (left side, actors mode) */}
+            {viewMode === 'actors' && layout.visActors.map(actor => {
+              const p = pos(actor.name)
+              const ocCount = actor.outcomeIds.filter(oid => layout.visOc.some(o => o.id === oid) || outcomes.some(o => o.id === oid)).length
+              const sfCount = layout.visSf.filter(sf => sf.linked_outcome_ids.some(oid => actor.outcomeIds.includes(oid))).length
+              const dim = selectedSurface ? !layout.visSf.find(s => s.id === selectedSurface)?.linked_outcome_ids.some(oid => actor.outcomeIds.includes(oid)) : false
+
+              return (
+                <div key={actor.name}
+                  className={`absolute rounded-[10px] p-[10px_12px] z-[3] border-[1.5px] border-[rgba(10,30,47,0.06)] bg-white transition-opacity duration-200 ${
+                    dim ? 'opacity-[0.06] pointer-events-none' : 'cursor-grab active:cursor-grabbing hover:shadow-[0_4px_16px_rgba(0,0,0,0.05)]'
+                  }`}
+                  style={{ left: p.x, top: p.y, width: AC_W, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+                  onMouseDown={e => onCardMouseDown(e, actor.name)}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: actor.color, boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}>
+                      {actor.initials}
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-bold text-[#0A1E2F]">{actor.name}</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 text-[8px] pt-1.5 border-t border-[rgba(0,0,0,0.04)]">
+                    <span className="text-[#25785A] font-semibold">{ocCount} outcomes</span>
+                    <span className="text-[#A0AEC0]">·</span>
+                    <span className="text-[#25785A] font-semibold">{sfCount} surfaces</span>
                   </div>
                 </div>
               )
