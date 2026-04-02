@@ -1,10 +1,12 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { BarChart3, MessageSquare, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
-import { ClientIdentityCard } from './ClientIdentityCard'
-import { PainValueCenter } from './PainValueCenter'
-import { StakeholderMapSection } from './StakeholderMapSection'
+import { Target, MessageSquare, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
+import { DealReadinessHero } from './DealReadinessHero'
+import { ValueStorySection } from './deal-intelligence/ValueStorySection'
+import { StakeholderOutcomeMap } from './deal-intelligence/StakeholderOutcomeMap'
+import { ConversationPlaybook } from './deal-intelligence/ConversationPlaybook'
+import { InvestmentCase } from './deal-intelligence/InvestmentCase'
 import { ActionBar } from './ActionBar'
 import { OutboxCard } from './OutboxCard'
 import { ClientStagingSection } from './ClientStagingSection'
@@ -43,8 +45,8 @@ export function CollaborateView({ projectId, onNavigateToPhase }: CollaborateVie
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Client Identity Card — always visible */}
-      <ClientIdentityCard projectId={projectId} />
+      {/* Deal Readiness Hero — always visible above tabs */}
+      <DealReadinessHero projectId={projectId} />
 
       {/* Tab switcher */}
       <div className="mt-5 flex items-center gap-1 border-b border-border">
@@ -56,8 +58,8 @@ export function CollaborateView({ projectId, onNavigateToPhase }: CollaborateVie
               : 'border-transparent text-text-placeholder hover:text-text-secondary'
           }`}
         >
-          <BarChart3 className="w-4 h-4" />
-          Client Intel
+          <Target className="w-4 h-4" />
+          Deal Intelligence
         </button>
         <button
           onClick={() => setActiveTab('collab')}
@@ -75,9 +77,11 @@ export function CollaborateView({ projectId, onNavigateToPhase }: CollaborateVie
       {/* Tab content */}
       <div className="mt-6">
         {activeTab === 'intel' && (
-          <div className="space-y-4">
-            <PainValueCenter projectId={projectId} />
-            <StakeholderMapSection projectId={projectId} />
+          <div className="space-y-3">
+            <ValueStorySection projectId={projectId} />
+            <StakeholderOutcomeMap projectId={projectId} />
+            <ConversationPlaybook projectId={projectId} />
+            <InvestmentCase projectId={projectId} />
           </div>
         )}
 

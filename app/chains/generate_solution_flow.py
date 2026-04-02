@@ -49,7 +49,7 @@ SOLUTION_FLOW_TOOL = {
                     "type": "object",
                     "properties": {
                         "title": {"type": "string"},
-                        "goal": {"type": "string"},
+                        "goal": {"type": "string", "description": "MAX 15 WORDS. One sentence explaining what happens at this step."},
                         "phase": {
                             "type": "string",
                             "enum": ["entry", "core_experience", "output", "admin"],
@@ -225,6 +225,7 @@ Steps belong to one of four phases, and MUST be ordered in this sequence:
 8. Focus on FUTURE-STATE workflows — those define what the solution should deliver
 9. Each future-state workflow should typically map to 1-3 solution flow steps
 10. EVERY step must include ai_config with a named agent. Modern platforms have AI throughout — even data entry steps have smart defaults, validation agents, or suggestion engines. Name each agent distinctly.
+11. Step goals MUST be MAX 15 WORDS. One concise sentence explaining what happens at this step. No filler words.
 
 ## Example Steps
 

@@ -53,11 +53,11 @@ OUTCOME_TOOL = {
                     "properties": {
                         "title": {
                             "type": "string",
-                            "description": "State change statement. Observable, not a feature. What MUST be true.",
+                            "description": "Newspaper headline — punchy, consequential, uses strong verbs. 'Manual onboarding collapses from two weeks to two days' not 'Reduce onboarding time'. Make clients lean forward.",
                         },
                         "description": {
                             "type": "string",
-                            "description": "Fuller context — 2-3 sentences.",
+                            "description": "MAX 25 WORDS. One punchy sentence: the cost of NOT achieving this. 'Without this, customers wait two weeks while competitors onboard in days.' No preamble, no 'today' setup — just the stakes.",
                         },
                         "horizon": {
                             "type": "string",
@@ -109,13 +109,17 @@ OUTCOME_TOOL = {
                                 },
                             },
                         },
+                        "proof_scenario": {
+                            "type": "string",
+                            "description": "A filmable moment — one specific scene proving this outcome worked. 'A new customer signs Monday. By Wednesday they're logged in and running their first report — without a single email to the onboarding team.'",
+                        },
                         "linked_entity_ids": {
                             "type": "array",
                             "items": {"type": "string"},
                             "description": "UUIDs of entities that serve or evidence this outcome.",
                         },
                     },
-                    "required": ["title", "description", "horizon", "what_helps", "actor_outcomes"],
+                    "required": ["title", "description", "horizon", "what_helps", "actor_outcomes", "proof_scenario"],
                 },
             },
         },
@@ -128,26 +132,43 @@ OUTCOME_TOOL = {
 # System prompt
 # =============================================================================
 
-_SYSTEM_PROMPT = """You are an outcomes synthesizer for a requirements engineering platform.
+_SYSTEM_PROMPT = """You are an outcomes synthesizer for a requirements engineering platform used by business consultants.
 
-Your job: read the entity graph (business drivers, personas, pain points, goals) and synthesize OUTCOMES — state changes that must be true after this engagement.
+Your job: read the entity graph and synthesize OUTCOMES — consequential state changes that must be true after this engagement.
 
-Rules:
-1. Outcomes are NOT features. "Add document upload" is a feature. "Document gaps are closed" is an outcome.
-2. Each outcome should affect 2+ personas (actor outcomes). If only 1 persona is affected, it's too narrow.
-3. Frame as observable state changes, not capabilities. "Error rate drops to near-zero" not "System has error detection."
-4. Actor outcomes use first person: "I can present mom's Healthcare POA in 90 seconds."
-5. Before states describe TODAY's pain. After states describe what MUST be true. Be specific.
-6. Metrics must be measurable: time ("< 90 seconds"), count ("zero stockouts"), percentage ("95% coverage").
-7. Derive from the EVIDENCE — pain severity, goal success criteria, KPI targets. Don't invent.
+## Voice & Tone
+
+Write like a sharp business journalist, not a database. Outcomes should make executives lean forward.
+
+**Title = Newspaper headline.** Strong verbs, specific numbers, consequential language.
+- YES: "Manual onboarding collapses from two weeks to two days"
+- YES: "Customer self-service eliminates 90% of onboarding support tickets"
+- NO: "Reduce onboarding cycle time" (boring, vague)
+- NO: "Improve customer onboarding experience" (corporate fluff)
+
+**Description = The stakes in ≤25 words.** One punchy sentence about the cost of NOT doing this. No setup, no "today" preamble.
+- YES: "Without this, every new customer waits two weeks while competitors onboard in days."
+- NO: "Today, small business owners cannot self-navigate..." (too long, reads like a paragraph)
+- NO: "This outcome is important for business efficiency." (dead prose)
+
+## Rules
+
+1. Outcomes are NOT features. "Add document upload" is a feature. "Document gaps vanish overnight" is an outcome.
+2. Each outcome should affect 2+ personas. If only 1 persona is affected, it's too narrow.
+3. Frame as observable state changes with strong verbs: collapses, eliminates, transforms, unlocks, scales.
+4. Actor outcomes use first person: "I can onboard 50 customers a month without breaking a sweat."
+5. Before states describe TODAY's pain viscerally. After states describe what MUST be true with precision.
+6. Metrics must be measurable: time ("≤ 2 business days"), count ("zero manual handoffs"), percentage ("≥90% self-service").
+7. Derive from EVIDENCE — pain severity, goal success criteria, KPI targets. Don't invent.
 8. Aim for 3-7 core outcomes. More = too granular. Fewer = too abstract.
-9. H1 = prove it works for the initial engagement. H2 = scale it. H3 = platform play.
-10. Link to entity IDs from the context — business_drivers, features, workflows that serve each outcome.
+9. H1 = prove it works now. H2 = scale it. H3 = platform play.
+10. Link to entity IDs from the context.
+11. Every outcome MUST include a proof_scenario — a specific, filmable moment. Not abstract success criteria. A scene you could record on video.
 
 Evidence direction:
-- "toward" = signal supports this outcome (pain described, goal stated, metric defined)
-- "away" = signal contradicts (client pushback, constraint, competing priority)
-- "reframe" = signal changes the framing (new perspective, pivot in understanding)"""
+- "toward" = signal supports this outcome
+- "away" = signal contradicts (pushback, constraint, competing priority)
+- "reframe" = signal changes the framing"""
 
 
 # =============================================================================
@@ -445,6 +466,7 @@ async def persist_generated_outcomes(
             source_type="system_generated",
             what_helps=outcome_data.get("what_helps", []),
             evidence=outcome_data.get("evidence", []),
+            proof_scenario=outcome_data.get("proof_scenario"),
             generation_context={"source": "generate_outcomes", "entity_count": sum(len(v) for v in entity_graph.values())},
         )
 

@@ -107,6 +107,8 @@ def create_outcome(
     strength_score: int = 0,
     strength_dimensions: dict | None = None,
     enrichment_intel: dict | None = None,
+    proof_scenario: str | None = None,
+    success_measurement: str | None = None,
 ) -> dict[str, Any]:
     """Create a core outcome."""
     sb = get_supabase()
@@ -133,6 +135,10 @@ def create_outcome(
         "enrichment_intel": enrichment_intel or {},
         "display_order": next_order,
     }
+    if proof_scenario is not None:
+        payload["proof_scenario"] = proof_scenario
+    if success_measurement is not None:
+        payload["success_measurement"] = success_measurement
 
     response = sb.table("outcomes").insert(payload).execute()
     outcome = response.data[0]
@@ -146,7 +152,7 @@ def update_outcome(outcome_id: UUID, updates: dict[str, Any]) -> dict[str, Any] 
     allowed = {
         "title", "description", "icon", "horizon", "status", "confirmation_status",
         "strength_score", "strength_dimensions", "what_helps", "evidence",
-        "enrichment_intel", "display_order",
+        "enrichment_intel", "display_order", "proof_scenario", "success_measurement",
     }
     filtered = {k: v for k, v in updates.items() if k in allowed}
     if not filtered:

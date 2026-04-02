@@ -96,7 +96,7 @@ SCORING_TOOL = {
 
 _SYSTEM_PROMPT = """You are an outcome strength evaluator. Score each outcome on 4 dimensions (0-25 each):
 
-1. SPECIFICITY (0-25): Does it name specific actors, metrics, context? "Error rate drops" (10) vs "Sarah's intake error rate drops from 12% to under 1%" (22).
+1. SPECIFICITY (0-25): Does it name specific actors, metrics, context? Title voice matters — a vivid newspaper headline ("Manual onboarding collapses from 14 days to 2") scores higher than corporate speak ("Reduce onboarding time"). Deduct 3-5 points for vague or generic titles. "Error rate drops" (10) vs "Sarah's intake error rate drops from 12% to under 1%" (22).
 
 2. SCENARIO (0-25): Is there a concrete moment? "Better data quality" (5) vs "At 2am, David opens his phone, shows the doctor the Healthcare POA, crisis resolved in 90 seconds" (24).
 

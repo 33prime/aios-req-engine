@@ -192,7 +192,7 @@ async def get_outcomes_tab(project_id: UUID):
         journey_steps = []
         try:
             steps_resp = sb.table("solution_flow_steps").select(
-                "id, title, step_index, phase, actors"
+                "id, title, step_index, phase, actors, goal"
             ).eq("project_id", str(project_id)).order("step_index").execute()
             for step in (steps_resp.data or []):
                 step_actors = step.get("actors") or []
@@ -202,6 +202,7 @@ async def get_outcomes_tab(project_id: UUID):
                         "title": step["title"],
                         "step_index": step["step_index"],
                         "phase": step["phase"],
+                        "description": step.get("goal", ""),
                     })
         except Exception:
             pass
@@ -363,6 +364,42 @@ async def get_outcomes_tab(project_id: UUID):
                 "roi": None,
                 "outcomes_served": wf_outcomes,
             })
+
+    # ── Enrich connected entity names ──
+    features_resp = sb.table("features").select(
+        "id, name, category, priority_group, confirmation_status"
+    ).eq("project_id", str(project_id)).execute()
+    feature_lookup = {f["id"]: f for f in (features_resp.data or [])}
+    wf_lookup = {w["id"]: w["name"] for w in (workflows_resp.data or [])}
+    for outcome in outcomes:
+        for feat in outcome.get("connected_features", []):
+            feat["name"] = feature_lookup.get(feat["entity_id"], {}).get("name")
+            feat["category"] = feature_lookup.get(feat["entity_id"], {}).get("category")
+            feat["priority"] = feature_lookup.get(feat["entity_id"], {}).get("priority_group")
+            feat["status"] = feature_lookup.get(feat["entity_id"], {}).get("confirmation_status")
+        for wf in outcome.get("connected_workflows", []):
+            wf["name"] = wf_lookup.get(wf["entity_id"])
+
+    # ── Attach intelligence capabilities per outcome ──
+    try:
+        from app.db.outcomes import list_outcome_capabilities
+        all_caps = list_outcome_capabilities(project_id=project_id)
+        caps_by_outcome: dict[str, list] = {}
+        for cap in all_caps:
+            oid = str(cap.get("outcome_id", ""))
+            caps_by_outcome.setdefault(oid, []).append({
+                "id": cap["id"],
+                "name": cap["name"],
+                "description": cap.get("description", ""),
+                "quadrant": cap["quadrant"],
+                "badge": cap.get("badge", "suggested"),
+            })
+        for outcome in outcomes:
+            outcome["capabilities"] = caps_by_outcome.get(outcome["id"], [])
+    except Exception as e:
+        logger.debug(f"Capabilities enrichment skipped: {e}")
+        for outcome in outcomes:
+            outcome["capabilities"] = []
 
     # ── Macro outcome ──
     macro = get_macro_outcome(project_id)
