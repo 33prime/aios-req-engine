@@ -110,6 +110,11 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
   const [selectedOutcome, setSelectedOutcome] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
 
+  // Local position overrides for drag
+  const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({})
+  const dragRef = useRef<{ id: string; type: 'surface' | 'outcome'; startX: number; startY: number } | null>(null)
+  const didDrag = useRef(false)
+
   // Pan & zoom state
   const [scale, setScale] = useState(0.78)
   const [pan, setPan] = useState({ x: 20, y: 20 })
@@ -130,6 +135,18 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
   )
 
   // ── Helpers ──
+  const getPos = useCallback((id: string, base: { x: number; y: number }) => {
+    const drag = dragPositions[id]
+    return drag ? { x: base.x + drag.x, y: base.y + drag.y } : base
+  }, [dragPositions])
+
+  const startDrag = useCallback((e: React.MouseEvent, id: string, type: 'surface' | 'outcome') => {
+    e.stopPropagation()
+    if (!dragPositions[id]) setDragPositions(prev => ({ ...prev, [id]: { x: 0, y: 0 } }))
+    dragRef.current = { id, type, startX: e.clientX, startY: e.clientY }
+    didDrag.current = false
+  }, [dragPositions])
+
   const getOcColor = useCallback((idx: number) => OC_COLORS[idx % OC_COLORS.length], [])
 
   const uniqueActors = useCallback((sf: SolutionSurface) => {
@@ -145,8 +162,24 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
 
   const isDimmed = useCallback((sf: SolutionSurface) => {
     if (selectedOutcome && !sf.linked_outcome_ids.includes(selectedOutcome)) return true
+    if (selectedSurface && selectedSurface !== sf.id) {
+      // In evo mode, keep the evolution chain visible
+      if (timeMode === 'evolution') {
+        const sel = surfaces.find(s => s.id === selectedSurface)
+        if (!sel) return true
+        // Check if sf is in the evolution chain of the selected surface
+        const chain = new Set<string>([selectedSurface])
+        let cur: SolutionSurface | undefined = sel
+        while (cur?.evolves_from_id) { chain.add(cur.evolves_from_id); cur = surfaces.find(s => s.id === cur!.evolves_from_id) }
+        const findChildren = (id: string) => { surfaces.filter(s => s.evolves_from_id === id).forEach(s => { chain.add(s.id); findChildren(s.id) }) }
+        findChildren(selectedSurface)
+        if (!chain.has(sf.id)) return true
+      } else {
+        return true
+      }
+    }
     return false
-  }, [selectedOutcome])
+  }, [selectedOutcome, selectedSurface, surfaces, timeMode])
 
   const isOcDimmed = useCallback((oc: Outcome) => {
     if (selectedOutcome && selectedOutcome !== oc.id) return true
@@ -193,12 +226,26 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
   }, [pan, selectedSurface])
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (dragRef.current) {
+      const moved = Math.abs(e.clientX - dragRef.current.startX) > 3 || Math.abs(e.clientY - dragRef.current.startY) > 3
+      if (moved) didDrag.current = true
+      const dx = (e.movementX) / scale
+      const dy = (e.movementY) / scale
+      setDragPositions(prev => {
+        const cur = prev[dragRef.current!.id] || { x: 0, y: 0 }
+        return { ...prev, [dragRef.current!.id]: { x: cur.x + dx, y: cur.y + dy } }
+      })
+      return
+    }
     if (isPanning.current) {
       setPan({ x: e.clientX - panStart.current.x, y: e.clientY - panStart.current.y })
     }
-  }, [])
+  }, [scale])
 
-  const handleMouseUp = useCallback(() => { isPanning.current = false }, [])
+  const handleMouseUp = useCallback(() => {
+    isPanning.current = false
+    dragRef.current = null
+  }, [])
 
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove)
@@ -258,20 +305,42 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
     }
   }, [projectId, mutateSurfaces])
 
+  // ── Evolution chain helper ──
+  const getEvoChain = useCallback((surfaceId: string) => {
+    const chain = new Set<string>([surfaceId])
+    let cur = surfaces.find(s => s.id === surfaceId)
+    while (cur?.evolves_from_id) { chain.add(cur.evolves_from_id); cur = surfaces.find(s => s.id === cur!.evolves_from_id) }
+    const fwd = (id: string) => { surfaces.filter(s => s.evolves_from_id === id).forEach(s => { chain.add(s.id); fwd(s.id) }) }
+    fwd(surfaceId)
+    return chain
+  }, [surfaces])
+
   // ── SVG connections ──
   const renderConnections = useCallback(() => {
     const paths: JSX.Element[] = []
     if (viewMode !== 'outcomes') return paths
 
+    const evoChain = selectedSurface && timeMode === 'evolution' ? getEvoChain(selectedSurface) : null
+    // Collect outcomes connected to the evo chain for highlighting
+    const chainOcIds = evoChain ? new Set<string>() : null
+    if (evoChain && chainOcIds) {
+      evoChain.forEach(sid => {
+        const s = surfaces.find(x => x.id === sid)
+        s?.linked_outcome_ids.forEach(oid => chainOcIds.add(oid))
+      })
+    }
+
     layout.visOc.forEach((oc, oi) => {
-      const ocPos = layout.ocPositions[oc.id]
-      if (!ocPos) return
+      const baseOcPos = layout.ocPositions[oc.id]
+      if (!baseOcPos) return
+      const ocPos = getPos(oc.id, baseOcPos)
       const color = getOcColor(oi)
 
       layout.visSf.forEach(sf => {
         if (!sf.linked_outcome_ids.includes(oc.id)) return
-        const sfPos = layout.sfPositions[sf.id]
-        if (!sfPos) return
+        const baseSfPos = layout.sfPositions[sf.id]
+        if (!baseSfPos) return
+        const sfPos = getPos(sf.id, baseSfPos)
 
         const ox = ocPos.x + 200, oy = ocPos.y + 70
         const px = sfPos.x, py = sfPos.y + 80
@@ -279,6 +348,11 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
 
         if (selectedOutcome === oc.id) { opacity = 0.45; sw = 2.5 }
         else if (selectedOutcome) { opacity = 0.02; sw = 1 }
+        else if (evoChain) {
+          // Evolution chain: highlight connections in the chain
+          if (evoChain.has(sf.id) && chainOcIds?.has(oc.id)) { opacity = 0.45; sw = 2.5 }
+          else { opacity = 0.02; sw = 1 }
+        }
         else if (selectedSurface === sf.id) { opacity = 0.4; sw = 2.5 }
         else if (selectedSurface) { opacity = 0.02; sw = 1 }
 
@@ -299,20 +373,23 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
       })
     })
 
-    // Evolution lines (evo mode)
+    // Evolution lines
     if (timeMode === 'evolution') {
       layout.visSf.forEach(sf => {
         if (!sf.evolves_from_id) return
         const from = layout.visSf.find(s => s.id === sf.evolves_from_id)
         if (!from) return
-        const fromPos = layout.sfPositions[from.id]
-        const toPos = layout.sfPositions[sf.id]
-        if (!fromPos || !toPos) return
+        const fromPos = getPos(from.id, layout.sfPositions[from.id] || { x: 0, y: 0 })
+        const toPos = getPos(sf.id, layout.sfPositions[sf.id] || { x: 0, y: 0 })
 
         const fx = fromPos.x + 280, fy = fromPos.y + 80
         const tx = toPos.x, ty = toPos.y + 80
         const cpx = Math.max(40, (tx - fx) * 0.35)
         const d = `M${fx},${fy} C${fx + cpx},${fy} ${tx - cpx},${ty} ${tx},${ty}`
+
+        const inChain = evoChain && evoChain.has(sf.id) && evoChain.has(from.id)
+        const evoOpacity = inChain ? 0.55 : evoChain ? 0.04 : 0.22
+        const evoWidth = inChain ? 2.5 : 1.5
 
         paths.push(
           <path
@@ -320,9 +397,9 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
             d={d}
             fill="none"
             stroke="#044159"
-            strokeWidth={1.5}
+            strokeWidth={evoWidth}
             strokeDasharray="6 4"
-            opacity={0.22}
+            opacity={evoOpacity}
             markerEnd="url(#ah-evo)"
           />
         )
@@ -330,7 +407,7 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
     }
 
     return paths
-  }, [layout, viewMode, timeMode, selectedOutcome, selectedSurface, getOcColor])
+  }, [layout, viewMode, timeMode, selectedOutcome, selectedSurface, surfaces, getOcColor, getPos, getEvoChain])
 
   // ── Empty state ──
   if (surfacesLoading && !surfaces.length) {
@@ -484,8 +561,9 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
 
             {/* Outcome nodes (left side) */}
             {viewMode === 'outcomes' && layout.visOc.map((oc, oi) => {
-              const pos = layout.ocPositions[oc.id]
-              if (!pos) return null
+              const basePos = layout.ocPositions[oc.id]
+              if (!basePos) return null
+              const pos = getPos(oc.id, basePos)
               const c = getOcColor(oi)
               const dim = isOcDimmed(oc)
               const sel = selectedOutcome === oc.id
@@ -508,7 +586,8 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
                     background: c.bg,
                     borderColor: dim ? 'transparent' : c.bd,
                   }}
-                  onClick={() => setSelectedOutcome(selectedOutcome === oc.id ? null : oc.id)}
+                  onClick={() => { if (!didDrag.current) setSelectedOutcome(selectedOutcome === oc.id ? null : oc.id) }}
+                  onMouseDown={e => startDrag(e, oc.id, 'outcome')}
                 >
                   <div className="flex items-start gap-1.5 mb-1">
                     <div className="min-w-[20px] h-[20px] rounded-[5px] flex items-center justify-center text-[8px] font-extrabold text-white flex-shrink-0" style={{ background: c.fill }}>
@@ -532,8 +611,9 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
 
             {/* Surface cards */}
             {layout.visSf.map(sf => {
-              const pos = layout.sfPositions[sf.id]
-              if (!pos) return null
+              const basePos = layout.sfPositions[sf.id]
+              if (!basePos) return null
+              const pos = getPos(sf.id, basePos)
               const dim = isDimmed(sf)
               const sel = selectedSurface === sf.id
               const xp = isXP(sf)
@@ -570,9 +650,12 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
                   `}
                   style={{ left: pos.x, top: pos.y, borderLeft: !isH2 && !isH3 ? borderLeft : undefined }}
                   onClick={() => {
-                    setSelectedSurface(selectedSurface === sf.id ? null : sf.id)
-                    setSelectedOutcome(null)
+                    if (!didDrag.current) {
+                      setSelectedSurface(selectedSurface === sf.id ? null : sf.id)
+                      setSelectedOutcome(null)
+                    }
                   }}
+                  onMouseDown={e => startDrag(e, sf.id, 'surface')}
                 >
                   {/* Browser bar */}
                   <div className={`h-[20px] flex items-center px-[7px] gap-[3px] border-b border-[rgba(0,0,0,0.03)] rounded-t-[11px] ${
