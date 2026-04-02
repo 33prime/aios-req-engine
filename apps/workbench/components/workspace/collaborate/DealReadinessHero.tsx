@@ -38,11 +38,11 @@ function scoreToSublabel(score: number): string {
 function computeReadinessDimensions(
   outcomes: Array<{ strength_score: number; confirmation_status: string; evidence?: Array<{ direction: string }> }>,
   stakeholders: Array<{ stakeholder_type?: string | null; confirmation_status?: string | null }>,
-  painPoints: Array<Record<string, unknown>>,
-  goals: Array<Record<string, unknown>>,
+  painPoints: { length: number },
+  goals: { length: number },
   successMetrics: Array<{ monetary_value_low?: number | null; monetary_value_high?: number | null; monetary_confidence?: number | null }>,
-  features: Array<Record<string, unknown>>,
-  workflowPairs: Array<Record<string, unknown>>,
+  features: { length: number },
+  workflowPairs: { length: number },
   allEntities: { personas: number; features: number; workflows: number; constraints: number },
 ): ReadinessDimension[] {
   // VALUE: Do we understand WHY? (outcomes + macro + drivers)

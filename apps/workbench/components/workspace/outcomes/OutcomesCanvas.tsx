@@ -386,7 +386,7 @@ export function OutcomesCanvas({ projectId, onSendToChat, onActionClick }: Outco
           <div className="mt-6">
             <WorkflowsSection
               workflows={[]}
-              workflowPairs={pairs}
+              workflowPairs={pairs as WorkflowPair[]}
               roiSummary={data.roi_summary}
               sectionTitle="Workflows"
               onConfirm={() => {}}
