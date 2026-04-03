@@ -288,10 +288,11 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
     const onMove = (e: MouseEvent) => {
       if (dragState.current) {
         didDrag.current = true
+        const { id, offsetX, offsetY } = dragState.current
         const canvas = screenToCanvas(e.clientX, e.clientY)
-        const newX = canvas.x - dragState.current.offsetX
-        const newY = canvas.y - dragState.current.offsetY
-        setPositions(prev => ({ ...prev, [dragState.current!.id]: { x: newX, y: newY } }))
+        const newX = canvas.x - offsetX
+        const newY = canvas.y - offsetY
+        setPositions(prev => ({ ...prev, [id]: { x: newX, y: newY } }))
         return
       }
       if (isPanning.current) {
