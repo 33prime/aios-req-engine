@@ -293,13 +293,9 @@ function DetailTab({
 
       {/* Capabilities */}
       {surface.linked_feature_ids.length > 0 && (
-        <Section label="Capabilities">
-          <div className="flex flex-wrap gap-1.5">
-            {surface.linked_feature_ids.map(fid => (
-              <span key={fid} className="text-[10px] font-medium px-2.5 py-1 rounded-md bg-[rgba(63,175,122,0.05)] text-[#25785A] border border-[rgba(63,175,122,0.10)]">
-                {fid.slice(0, 8)}...
-              </span>
-            ))}
+        <Section label={`Capabilities (${surface.linked_feature_ids.length})`}>
+          <div className="text-[11px] text-[#7B7B7B]">
+            {surface.linked_feature_ids.length} feature{surface.linked_feature_ids.length !== 1 ? 's' : ''} linked to this surface
           </div>
         </Section>
       )}

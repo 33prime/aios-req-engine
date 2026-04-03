@@ -40,7 +40,7 @@ type ViewMode = 'outcomes' | 'actors'
 type TimeMode = 'now' | 'evolution'
 
 // Card dimensions
-const OC_W = 200, OC_H = 130, AC_W = 190, AC_H = 100
+const OC_W = 200, OC_H = 130, AC_W = 210, AC_H = 130
 function sfWidth(sf: SolutionSurface) { return sf.linked_outcome_ids.length >= 3 ? 300 : sf.linked_outcome_ids.length >= 2 ? 260 : 220 }
 const SF_H = 160
 
@@ -399,7 +399,32 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
       })
     }
 
-    // Evolution lines
+    // Outcome evolution lines ("deepens") on left rail
+    if (timeMode === 'evolution' && viewMode === 'outcomes') {
+      const ocWithEvo = outcomes.filter(o => (o as Outcome & { evolvesFrom?: string }).evolvesFrom)
+      // Draw vertical dashed lines between H1 and H2 outcomes that share actors
+      const h1Ocs = layout.visOc.filter(o => o.horizon === 'h1')
+      const h2Ocs = layout.visOc.filter(o => o.horizon === 'h2')
+      h2Ocs.forEach(h2oc => {
+        // Find H1 outcome with shared actor
+        const h2Actors = new Set(h2oc.actors?.map(a => a.persona_name) || [])
+        const parent = h1Ocs.find(h1oc => h1oc.actors?.some(a => h2Actors.has(a.persona_name)))
+        if (!parent) return
+        const fp = pos(parent.id), tp = pos(h2oc.id)
+        const fx = fp.x + OC_W / 2, fy = fp.y + OC_H
+        const tx = tp.x + OC_W / 2, ty = tp.y
+        const midY = (fy + ty) / 2
+        const d = `M${fx},${fy} C${fx},${midY} ${tx},${midY} ${tx},${ty}`
+        const inChain = chainOcIds?.has(h2oc.id) && chainOcIds?.has(parent.id)
+        const o = inChain ? 0.5 : hasSelection ? 0.04 : 0.2
+        paths.push(<path key={`oc-evo-${h2oc.id}`} d={d} fill="none" stroke="#044159" strokeWidth={inChain ? 2 : 1.5} strokeDasharray="4 3" opacity={o} />)
+        // Label
+        const lx = (fx + tx) / 2 - 15, ly = midY
+        paths.push(<text key={`oc-evo-label-${h2oc.id}`} x={lx} y={ly} textAnchor="middle" fontSize={7} fontWeight={600} fill="#044159" opacity={inChain ? 0.5 : hasSelection ? 0.04 : 0.2}>deepens</text>)
+      })
+    }
+
+    // Surface evolution lines
     if (timeMode === 'evolution') {
       layout.visSf.forEach(sf => {
         if (!sf.evolves_from_id) return
@@ -418,6 +443,9 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
         const w = inChain ? 2.5 : 1.5
 
         paths.push(<path key={`e-${sf.id}`} d={d} fill="none" stroke="#044159" strokeWidth={w} strokeDasharray="6 4" opacity={o} />)
+        // "evolves" label on the line
+        const lx = (fx + tx) / 2, ly = (fy + ty) / 2 - 8
+        paths.push(<text key={`el-${sf.id}`} x={lx} y={ly} textAnchor="middle" fontSize={7} fontWeight={600} fill="#044159" opacity={inChain ? 0.5 : hasSelection ? 0.04 : 0.18}>evolves →</text>)
       })
     }
 
@@ -518,6 +546,21 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
           )}
 
           <div ref={canvasRef} className="absolute top-0 left-0 origin-top-left w-[4000px] h-[3000px]">
+            {/* Horizon lane backgrounds (evo mode) */}
+            {timeMode === 'evolution' && (
+              <>
+                <div className="absolute top-0 h-full pointer-events-none" style={{ left: 280, width: 650, background: 'rgba(63,175,122,0.012)', borderRight: '1px dashed rgba(63,175,122,0.08)' }}>
+                  <div className="absolute top-3 text-[9px] font-bold uppercase tracking-[0.6px] text-[rgba(63,175,122,0.3)]" style={{ left: '50%', transform: 'translateX(-50%)' }}>H1 · Now</div>
+                </div>
+                <div className="absolute top-0 h-full pointer-events-none" style={{ left: 930, width: 310, background: 'rgba(4,65,89,0.012)', borderRight: '1px dashed rgba(4,65,89,0.06)' }}>
+                  <div className="absolute top-3 text-[9px] font-bold uppercase tracking-[0.6px] text-[rgba(4,65,89,0.25)]" style={{ left: '50%', transform: 'translateX(-50%)' }}>H2 · Next</div>
+                </div>
+                <div className="absolute top-0 h-full pointer-events-none" style={{ left: 1240, width: 400, background: 'rgba(196,154,26,0.008)' }}>
+                  <div className="absolute top-3 text-[9px] font-bold uppercase tracking-[0.6px] text-[rgba(196,154,26,0.25)]" style={{ left: '50%', transform: 'translateX(-50%)' }}>H3 · Vision</div>
+                </div>
+              </>
+            )}
+
             {/* SVG */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none z-[1]">{connections}</svg>
 
@@ -567,27 +610,50 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
               const sfCount = layout.visSf.filter(sf => sf.linked_outcome_ids.some(oid => actor.outcomeIds.includes(oid))).length
               const dim = selectedSurface ? !layout.visSf.find(s => s.id === selectedSurface)?.linked_outcome_ids.some(oid => actor.outcomeIds.includes(oid)) : false
 
+              // Outcome dots for this actor
+              const ocDots = actor.outcomeIds.map(oid => {
+                const oi = outcomes.findIndex(o => o.id === oid)
+                return <div key={oid} className="w-[7px] h-[7px] rounded-full" style={{ background: getOcColor(Math.max(0, oi)).fill, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }} />
+              })
+              // Timeline dots (evo mode)
+              const hasH1 = actor.outcomeIds.some(oid => outcomes.find(o => o.id === oid)?.horizon === 'h1')
+              const hasH2 = actor.outcomeIds.some(oid => outcomes.find(o => o.id === oid)?.horizon === 'h2')
+
               return (
                 <div key={actor.name}
-                  className={`absolute rounded-[10px] p-[10px_12px] z-[3] border-[1.5px] border-[rgba(10,30,47,0.06)] bg-white transition-opacity duration-200 ${
-                    dim ? 'opacity-[0.06] pointer-events-none' : 'cursor-grab active:cursor-grabbing hover:shadow-[0_4px_16px_rgba(0,0,0,0.05)]'
+                  className={`absolute rounded-[11px] p-[11px_13px] z-[3] border-[1.5px] border-[rgba(10,30,47,0.06)] bg-white transition-opacity duration-200 ${
+                    dim ? 'opacity-[0.06] pointer-events-none' : 'cursor-grab active:cursor-grabbing hover:shadow-[0_6px_20px_rgba(0,0,0,0.07)]'
                   }`}
                   style={{ left: p.x, top: p.y, width: AC_W, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
                   onMouseDown={e => onCardMouseDown(e, actor.name)}
                 >
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: actor.color, boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}>
+                  <div className="flex items-center gap-2.5 mb-1.5">
+                    <div className="w-8 h-8 rounded-[9px] flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: actor.color, boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}>
                       {actor.initials}
                     </div>
                     <div>
                       <div className="text-[11px] font-bold text-[#0A1E2F]">{actor.name}</div>
                     </div>
                   </div>
+                  {/* Outcome dots */}
+                  <div className="flex gap-[3px] mb-1.5">{ocDots}</div>
+                  {/* Stats */}
                   <div className="flex gap-2 text-[8px] pt-1.5 border-t border-[rgba(0,0,0,0.04)]">
                     <span className="text-[#25785A] font-semibold">{ocCount} outcomes</span>
                     <span className="text-[#A0AEC0]">·</span>
                     <span className="text-[#25785A] font-semibold">{sfCount} surfaces</span>
                   </div>
+                  {/* Timeline dots (evo mode) */}
+                  {timeMode === 'evolution' && (
+                    <div className="flex items-center gap-1 mt-1.5 pt-1.5 border-t border-[rgba(0,0,0,0.04)]">
+                      <div className={`w-2 h-2 rounded-full border-2 border-[#3FAF7A] ${hasH1 ? 'bg-[#3FAF7A]' : ''}`} />
+                      <div className="w-4 h-[1.5px] bg-[rgba(0,0,0,0.06)]" />
+                      <div className={`w-2 h-2 rounded-full border-2 border-[#044159] ${hasH2 ? 'bg-[#044159]' : ''}`} />
+                      <span className="text-[7px] font-semibold ml-1" style={{ color: hasH2 ? '#044159' : '#A0AEC0' }}>
+                        {hasH1 && hasH2 ? 'Deepens H1→H2' : hasH2 ? 'Enters H2' : 'H1'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -623,7 +689,7 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
                   `}
                   style={{ left: p.x, top: p.y, width: w, borderLeft }}
                   onMouseDown={e => onCardMouseDown(e, sf.id)}
-                  onClick={() => { if (!didDrag.current) { setSelectedSurface(sel ? null : sf.id); setSelectedOutcome(null) } }}
+                  onClick={() => { if (!didDrag.current) { setSelectedSurface(sel ? null : sf.id); setSelectedOutcome(null); setTimeout(fitView, 300) } }}
                 >
                   <div className={`h-[20px] flex items-center px-[7px] gap-[3px] border-b border-[rgba(0,0,0,0.03)] rounded-t-[11px] ${isH3 ? 'bg-[rgba(196,154,26,0.03)]' : 'bg-[rgba(0,0,0,0.012)]'}`}>
                     <div className="w-1 h-1 rounded-full bg-[rgba(220,80,80,0.20)]" />
@@ -657,7 +723,7 @@ export function ConvergenceMap({ projectId }: ConvergenceMapProps) {
           </div>
         </div>
 
-        <SurfaceDrawer projectId={projectId} surfaceId={selectedSurface} surfaces={surfaces} outcomes={outcomes} onClose={() => setSelectedSurface(null)} />
+        <SurfaceDrawer projectId={projectId} surfaceId={selectedSurface} surfaces={surfaces} outcomes={outcomes} onClose={() => { setSelectedSurface(null); setTimeout(fitView, 300) }} />
       </div>
     </div>
   )
