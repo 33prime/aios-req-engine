@@ -7,6 +7,8 @@
  * Each orchestrator expands to show sub-agents (AI) and tools (rules).
  * Clicking a sub-agent opens the detail panel with Profile | Chat | Try It.
  *
+ * v2: review progress bar, contextual discuss chat panel, outcome connections
+ *
  * Data sources:
  * 1. DB-backed agents (from /intelligence-layer/agents) — preferred
  * 2. Derived agents (from useAgentDerivation) — fallback (rendered as legacy cards)
@@ -33,10 +35,17 @@ import { getSolutionFlowStep } from '@/lib/api/admin'
 import { getIntelligenceAgents, generateIntelligenceLayer } from '@/lib/api/intel-layer'
 import { OrchestratorCard } from './OrchestratorCard'
 import { IntelligenceArchitecture } from './IntelligenceArchitecture'
+import { IntelligenceChatPanel } from './IntelligenceChatPanel'
 import { WorkbenchDetailPanel } from './WorkbenchDetailPanel'
 import { AIPresentMode } from './AIPresentMode'
 
 type AgentLike = DerivedAgent | IntelLayerAgent
+
+interface ChatContext {
+  section: string
+  question: string
+  context: string
+}
 
 interface IntelligenceWorkbenchProps {
   projectId: string
@@ -49,6 +58,29 @@ export function IntelligenceWorkbench({ projectId, flow, personas }: Intelligenc
   const [activeSubAgent, setActiveSubAgent] = useState<IntelLayerAgent | null>(null)
   const [presentMode, setPresentMode] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+
+  // ── Chat panel state ──
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatContext, setChatContext] = useState<ChatContext>({ section: '', question: '', context: '' })
+
+  // ── Review progress (localStorage-backed) ──
+  const storageKey = `intel-reviewed:${projectId}`
+  const [reviewedItems, setReviewedItems] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const stored = localStorage.getItem(storageKey)
+      return stored ? new Set(JSON.parse(stored)) : new Set()
+    } catch { return new Set() }
+  })
+
+  const handleItemReviewed = useCallback((key: string) => {
+    setReviewedItems(prev => {
+      const next = new Set(prev)
+      next.add(key)
+      try { localStorage.setItem(storageKey, JSON.stringify([...next])) } catch {}
+      return next
+    })
+  }, [storageKey])
 
   // ── DB agents (hierarchical) ──
   const { data: dbData, mutate: refreshAgents } = useSWR<IntelLayerResponse>(
@@ -86,7 +118,7 @@ export function IntelligenceWorkbench({ projectId, flow, personas }: Intelligenc
 
   // ── Stats ──
   const stats = useMemo(() => {
-    if (!isDbBacked) return { orchestrators: 0, subAgents: 0, tools: 0, validated: 0 }
+    if (!isDbBacked) return { orchestrators: 0, subAgents: 0, tools: 0, validated: 0, knowledge: 0 }
 
     let subAgents = 0
     let tools = 0
@@ -102,20 +134,26 @@ export function IntelligenceWorkbench({ projectId, flow, personas }: Intelligenc
       }
     }
 
-    // Count knowledge items from architecture
     let knowledge = 0
     if (architecture) {
       knowledge += (architecture.knowledge_systems?.items?.length || 0)
     }
 
-    return {
-      orchestrators: topLevelAgents.length,
-      subAgents,
-      tools,
-      validated,
-      knowledge,
-    }
+    return { orchestrators: topLevelAgents.length, subAgents, tools, validated, knowledge }
   }, [topLevelAgents, isDbBacked, architecture])
+
+  // ── Review progress count ──
+  const reviewProgress = useMemo(() => {
+    if (!architecture) return { reviewed: 0, total: 0 }
+    let total = 0
+    for (const q of ['knowledge_systems', 'scoring_models', 'decision_logic', 'ai_capabilities'] as const) {
+      const data = architecture[q]
+      if (data) {
+        total += (data.items?.length || 0) + (data.open_questions?.length || 0)
+      }
+    }
+    return { reviewed: reviewedItems.size, total }
+  }, [architecture, reviewedItems])
 
   // ── Intelligence profile (AI% / Rules% / Data%) ──
   const profile = useMemo(() => {
@@ -156,6 +194,12 @@ export function IntelligenceWorkbench({ projectId, flow, personas }: Intelligenc
     setIsGenerating(false)
   }, [projectId, refreshAgents])
 
+  // ── Discuss handler ──
+  const handleDiscuss = useCallback((section: string, question: string, context: string) => {
+    setChatContext({ section, question, context })
+    setChatOpen(true)
+  }, [])
+
   // ── All sub-agents for the detail panel ──
   const allSubAgents = useMemo(() => {
     const subs: IntelLayerAgent[] = []
@@ -186,7 +230,6 @@ export function IntelligenceWorkbench({ projectId, flow, personas }: Intelligenc
   if (!isDbBacked && !isGenerating) {
     return (
       <div className="flex-1 flex flex-col">
-        {/* Header */}
         <div className="px-5 py-4" style={{ background: '#0A1E2F' }}>
           <p className="text-[14px] font-bold text-white">Intelligence Layer</p>
           <p className="text-[11px] text-white/40 mt-1">
@@ -234,7 +277,7 @@ export function IntelligenceWorkbench({ projectId, flow, personas }: Intelligenc
   // ── Main view ──
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      {/* ── Header (white bg, matches playground v3) ── */}
+      {/* ── Header ── */}
       <div className="px-6 pt-5 pb-4 flex-shrink-0 bg-white" style={{ borderBottom: '1px solid rgba(10,30,47,0.08)' }}>
         <div className="flex items-start justify-between mb-3">
           <div>
@@ -289,61 +332,97 @@ export function IntelligenceWorkbench({ projectId, flow, personas }: Intelligenc
         </div>
       </div>
 
-      {/* ── Scrollable Content ── */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5" style={{ background: '#FAFBFC' }}>
+      {/* ── Content + Chat Panel ── */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5" style={{ background: '#FAFBFC' }}>
 
-        {/* ── Section 1: Intelligence Architecture ── */}
-        {architecture && (
-          <>
+          {/* ── Review Progress Bar ── */}
+          {architecture && reviewProgress.total > 0 && (
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg" style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(10,30,47,0.08)' }}>
+              <span className="text-[9px] font-bold text-[#0A1E2F]">Review</span>
+              <div className="flex-1 flex gap-[3px]">
+                {Array.from({ length: reviewProgress.total }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-1 rounded-sm flex-1"
+                    style={{ background: i < reviewProgress.reviewed ? '#3FAF7A' : 'rgba(10,30,47,0.08)' }}
+                  />
+                ))}
+              </div>
+              <span className="text-[9px] font-semibold text-[#718096] whitespace-nowrap">
+                {reviewProgress.reviewed} of {reviewProgress.total} reviewed
+              </span>
+            </div>
+          )}
+
+          {/* ── Section 1: Intelligence Architecture ── */}
+          {architecture && (
+            <>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-[#0A1E2F] flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-white">1</span>
+                </div>
+                <span className="text-[13px] font-bold text-[#0A1E2F]">Intelligence Architecture</span>
+              </div>
+              <IntelligenceArchitecture
+                architecture={architecture}
+                reviewedItems={reviewedItems}
+                onItemReviewed={handleItemReviewed}
+                onDiscuss={handleDiscuss}
+              />
+            </>
+          )}
+
+          {/* ── Section 2: Agents ── */}
+          <div className="flex items-center gap-2 justify-between">
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 rounded-full bg-[#0A1E2F] flex items-center justify-center">
-                <span className="text-[10px] font-bold text-white">1</span>
+                <span className="text-[10px] font-bold text-white">{architecture ? '2' : '1'}</span>
               </div>
-              <span className="text-[13px] font-bold text-[#0A1E2F]">Intelligence Architecture</span>
+              <span className="text-[13px] font-bold text-[#0A1E2F]">Agents</span>
             </div>
-            <IntelligenceArchitecture architecture={architecture} />
-          </>
-        )}
-
-        {/* ── Section 2: Agents ── */}
-        <div className="flex items-center gap-2 justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-[#0A1E2F] flex items-center justify-center">
-              <span className="text-[10px] font-bold text-white">{architecture ? '2' : '1'}</span>
-            </div>
-            <span className="text-[13px] font-bold text-[#0A1E2F]">Agents</span>
+            <span className="text-[11px] text-[#718096]">What orchestrates the intelligence</span>
           </div>
-          <span className="text-[11px] text-[#718096]">What orchestrates the intelligence</span>
+
+          <div className="space-y-3">
+            {topLevelAgents.map(agent => (
+              <OrchestratorCard
+                key={agent.id}
+                agent={agent}
+                projectId={projectId}
+                isExpanded={expandedOrchId === agent.id}
+                onToggle={() => setExpandedOrchId(prev => prev === agent.id ? null : agent.id)}
+                onSubAgentClick={(sub) => setActiveSubAgent(sub)}
+              />
+            ))}
+          </div>
+
+          {/* Regenerate CTA */}
+          <div className="pt-2 pb-4 flex justify-center">
+            <button
+              onClick={handleGenerate}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-medium transition-all"
+              style={{
+                color: '#3FAF7A',
+                background: 'rgba(63,175,122,0.06)',
+                border: '1px solid rgba(63,175,122,0.15)',
+              }}
+            >
+              <Zap size={10} />
+              Regenerate Intelligence Layer
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-3">
-          {topLevelAgents.map(agent => (
-            <OrchestratorCard
-              key={agent.id}
-              agent={agent}
-              projectId={projectId}
-              isExpanded={expandedOrchId === agent.id}
-              onToggle={() => setExpandedOrchId(prev => prev === agent.id ? null : agent.id)}
-              onSubAgentClick={(sub) => setActiveSubAgent(sub)}
-            />
-          ))}
-        </div>
-
-        {/* Regenerate CTA */}
-        <div className="pt-2 pb-4 flex justify-center">
-          <button
-            onClick={handleGenerate}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-medium transition-all"
-            style={{
-              color: '#3FAF7A',
-              background: 'rgba(63,175,122,0.06)',
-              border: '1px solid rgba(63,175,122,0.15)',
-            }}
-          >
-            <Zap size={10} />
-            Regenerate Intelligence Layer
-          </button>
-        </div>
+        {/* ── Chat Panel (contextual discuss) ── */}
+        {chatOpen && chatContext.question && (
+          <IntelligenceChatPanel
+            projectId={projectId}
+            chatContext={chatContext}
+            onClose={() => setChatOpen(false)}
+          />
+        )}
       </div>
 
       {/* ── Sub-Agent Detail Panel ── */}

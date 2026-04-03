@@ -2264,6 +2264,8 @@ export interface ArchitectureItem {
   description: string
   powers: string
   status: 'defined' | 'unreviewed' | 'gap'
+  outcome_id?: string
+  outcome_title?: string
 }
 
 export interface ArchitectureOpenQuestion {

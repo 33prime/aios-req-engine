@@ -8,14 +8,16 @@
  *
  * Quadrants: Knowledge Systems | Scoring Models | Decision Logic | AI Capabilities
  * Matches playground-intelligence-layer-v3.html design spec.
+ *
+ * v2: outcome links on items, discuss buttons on open questions, review tracking
  */
 
 import { useState } from 'react'
 import {
   BookOpen, Gauge, GitBranch, Sparkles,
-  ChevronDown, CornerDownRight,
+  ChevronDown, CornerDownRight, MessageCircle,
 } from 'lucide-react'
-import type { IntelArchitecture, QuadrantData, ArchitectureItem } from '@/types/workspace'
+import type { IntelArchitecture, QuadrantData, ArchitectureItem, ArchitectureOpenQuestion } from '@/types/workspace'
 
 // ── Quadrant definitions ──
 
@@ -70,22 +72,45 @@ const QUADRANTS: Array<{
 
 // ── Props ──
 
+// Selected can be a defined item or an open question
+type SelectedItem =
+  | { kind: 'item'; idx: number }
+  | { kind: 'question'; idx: number }
+
 interface Props {
   architecture: IntelArchitecture
+  reviewedItems?: Set<string>
+  onItemReviewed?: (key: string) => void
+  onDiscuss?: (quadrant: string, question: string, context: string) => void
 }
 
-export function IntelligenceArchitecture({ architecture }: Props) {
+export function IntelligenceArchitecture({ architecture, reviewedItems, onItemReviewed, onDiscuss }: Props) {
   const [expandedKey, setExpandedKey] = useState<QuadrantKey | null>(null)
-  const [selectedItemIdx, setSelectedItemIdx] = useState(0)
+  const [selected, setSelected] = useState<SelectedItem>({ kind: 'item', idx: 0 })
 
   const toggleQuadrant = (key: QuadrantKey) => {
     if (expandedKey === key) {
       setExpandedKey(null)
     } else {
       setExpandedKey(key)
-      setSelectedItemIdx(0)
+      setSelected({ kind: 'item', idx: 0 })
     }
   }
+
+  const handleSelectItem = (idx: number, item: ArchitectureItem, quadrantKey: string) => {
+    setSelected({ kind: 'item', idx })
+    const reviewKey = `${quadrantKey}:${item.name}`
+    if (onItemReviewed && !reviewedItems?.has(reviewKey)) {
+      onItemReviewed(reviewKey)
+    }
+  }
+
+  const handleSelectQuestion = (idx: number) => {
+    setSelected({ kind: 'question', idx })
+  }
+
+  const isReviewed = (quadrantKey: string, itemName: string) =>
+    reviewedItems?.has(`${quadrantKey}:${itemName}`) ?? false
 
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -94,7 +119,12 @@ export function IntelligenceArchitecture({ architecture }: Props) {
         const isExpanded = expandedKey === q.key
         const totalCount = data.items.length
         const Icon = q.icon
-        const selectedItem: ArchitectureItem | null = isExpanded ? (data.items[selectedItemIdx] || null) : null
+
+        // Resolve selected item or question for the right pane
+        const selectedItem: ArchitectureItem | null =
+          isExpanded && selected.kind === 'item' ? (data.items[selected.idx] || null) : null
+        const selectedQuestion: ArchitectureOpenQuestion | null =
+          isExpanded && selected.kind === 'question' ? (data.open_questions[selected.idx] || null) : null
 
         return (
           <div
@@ -150,60 +180,83 @@ export function IntelligenceArchitecture({ architecture }: Props) {
                   <p className="text-[8px] font-bold uppercase tracking-[0.06em] text-[#A0AEC0] mb-1.5 pl-0.5">
                     {q.label}
                   </p>
-                  {data.items.map((item, i) => (
-                    <div
-                      key={i}
-                      className={`flex items-start gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors mb-0.5 ${
-                        selectedItemIdx === i ? 'bg-[rgba(63,175,122,0.08)]' : 'hover:bg-[rgba(0,0,0,0.02)]'
-                      }`}
-                      onClick={() => setSelectedItemIdx(i)}
-                    >
+                  {data.items.map((item, i) => {
+                    const reviewed = isReviewed(q.key, item.name)
+                    const isSel = selected.kind === 'item' && selected.idx === i
+
+                    return (
                       <div
-                        className="w-[6px] h-[6px] rounded-full mt-[5px] flex-shrink-0"
-                        style={{
-                          background: item.status === 'defined' ? '#3FAF7A' : 'transparent',
-                          border: item.status === 'defined' ? 'none' : '1.5px solid #A0AEC0',
-                        }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-semibold text-[#2D3748] mb-px">{item.name}</p>
-                        <p className="text-[9px] text-[#A0AEC0] leading-snug line-clamp-2">{item.description}</p>
-                        {item.powers && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <CornerDownRight size={9} className="text-[#A0AEC0]" />
-                            <span className="text-[8px] font-semibold text-[#044159]">
-                              Powers {item.powers}
-                            </span>
-                          </div>
+                        key={i}
+                        className={`flex items-start gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors mb-0.5 ${
+                          isSel ? 'bg-[rgba(63,175,122,0.08)]' : 'hover:bg-[rgba(0,0,0,0.02)]'
+                        }`}
+                        onClick={() => handleSelectItem(i, item, q.key)}
+                      >
+                        <div
+                          className="w-[7px] h-[7px] rounded-full mt-[4px] flex-shrink-0"
+                          style={{
+                            background: (item.status === 'defined' || reviewed) ? '#3FAF7A' : 'transparent',
+                            border: (item.status === 'defined' || reviewed) ? '1.5px solid #3FAF7A' : '1.5px solid #A0AEC0',
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-semibold text-[#2D3748] mb-px">{item.name}</p>
+                          <p className="text-[9px] text-[#A0AEC0] leading-snug line-clamp-2">{item.description}</p>
+                          {/* Outcome link arrow */}
+                          {item.powers && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <CornerDownRight size={9} className="text-[#A0AEC0] flex-shrink-0" />
+                              <span className="text-[8px] font-semibold text-[#044159]">
+                                {item.outcome_title || `Powers ${item.powers}`}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        {item.status === 'defined' && (
+                          <span className="text-[7px] font-bold uppercase px-1 py-0.5 rounded bg-[rgba(63,175,122,0.06)] text-[#1B6B3A] flex-shrink-0 mt-0.5">
+                            Defined
+                          </span>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
 
                   {/* Open Questions */}
                   {data.open_questions.length > 0 && (
                     <>
-                      <p className="text-[8px] font-bold uppercase tracking-[0.06em] text-[#A0AEC0] mb-1.5 mt-3 pl-0.5">
+                      <p className="text-[8px] font-bold uppercase tracking-[0.06em] text-[#A0AEC0] mb-1.5 mt-3.5 pl-0.5">
                         Open questions
                       </p>
-                      {data.open_questions.map((oq, i) => (
-                        <div
-                          key={i}
-                          className="flex items-start gap-2 px-2 py-1.5 rounded-md mb-0.5"
-                        >
+                      {data.open_questions.map((oq, i) => {
+                        const isSel = selected.kind === 'question' && selected.idx === i
+                        return (
                           <div
-                            className="w-[6px] h-[6px] rounded-full mt-[5px] flex-shrink-0"
-                            style={{ border: '1.5px dashed #044159', background: 'none' }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-semibold text-[#2D3748]">{oq.question}</p>
-                            <p className="text-[9px] text-[#A0AEC0] leading-snug">{oq.context}</p>
+                            key={i}
+                            className={`flex items-start gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors mb-0.5 ${
+                              isSel ? 'bg-[rgba(4,65,89,0.06)]' : 'hover:bg-[rgba(0,0,0,0.02)]'
+                            }`}
+                            onClick={() => handleSelectQuestion(i)}
+                          >
+                            <div
+                              className="w-[7px] h-[7px] rounded-full mt-[4px] flex-shrink-0"
+                              style={{ border: '1.5px dashed #044159', background: 'none' }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-semibold text-[#2D3748]">{oq.question}</p>
+                              <p className="text-[9px] text-[#A0AEC0] leading-snug">{oq.context}</p>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onDiscuss?.(q.title, oq.question, oq.context)
+                              }}
+                              className="text-[7px] font-bold uppercase px-1.5 py-0.5 rounded text-[#044159] bg-[rgba(4,65,89,0.06)] border border-[rgba(4,65,89,0.08)] flex-shrink-0 mt-0.5 cursor-pointer hover:bg-[rgba(4,65,89,0.12)] transition-colors"
+                            >
+                              Discuss
+                            </button>
                           </div>
-                          <span className="text-[7px] font-bold uppercase px-1.5 py-0.5 rounded text-[#044159] bg-[rgba(4,65,89,0.06)] flex-shrink-0 mt-0.5">
-                            Discuss
-                          </span>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </>
                   )}
                 </div>
@@ -232,9 +285,8 @@ export function IntelligenceArchitecture({ architecture }: Props) {
                           </span>
                         </div>
                         <div className="p-3">
-                          <p className="text-[10px] text-[#718096] italic">
-                            Interactive demo for {selectedItem.name} — coming soon.
-                            This will let you explore the intelligence hands-on.
+                          <p className="text-[10px] text-[#4A5568] leading-relaxed">
+                            {selectedItem.description}
                           </p>
                         </div>
                       </div>
@@ -253,6 +305,36 @@ export function IntelligenceArchitecture({ architecture }: Props) {
                           </p>
                         </div>
                       )}
+                    </>
+                  ) : selectedQuestion ? (
+                    /* Open question detail pane */
+                    <>
+                      <div className="flex items-start gap-2 mb-3">
+                        <MessageCircle size={16} className="text-[#044159] mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-[13px] font-bold text-[#0A1E2F] mb-1">{selectedQuestion.question}</p>
+                          <p className="text-[11px] text-[#718096] leading-relaxed">{selectedQuestion.context}</p>
+                        </div>
+                      </div>
+
+                      {/* Discuss CTA box */}
+                      <div
+                        className="flex items-start gap-2 p-3 rounded-lg"
+                        style={{ background: 'rgba(4,65,89,0.03)', border: '1px solid rgba(4,65,89,0.08)' }}
+                      >
+                        <MessageCircle size={12} className="text-[#044159] mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-[10px] text-[#4A5568] leading-relaxed mb-2">
+                            This is an open question that could shape the intelligence design. Discuss it to refine your thinking.
+                          </p>
+                          <button
+                            onClick={() => onDiscuss?.(q.title, selectedQuestion.question, selectedQuestion.context)}
+                            className="px-3 py-1.5 rounded-md text-[10px] font-semibold text-white bg-[#044159] hover:bg-[#0A1E2F] transition-colors"
+                          >
+                            Discuss this question
+                          </button>
+                        </div>
+                      </div>
                     </>
                   ) : (
                     <p className="text-[11px] text-[#A0AEC0]">Select an item to explore</p>
